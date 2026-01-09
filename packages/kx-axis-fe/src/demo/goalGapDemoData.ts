@@ -22,10 +22,8 @@ export const goalGapDemoFlow: ConversationFlow = {
         y: 50,
         lane: 'BEFORE_CONTACT',
       },
-      priority: {
-        baseRank: 90,
-        capRank: 100,
-      },
+      importance: 'high',
+      maxRuns: 'once',
     },
 
     // 2. Reflective Question - BEFORE CONTACT
@@ -39,10 +37,8 @@ export const goalGapDemoFlow: ConversationFlow = {
         y: 180,
         lane: 'BEFORE_CONTACT',
       },
-      priority: {
-        baseRank: 80,
-        capRank: 90,
-      },
+      importance: 'normal',
+      maxRuns: 'once',
     },
 
     // 3. GOAL_GAP_TRACKER - BEFORE CONTACT (the star of the show!)
@@ -107,10 +103,9 @@ export const goalGapDemoFlow: ConversationFlow = {
         states: ['GOAL_GAP_CAPTURED'],
         metrics: ['goal_target', 'goal_baseline', 'goal_delta', 'goal_category'],
       },
-      priority: {
-        baseRank: 70,
-        capRank: 85,
-      },
+      importance: 'high',
+      maxRuns: 'once',
+      allowSupportiveLine: true,
     },
 
     // 4. Contact Capture - CONTACT_GATE
@@ -131,10 +126,8 @@ export const goalGapDemoFlow: ConversationFlow = {
       eligibility: {
         requiresGoalSet: true,  // Only after goal gap is captured
       },
-      priority: {
-        baseRank: 60,
-        capRank: 80,
-      },
+      importance: 'high',
+      maxRuns: 'once',
     },
 
     // 5. Booking - AFTER CONTACT
@@ -153,10 +146,8 @@ export const goalGapDemoFlow: ConversationFlow = {
         gates: ['BOOKING'],
         metrics: ['booking_date', 'booking_type'],
       },
-      priority: {
-        baseRank: 50,
-        capRank: 70,
-      },
+      importance: 'high',
+      maxRuns: 'once',
     },
 
     // 6. Send Promo - AFTER BOOKING
@@ -174,10 +165,9 @@ export const goalGapDemoFlow: ConversationFlow = {
       satisfies: {
         states: ['PROMO_SENT'],
       },
-      priority: {
-        baseRank: 40,
-        capRank: 60,
-      },
+      importance: 'normal',
+      maxRuns: 'once',
+      allowSupportiveLine: true,
     },
 
     // 7. Handoff - AFTER BOOKING
@@ -196,10 +186,8 @@ export const goalGapDemoFlow: ConversationFlow = {
         gates: ['HANDOFF'],
         states: ['HANDOFF_COMPLETE'],
       },
-      priority: {
-        baseRank: 30,
-        capRank: 50,
-      },
+      importance: 'high',
+      maxRuns: 'once',
     },
   ],
 

@@ -193,7 +193,7 @@ export interface FlowNode {
     requiresGoalSet?: boolean;  // Can only run after goal is defined
   };
   
-  // Priority
+  // Priority (deprecated - use importance instead)
   priority?: {
     baseRank?: number;  // 0-100
     capRank?: number;   // Maximum rank
@@ -204,6 +204,20 @@ export interface FlowNode {
     speechAct?: string;  // e.g., "inform", "request", "confirm"
     allowPrefix?: boolean;  // Can this be prefaced with context?
   };
+  
+  // ========== SIMPLIFIED DESIGNER-FACING FIELDS ==========
+  
+  // Importance (replaces priority.baseRank/capRank with human terms)
+  importance?: 'low' | 'normal' | 'high';  // Default: 'normal'
+  
+  // Max runs (how many times can this node run?)
+  maxRuns?: 'once' | 'multiple' | 'unlimited';  // Default: 'multiple'
+  
+  // Cooldown (min turns between runs)
+  cooldownTurns?: number;  // Default: 0 (no cooldown)
+  
+  // Style allowance (replaces execution.allowPrefix with plain language)
+  allowSupportiveLine?: boolean;  // Can system add a short supportive line before the main message?
 }
 
 // ========== CONVERSATION FLOW ==========
