@@ -145,15 +145,9 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
         if (createNodeFromItem) {
           const newNode = createNodeFromItem(item, targetLane);
           
-          // Position the node in the target lane
-          // Calculate vertical position based on existing nodes in lane
-          const nodesInTargetLane = flow.nodes.filter(n => calculateNodeLane(n) === targetLane);
-          const yPosition = nodesInTargetLane.length * 230; // Stack vertically with 230px spacing
-          
+          // Set the target lane (flex layout handles spacing automatically)
           newNode.ui = {
             ...newNode.ui!,
-            x: 0, // Relative to lane
-            y: yPosition,
             lane: targetLane,
           };
 
@@ -318,31 +312,16 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                 </Paper>
 
                 {/* Nodes in this lane */}
-                <Box sx={{ position: 'relative', minHeight: 400 }}>
-                  {nodesInLane.map((node, nodeIndex) => {
-                    // Use stored ui.y if it's set and non-zero, otherwise calculate based on index
-                    const yPosition = (node.ui?.y != null && node.ui.y !== 0) 
-                      ? node.ui.y 
-                      : nodeIndex * 230; // Spacing: 230px = card (~180px) + visible gap (~50px)
-                    
-                    return (
-                      <Box
-                        key={node.id}
-                        sx={{
-                          position: 'absolute',
-                          left: 0,
-                          top: yPosition,
-                        }}
-                      >
-                        <NodeCard
-                          node={node}
-                          isSelected={selection.type === 'node' && selection.id === node.id}
-                          onClick={() => handleNodeClick(node)}
-                          isDraggable={true}
-                        />
-                      </Box>
-                    );
-                  })}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {nodesInLane.map((node) => (
+                    <NodeCard
+                      key={node.id}
+                      node={node}
+                      isSelected={selection.type === 'node' && selection.id === node.id}
+                      onClick={() => handleNodeClick(node)}
+                      isDraggable={true}
+                    />
+                  ))}
 
                   {nodesInLane.length === 0 && (
                     <Box
