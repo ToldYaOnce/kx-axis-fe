@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Box, Typography, Button, Paper, Snackbar, Alert } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor, useDroppable } from '@dnd-kit/core';
 import { NodeCard } from './NodeCard';
 import { useFlow } from '../../context/FlowContext';
 import type { FlowNode, EligibilityLane } from '../../types';
@@ -12,6 +12,33 @@ import {
   validateNodeInLane,
   getLaneAtPosition,
 } from '../../utils/laneLogic';
+
+// Droppable Lane Component
+const DroppableLane: React.FC<{ lane: EligibilityLane; children: React.ReactNode }> = ({ lane, children }) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `lane-${lane}`,
+    data: {
+      lane,
+    },
+  });
+
+  return (
+    <Box
+      ref={setNodeRef}
+      sx={{
+        flex: 1,
+        position: 'relative',
+        px: 2,
+        py: 2,
+        minWidth: 280,
+        backgroundColor: isOver ? 'action.hover' : 'transparent',
+        transition: 'background-color 0.2s',
+      }}
+    >
+      {children}
+    </Box>
+  );
+};
 
 export const Canvas: React.FC = () => {
   const { flow, selection, setSelection, addNode, updateNode } = useFlow();
@@ -115,15 +142,16 @@ export const Canvas: React.FC = () => {
       const nodeId = active.id as string;
       const node = flow.nodes.find((n) => n.id === nodeId);
 
-      if (!node || !canvasRef.current) return;
+      if (!node) return;
 
-      // Calculate new position
-      const currentX = node.ui?.x || 0;
-      const newX = currentX + delta.x;
-
-      // Determine which lane the node is now in
-      const canvasWidth = canvasRef.current.offsetWidth;
-      const targetLane = getLaneAtPosition(newX, canvasWidth);
+      // Get the target lane from the droppable zone
+      const targetLane = over?.data.current?.lane as EligibilityLane | undefined;
+      
+      if (!targetLane) {
+        // Dropped outside a valid lane - do nothing
+        return;
+      }
+      
       const currentLane = calculateNodeLane(node);
 
       // If lane changed, update node semantically
@@ -141,31 +169,12 @@ export const Canvas: React.FC = () => {
 
         // Update node for new lane (this updates requires/satisfies)
         const updatedNode = updateNodeForLane(node, targetLane);
-        
-        // Update position
-        const finalNode = {
-          ...updatedNode,
-          ui: {
-            ...updatedNode.ui!,
-            x: newX,
-            y: (node.ui?.y || 0) + delta.y,
-          },
-        };
 
-        updateNode(nodeId, finalNode);
+        updateNode(nodeId, updatedNode);
 
         setSnackbar({
           message: `Moved to ${LANE_CONFIG[targetLane].label}`,
           severity: 'success',
-        });
-      } else {
-        // Just update position within same lane
-        updateNode(nodeId, {
-          ui: {
-            ...node.ui!,
-            x: newX,
-            y: (node.ui?.y || 0) + delta.y,
-          },
         });
       }
     },
@@ -237,15 +246,11 @@ export const Canvas: React.FC = () => {
               <Box
                 key={lane}
                 sx={{
-                  flex: 1,
                   borderRight: index < lanes.length - 1 ? '2px dashed' : 'none',
                   borderColor: 'divider',
-                  position: 'relative',
-                  px: 2,
-                  py: 2,
-                  minWidth: 280,
                 }}
               >
+                <DroppableLane lane={lane}>
                 {/* Lane Header */}
                 <Paper
                   elevation={0}
@@ -316,6 +321,7 @@ export const Canvas: React.FC = () => {
                     </Box>
                   )}
                 </Box>
+                </DroppableLane>
               </Box>
             );
           })}
