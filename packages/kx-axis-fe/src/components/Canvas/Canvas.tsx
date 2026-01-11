@@ -38,7 +38,8 @@ const DroppableLane: React.FC<{
         minHeight: '100%', // Ensure lanes extend full height
         backgroundColor: isOver ? 'action.hover' : 'transparent',
         transition: 'background-color 0.2s',
-        borderRight: !isLast ? (isElastic ? '2px dashed' : '1px solid') : 'none',
+        // Elastic lane always gets dashed border, regular lanes get solid unless last
+        borderRight: isElastic ? '2px dashed' : (!isLast ? '1px solid' : 'none'),
         borderColor: 'divider',
         opacity: isElastic ? 0.6 : 1,
         display: 'flex',
