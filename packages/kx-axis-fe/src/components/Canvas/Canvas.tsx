@@ -321,9 +321,9 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                   {!isLast && (
                     <Box
                       sx={{
-                        fontSize: '1.5rem',
+                        fontSize: '3rem',
                         fontWeight: 700,
-                        color: 'rgba(255, 255, 255, 0.4)',
+                        color: 'rgba(255, 255, 255, 0.7)',
                         lineHeight: 1,
                         userSelect: 'none',
                       }}
