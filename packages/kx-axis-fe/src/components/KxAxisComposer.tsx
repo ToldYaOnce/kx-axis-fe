@@ -145,7 +145,7 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
                     position: 'relative',
                     borderRight: '1px solid',
                     borderColor: 'divider',
-                    overflowY: 'auto',
+                    overflowY: activeItem ? 'hidden' : 'auto', // Disable scroll during drag
                   },
                 }}
               >
