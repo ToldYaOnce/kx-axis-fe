@@ -155,7 +155,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
             display: 'flex',
             minHeight: 'calc(100vh - 80px)', // Ensure lanes extend full viewport height
             height: 'auto',
-            pt: 8,
+            pt: 2,
           }}
         >
           {derivedLanes.map((lane, index) => {
