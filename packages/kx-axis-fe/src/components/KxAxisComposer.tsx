@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { Box, CssBaseline, ThemeProvider, createTheme, Drawer } from '@mui/material';
-import { DndContext, useSensor, useSensors, PointerSensor, DragEndEvent } from '@dnd-kit/core';
+import { Box, CssBaseline, ThemeProvider, createTheme, Drawer, Paper, Typography } from '@mui/material';
+import { DndContext, useSensor, useSensors, PointerSensor, DragEndEvent, DragStartEvent, DragOverlay } from '@dnd-kit/core';
 import { FlowProvider } from '../context/FlowContext';
 import { TopBar } from './TopBar';
 import { Canvas, type CanvasHandle } from './Canvas/Canvas';
@@ -59,6 +59,7 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
 }) => {
   const [simulateOpen, setSimulateOpen] = useState(false);
   const [capturesOpen, setCapturesOpen] = useState(false);
+  const [activeItem, setActiveItem] = useState<any>(null);
   const canvasRef = useRef<CanvasHandle>(null);
 
   // DnD sensors
@@ -70,10 +71,20 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
     })
   );
 
+  // Drag start handler - track what's being dragged
+  const handleDragStart = (event: DragStartEvent) => {
+    console.log('🚀 KxAxisComposer handleDragStart called');
+    const isPaletteItem = event.active.data.current?.type === 'palette-item';
+    if (isPaletteItem) {
+      setActiveItem(event.active.data.current.item);
+    }
+  };
+
   // Drag end handler - delegates to Canvas
   const handleDragEnd = (event: DragEndEvent) => {
     console.log('🎯 KxAxisComposer handleDragEnd called');
     canvasRef.current?.handleDragEnd(event);
+    setActiveItem(null);
   };
 
   const handleSimulate = () => {
@@ -119,7 +130,7 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
           />
 
           {/* Main Content Area */}
-          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
               {/* Conversation Items Palette (Left) */}
               <Drawer
@@ -147,6 +158,33 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
               {/* Inspector Panel (Right) */}
               <Inspector />
             </Box>
+            
+            {/* Drag Overlay - renders dragged item on top of everything */}
+            <DragOverlay dropAnimation={null}>
+              {activeItem ? (
+                <Paper
+                  elevation={8}
+                  sx={{
+                    p: 2,
+                    cursor: 'grabbing',
+                    opacity: 0.9,
+                    border: '2px solid',
+                    borderColor: 'primary.main',
+                    backgroundColor: 'background.paper',
+                    minWidth: 280,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center' }}>
+                      {activeItem.icon}
+                    </Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {activeItem.title}
+                    </Typography>
+                  </Box>
+                </Paper>
+              ) : null}
+            </DragOverlay>
           </DndContext>
 
           {/* Simulate Panel (Right Drawer) */}

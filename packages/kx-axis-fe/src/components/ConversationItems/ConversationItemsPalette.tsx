@@ -131,6 +131,8 @@ const DraggableConversationItem: React.FC<{ item: ConversationItem }> = ({ item 
         transition: isDragging ? 'none' : 'all 0.2s',
         opacity: isDragging ? 0.5 : 1,
         cursor: 'grab',
+        zIndex: isDragging ? 9999 : 'auto',
+        position: 'relative',
         '&:active': {
           cursor: 'grabbing',
         },
