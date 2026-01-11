@@ -124,12 +124,20 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
         if (!canvasRef.current) return;
 
         const item = active.data.current.item;
-        const canvasWidth = canvasRef.current.offsetWidth;
         
-        // Determine which lane based on drop position
-        // We need to estimate the drop position - use the canvas center + delta as approximation
-        const dropX = canvasWidth / 2 + delta.x;
-        const targetLane = getLaneAtPosition(dropX, canvasWidth);
+        // Get the target lane from the droppable zone (same as existing node drag)
+        const targetLane = over?.data.current?.lane as EligibilityLane | undefined;
+        
+        if (!targetLane) {
+          console.log('❌ Dropped outside a valid lane');
+          setSnackbar({
+            message: 'Drop into a lane to add this node',
+            severity: 'warning',
+          });
+          return;
+        }
+
+        console.log('🎯 Target lane:', targetLane);
 
         // Get the createNodeFromItem function from window (set by palette)
         const createNodeFromItem = (window as any).__createNodeFromItem;
@@ -137,11 +145,15 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
         if (createNodeFromItem) {
           const newNode = createNodeFromItem(item, targetLane);
           
-          // Position the node based on drop location
+          // Position the node in the target lane
+          // Calculate vertical position based on existing nodes in lane
+          const nodesInTargetLane = flow.nodes.filter(n => calculateNodeLane(n) === targetLane);
+          const yPosition = nodesInTargetLane.length * 160; // Stack vertically
+          
           newNode.ui = {
             ...newNode.ui!,
-            x: dropX,
-            y: 100, // Default y position in lane
+            x: 0, // Relative to lane
+            y: yPosition,
             lane: targetLane,
           };
 

@@ -92,13 +92,14 @@ const CONVERSATION_ITEMS: ConversationItem[] = [
 ];
 
 // Draggable wrapper for individual conversation items
-const DraggableConversationItem: React.FC<{ item: ConversationItem }> = ({ item }) => {
+const DraggableConversationItem: React.FC<{ item: ConversationItem; isUsed: boolean }> = ({ item, isUsed }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `palette-${item.id}`,
     data: {
       type: 'palette-item',
       item,
     },
+    disabled: isUsed,
   });
 
   React.useEffect(() => {
@@ -127,19 +128,21 @@ const DraggableConversationItem: React.FC<{ item: ConversationItem }> = ({ item 
       sx={{
         mb: 1.5,
         border: '1px solid',
-        borderColor: 'divider',
+        borderColor: isUsed ? 'divider' : 'divider',
         transition: isDragging ? 'none' : 'all 0.2s',
-        opacity: isDragging ? 0.5 : 1,
-        cursor: 'grab',
+        opacity: isUsed ? 0.4 : (isDragging ? 0.5 : 1),
+        cursor: isUsed ? 'not-allowed' : 'grab',
         zIndex: isDragging ? 9999 : 'auto',
         position: 'relative',
+        pointerEvents: isUsed ? 'none' : 'auto',
+        backgroundColor: isUsed ? 'action.disabledBackground' : 'background.paper',
         '&:active': {
-          cursor: 'grabbing',
+          cursor: isUsed ? 'not-allowed' : 'grabbing',
         },
         '&:hover': {
-          borderColor: 'primary.main',
-          backgroundColor: 'action.hover',
-          transform: isDragging ? undefined : 'translateX(4px)',
+          borderColor: isUsed ? 'divider' : 'primary.main',
+          backgroundColor: isUsed ? 'action.disabledBackground' : 'action.hover',
+          transform: isUsed ? undefined : (isDragging ? undefined : 'translateX(4px)'),
         },
         ...style,
       }}
@@ -147,16 +150,16 @@ const DraggableConversationItem: React.FC<{ item: ConversationItem }> = ({ item 
       {...listeners}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 2, gap: 1 }}>
-        <DragIndicatorIcon sx={{ fontSize: '1rem', color: 'text.disabled' }} />
-        <Box sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center' }}>
+        <DragIndicatorIcon sx={{ fontSize: '1rem', color: isUsed ? 'action.disabled' : 'text.disabled' }} />
+        <Box sx={{ color: isUsed ? 'action.disabled' : 'text.secondary', display: 'flex', alignItems: 'center' }}>
           {item.icon}
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, color: isUsed ? 'text.disabled' : 'text.primary' }}>
               {item.title}
             </Typography>
-            {item.kind === 'GOAL_GAP_TRACKER' && (
+            {item.kind === 'GOAL_GAP_TRACKER' && !isUsed && (
               <Typography
                 variant="caption"
                 sx={{
@@ -172,8 +175,24 @@ const DraggableConversationItem: React.FC<{ item: ConversationItem }> = ({ item 
                 NEW
               </Typography>
             )}
+            {isUsed && (
+              <Typography
+                variant="caption"
+                sx={{
+                  backgroundColor: 'success.light',
+                  color: 'success.dark',
+                  px: 0.75,
+                  py: 0.25,
+                  borderRadius: 0.5,
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                }}
+              >
+                ON CANVAS
+              </Typography>
+            )}
           </Box>
-          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+          <Typography variant="caption" sx={{ color: isUsed ? 'text.disabled' : 'text.secondary', display: 'block', mt: 0.5 }}>
             {item.description}
           </Typography>
         </Box>
@@ -183,7 +202,22 @@ const DraggableConversationItem: React.FC<{ item: ConversationItem }> = ({ item 
 };
 
 export const ConversationItemsPalette: React.FC = () => {
-  const { addNode } = useFlow();
+  const { addNode, flow } = useFlow();
+
+  // Track which single-use items are already on the canvas
+  const usedItemIds = new Set<string>();
+  
+  // Single-use items (can only be added once)
+  const SINGLE_USE_ITEMS = ['contact', 'booking', 'goal-gap', 'handoff'];
+  
+  flow.nodes.forEach((node) => {
+    // Check if node ID starts with any single-use item prefix
+    SINGLE_USE_ITEMS.forEach((itemId) => {
+      if (node.id.startsWith(itemId)) {
+        usedItemIds.add(itemId);
+      }
+    });
+  });
 
   // Helper function to create a node from a conversation item
   const createNodeFromItem = (item: ConversationItem, lane?: string): FlowNode => {
@@ -280,7 +314,11 @@ export const ConversationItemsPalette: React.FC = () => {
 
       <Box>
         {CONVERSATION_ITEMS.map((item) => (
-          <DraggableConversationItem key={item.id} item={item} />
+          <DraggableConversationItem 
+            key={item.id} 
+            item={item} 
+            isUsed={usedItemIds.has(item.id)}
+          />
         ))}
       </Box>
 
