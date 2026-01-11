@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, Typography, Chip, Paper } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Typography, Chip, Paper, Divider, IconButton, Popover, List, ListItemButton, ListItemText } from '@mui/material';
 import DataObjectIcon from '@mui/icons-material/DataObject';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -12,10 +12,13 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import CategoryIcon from '@mui/icons-material/Category';
 import EventIcon from '@mui/icons-material/Event';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import CloseIcon from '@mui/icons-material/Close';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import type { FlowNode, NodeKind } from '../../types';
 import { getNodeGateRequirements, getNodeGateSatisfactions } from '../../utils/laneLogic';
+import { useFlow } from '../../context/FlowContext';
 
 interface NodeCardProps {
   node: FlowNode;
@@ -46,7 +49,27 @@ const NODE_COLORS: Record<NodeKind, string> = {
   HANDOFF: '#E94B3C',
 };
 
+// Available facts that can be required (human-labeled)
+const AVAILABLE_FACTS = [
+  { id: 'contact_email', label: 'Email address' },
+  { id: 'contact_phone', label: 'Phone number' },
+  { id: 'contact_name', label: 'Name' },
+  { id: 'goal_target', label: 'Target goal' },
+  { id: 'goal_baseline', label: 'Current baseline' },
+  { id: 'goal_timeline', label: 'Timeline' },
+  { id: 'booking_date', label: 'Booking date' },
+  { id: 'budget', label: 'Budget' },
+];
+
+// Determine if node is a Data Capture node (shows inline requirements)
+const isDataCaptureNode = (kind: NodeKind): boolean => {
+  return ['BASELINE_CAPTURE', 'GOAL_DEFINITION', 'DEADLINE_CAPTURE'].includes(kind);
+};
+
 export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, isDraggable = false }) => {
+  const { updateNode } = useFlow();
+  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+
   // Get GATE requirements and satisfactions (not node IDs)
   const gateRequirements = getNodeGateRequirements(node);
   const gateSatisfactions = getNodeGateSatisfactions(node);
@@ -62,6 +85,46 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         transform: CSS.Translate.toString(transform),
       }
     : undefined;
+
+  // Get required facts (metrics that must exist before this node runs)
+  const requiredFacts = node.satisfies?.metrics || [];
+  const isDataCapture = isDataCaptureNode(node.kind);
+
+  // Handlers for inline requirement editing
+  const handleAddRequirementClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleAddRequirement = (factId: string) => {
+    const currentMetrics = node.satisfies?.metrics || [];
+    if (!currentMetrics.includes(factId)) {
+      updateNode(node.id, {
+        satisfies: {
+          ...node.satisfies,
+          metrics: [...currentMetrics, factId],
+        },
+      });
+    }
+    setAnchorEl(null);
+  };
+
+  const handleRemoveRequirement = (event: React.MouseEvent, factId: string) => {
+    event.stopPropagation();
+    const currentMetrics = node.satisfies?.metrics || [];
+    updateNode(node.id, {
+      satisfies: {
+        ...node.satisfies,
+        metrics: currentMetrics.filter((m) => m !== factId),
+      },
+    });
+  };
+
+  const handleClosePopover = () => {
+    setAnchorEl(null);
+  };
+
+  const popoverOpen = Boolean(anchorEl);
 
   return (
     <Paper
@@ -121,96 +184,208 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         {node.title}
       </Typography>
 
-      {/* Chips - ALWAYS VISIBLE */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, minHeight: 24 }}>
-        {/* GOAL_GAP_TRACKER specific chips */}
-        {node.kind === 'GOAL_GAP_TRACKER' && (
-          <>
-            <Chip
-              icon={<TrendingUpIcon sx={{ fontSize: '0.8rem' }} />}
-              label="Captures: Target + Baseline"
-              size="small"
+      {/* Inline "Must know before" section for Data Capture nodes */}
+      {isDataCapture && (
+        <>
+          <Divider sx={{ my: 2 }} />
+          <Box>
+            <Typography
+              variant="caption"
               sx={{
-                height: 22,
                 fontSize: '0.7rem',
                 fontWeight: 600,
-                backgroundColor: '#E3F2FD',
-                color: '#1565C0',
-                '& .MuiChip-icon': { color: '#1565C0' },
+                color: 'text.secondary',
+                display: 'block',
+                mb: 1,
               }}
-            />
-            <Chip
-              icon={<CategoryIcon sx={{ fontSize: '0.8rem' }} />}
-              label="Produces: Delta + Category"
-              size="small"
-              sx={{
-                height: 22,
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                backgroundColor: '#F3E5F5',
-                color: '#6A1B9A',
-                '& .MuiChip-icon': { color: '#6A1B9A' },
-              }}
-            />
-            {node.goalGapTracker?.deadlinePolicyDefault && 
-             node.goalGapTracker.deadlinePolicyDefault !== 'INHERIT' && (
+            >
+              Must know before
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+              {requiredFacts.map((factId) => {
+                const fact = AVAILABLE_FACTS.find((f) => f.id === factId);
+                return (
+                  <Chip
+                    key={factId}
+                    label={fact?.label || factId}
+                    size="small"
+                    onDelete={(e) => handleRemoveRequirement(e, factId)}
+                    deleteIcon={<CloseIcon sx={{ fontSize: '0.9rem' }} />}
+                    sx={{
+                      height: 20,
+                      fontSize: '0.65rem',
+                      fontWeight: 500,
+                      backgroundColor: 'transparent',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      color: 'text.secondary',
+                      '& .MuiChip-deleteIcon': {
+                        color: 'text.disabled',
+                        '&:hover': {
+                          color: 'text.secondary',
+                        },
+                      },
+                    }}
+                  />
+                );
+              })}
+              <IconButton
+                size="small"
+                onClick={handleAddRequirementClick}
+                sx={{
+                  width: 20,
+                  height: 20,
+                  color: 'text.secondary',
+                  '&:hover': {
+                    color: 'primary.main',
+                    backgroundColor: 'action.hover',
+                  },
+                }}
+              >
+                <AddCircleOutlineIcon sx={{ fontSize: '0.9rem' }} />
+              </IconButton>
+            </Box>
+          </Box>
+        </>
+      )}
+
+      {/* Chips - ALWAYS VISIBLE (except Requires badges for Data Capture) */}
+      {!isDataCapture && (
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, minHeight: 24 }}>
+          {/* GOAL_GAP_TRACKER specific chips */}
+          {node.kind === 'GOAL_GAP_TRACKER' && (
+            <>
               <Chip
-                icon={<EventIcon sx={{ fontSize: '0.8rem' }} />}
-                label={`Deadline: ${node.goalGapTracker.deadlinePolicyDefault.replace('_', ' ')}`}
+                icon={<TrendingUpIcon sx={{ fontSize: '0.8rem' }} />}
+                label="Captures: Target + Baseline"
                 size="small"
                 sx={{
                   height: 22,
                   fontSize: '0.7rem',
                   fontWeight: 600,
-                  backgroundColor: '#FFF3E0',
-                  color: '#E65100',
-                  '& .MuiChip-icon': { color: '#E65100' },
+                  backgroundColor: '#E3F2FD',
+                  color: '#1565C0',
+                  '& .MuiChip-icon': { color: '#1565C0' },
                 }}
               />
-            )}
-          </>
-        )}
+              <Chip
+                icon={<CategoryIcon sx={{ fontSize: '0.8rem' }} />}
+                label="Produces: Delta + Category"
+                size="small"
+                sx={{
+                  height: 22,
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  backgroundColor: '#F3E5F5',
+                  color: '#6A1B9A',
+                  '& .MuiChip-icon': { color: '#6A1B9A' },
+                }}
+              />
+              {node.goalGapTracker?.deadlinePolicyDefault && 
+               node.goalGapTracker.deadlinePolicyDefault !== 'INHERIT' && (
+                <Chip
+                  icon={<EventIcon sx={{ fontSize: '0.8rem' }} />}
+                  label={`Deadline: ${node.goalGapTracker.deadlinePolicyDefault.replace('_', ' ')}`}
+                  size="small"
+                  sx={{
+                    height: 22,
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    backgroundColor: '#FFF3E0',
+                    color: '#E65100',
+                    '& .MuiChip-icon': { color: '#E65100' },
+                  }}
+                />
+              )}
+            </>
+          )}
 
-        {/* Show what gates this node REQUIRES */}
-        {gateRequirements.map((gate) => (
-          <Chip
-            key={`req-${gate}`}
-            icon={<LockIcon sx={{ fontSize: '0.8rem' }} />}
-            label={`Requires ${gate}`}
-            size="small"
-            sx={{
-              height: 22,
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              backgroundColor: '#FFE0B2',
-              color: '#E65100',
-              '& .MuiChip-icon': {
+          {/* Show what gates this node REQUIRES (NOT for Data Capture nodes) */}
+          {gateRequirements.map((gate) => (
+            <Chip
+              key={`req-${gate}`}
+              icon={<LockIcon sx={{ fontSize: '0.8rem' }} />}
+              label={`Requires ${gate}`}
+              size="small"
+              sx={{
+                height: 22,
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                backgroundColor: '#FFE0B2',
                 color: '#E65100',
-              },
-            }}
-          />
-        ))}
+                '& .MuiChip-icon': {
+                  color: '#E65100',
+                },
+              }}
+            />
+          ))}
 
-        {/* Show what gates this node SATISFIES */}
-        {gateSatisfactions.map((gate) => (
-          <Chip
-            key={`sat-${gate}`}
-            icon={<LockOpenIcon sx={{ fontSize: '0.8rem' }} />}
-            label={`Unlocks ${gate}`}
-            size="small"
-            sx={{
-              height: 22,
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              backgroundColor: '#C8E6C9',
-              color: '#2E7D32',
-              '& .MuiChip-icon': {
+          {/* Show what gates this node SATISFIES */}
+          {gateSatisfactions.map((gate) => (
+            <Chip
+              key={`sat-${gate}`}
+              icon={<LockOpenIcon sx={{ fontSize: '0.8rem' }} />}
+              label={`Unlocks ${gate}`}
+              size="small"
+              sx={{
+                height: 22,
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                backgroundColor: '#C8E6C9',
                 color: '#2E7D32',
-              },
-            }}
-          />
-        ))}
-      </Box>
+                '& .MuiChip-icon': {
+                  color: '#2E7D32',
+                },
+              }}
+            />
+          ))}
+        </Box>
+      )}
+
+      {/* Popover for adding requirements */}
+      <Popover
+        open={popoverOpen}
+        anchorEl={anchorEl}
+        onClose={handleClosePopover}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <List sx={{ py: 0.5, minWidth: 200 }}>
+          {AVAILABLE_FACTS.filter((fact) => !requiredFacts.includes(fact.id)).map((fact) => (
+            <ListItemButton
+              key={fact.id}
+              onClick={() => handleAddRequirement(fact.id)}
+              sx={{ py: 1, px: 2 }}
+            >
+              <ListItemText
+                primary={fact.label}
+                primaryTypographyProps={{
+                  variant: 'body2',
+                  sx: { fontSize: '0.8rem' },
+                }}
+              />
+            </ListItemButton>
+          ))}
+          {AVAILABLE_FACTS.filter((fact) => !requiredFacts.includes(fact.id)).length === 0 && (
+            <ListItemButton disabled sx={{ py: 1, px: 2 }}>
+              <ListItemText
+                primary="No more facts available"
+                primaryTypographyProps={{
+                  variant: 'body2',
+                  sx: { fontSize: '0.8rem', fontStyle: 'italic' },
+                }}
+              />
+            </ListItemButton>
+          )}
+        </List>
+      </Popover>
     </Paper>
   );
 };

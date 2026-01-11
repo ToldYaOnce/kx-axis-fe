@@ -93,6 +93,9 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
   const lane = node.ui?.lane || 'BEFORE_CONTACT';
   const runsIn = LANE_LABELS[lane] || lane;
 
+  // Check if this is a Data Capture node
+  const isDataCaptureNode = ['BASELINE_CAPTURE', 'GOAL_DEFINITION', 'DEADLINE_CAPTURE'].includes(node.kind);
+
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
@@ -161,6 +164,26 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
         <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
           Locks & Unlocks
         </Typography>
+
+        {isDataCaptureNode && (
+          <Box
+            sx={{
+              mb: 2,
+              p: 1.5,
+              backgroundColor: 'info.lighter',
+              borderRadius: 1,
+              border: '1px dashed',
+              borderColor: 'info.light',
+            }}
+          >
+            <Typography variant="caption" sx={{ color: 'info.dark', fontWeight: 600 }}>
+              💡 Edit requirements on the card
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+              Data Capture nodes show "Must know before" inline. Click the + button on the card to add/remove requirements.
+            </Typography>
+          </Box>
+        )}
 
         {/* Locks (what this requires) */}
         <Box sx={{ mb: 2 }}>
