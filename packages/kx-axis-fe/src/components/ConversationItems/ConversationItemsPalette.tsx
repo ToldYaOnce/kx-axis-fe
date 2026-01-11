@@ -269,28 +269,31 @@ export const ConversationItemsPalette: React.FC = () => {
   const [newItemTitle, setNewItemTitle] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<InfoCapturePreset>('blank');
 
-  // Track which single-use items are already on the canvas
+  // Track which items are already on the canvas
   const usedItemIds = new Set<string>();
   
-  // Single-use items (can only be added once)
-  const SINGLE_USE_ITEMS = ['contact', 'booking', 'goal-gap', 'handoff'];
-  
   flow.nodes.forEach((node) => {
-    // Check if node ID starts with any single-use item prefix
-    SINGLE_USE_ITEMS.forEach((itemId) => {
-      if (node.id.startsWith(itemId)) {
-        usedItemIds.add(itemId);
-      }
-    });
-    
-    // Check for preset-based items by matching title and captures
+    // Check ALL conversation items to see if they're on the canvas
     conversationItems.forEach((item) => {
-      // For INFO_CAPTURE items with presets, check by title match
+      // Method 1: Check if node ID starts with item ID (for items dragged from palette)
+      // e.g., node.id = "welcome-1234567890" matches item.id = "welcome"
+      if (node.id.startsWith(item.id)) {
+        usedItemIds.add(item.id);
+        return;
+      }
+      
+      // Method 2: For preset-based items, match by title and kind
+      // e.g., "Get name" preset items created via dialog
       if (item.captures && item.captures.length > 0) {
-        // Match by title (e.g., "Get name" preset)
         if (node.title === item.title && node.kind === item.kind) {
           usedItemIds.add(item.id);
+          return;
         }
+      }
+      
+      // Method 3: For custom items created via dialog, match by exact ID
+      if (node.id === item.id) {
+        usedItemIds.add(item.id);
       }
     });
   });
