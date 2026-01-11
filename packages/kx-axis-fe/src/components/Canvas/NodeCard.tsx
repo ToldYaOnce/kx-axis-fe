@@ -58,7 +58,6 @@ const isDataCaptureNode = (kind: NodeKind): boolean => {
 export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, isDraggable = false }) => {
   const { updateNode, removeNode, flow } = useFlow();
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
-  const [gateAnchorEl, setGateAnchorEl] = useState<HTMLButtonElement | null>(null);
 
   const handleDelete = (event: React.MouseEvent) => {
     event.stopPropagation();
@@ -223,72 +222,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         {node.title}
       </Typography>
 
-      {/* Inline "Must know before" section for Data Capture nodes */}
-      {isDataCapture && (
-        <>
-          <Divider sx={{ my: 2 }} />
-          <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                color: 'text.secondary',
-                display: 'block',
-                mb: 1,
-              }}
-            >
-              Must know before
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
-              {requiredNodeIds.map((nodeId) => {
-                const requiredNode = flow.nodes.find((n) => n.id === nodeId);
-                return (
-                  <Chip
-                    key={nodeId}
-                    label={requiredNode?.title || nodeId}
-                    size="small"
-                    onDelete={(e) => handleRemoveRequirement(e, nodeId)}
-                    deleteIcon={<CloseIcon sx={{ fontSize: '0.9rem' }} />}
-                    sx={{
-                      height: 20,
-                      fontSize: '0.65rem',
-                      fontWeight: 500,
-                      backgroundColor: 'transparent',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      color: 'text.secondary',
-                      '& .MuiChip-deleteIcon': {
-                        color: 'text.disabled',
-                        '&:hover': {
-                          color: 'text.secondary',
-                        },
-                      },
-                    }}
-                  />
-                );
-              })}
-              <IconButton
-                size="small"
-                onClick={handleAddRequirementClick}
-                sx={{
-                  width: 20,
-                  height: 20,
-                  color: 'text.secondary',
-                  '&:hover': {
-                    color: 'primary.main',
-                    backgroundColor: 'action.hover',
-                  },
-                }}
-              >
-                <AddCircleOutlineIcon sx={{ fontSize: '0.9rem' }} />
-              </IconButton>
-            </Box>
-          </Box>
-        </>
-      )}
-
-      {/* Inline "Needs before" section - EDITABLE for lane control */}
+      {/* Unified "Must know before" section - shows both gate requirements and node prerequisites */}
       <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}>
         <Typography
           variant="caption"
@@ -300,9 +234,10 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
             mb: 0.5,
           }}
         >
-          Needs before
+          Must know before
         </Typography>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+          {/* Show gate requirements (CONTACT, BOOKING) */}
           {gateRequirements.map((gate) => (
             <Chip
               key={gate}
@@ -332,27 +267,55 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
               }}
             />
           ))}
-          {/* Add gate requirement button */}
-          {availableGatesToAdd.length > 0 && (
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                setGateAnchorEl(e.currentTarget);
-              }}
-              sx={{
-                width: 20,
-                height: 20,
-                color: 'text.secondary',
-                '&:hover': {
-                  color: 'primary.main',
-                  backgroundColor: 'action.hover',
-                },
-              }}
-            >
-              <AddCircleOutlineIcon sx={{ fontSize: '0.9rem' }} />
-            </IconButton>
-          )}
+          
+          {/* Show node prerequisites (other nodes) */}
+          {requiredNodeIds.map((nodeId) => {
+            const requiredNode = flow.nodes.find((n) => n.id === nodeId);
+            return (
+              <Chip
+                key={nodeId}
+                label={requiredNode?.title || nodeId}
+                size="small"
+                onDelete={(e) => handleRemoveRequirement(e, nodeId)}
+                deleteIcon={<CloseIcon sx={{ fontSize: '0.9rem' }} />}
+                sx={{
+                  height: 20,
+                  fontSize: '0.65rem',
+                  fontWeight: 500,
+                  backgroundColor: 'transparent',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  color: 'text.secondary',
+                  '& .MuiChip-deleteIcon': {
+                    color: 'text.disabled',
+                    '&:hover': {
+                      color: 'text.secondary',
+                    },
+                  },
+                }}
+              />
+            );
+          })}
+          
+          {/* Add requirement button - unified */}
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              setAnchorEl(e.currentTarget);
+            }}
+            sx={{
+              width: 20,
+              height: 20,
+              color: 'text.secondary',
+              '&:hover': {
+                color: 'primary.main',
+                backgroundColor: 'action.hover',
+              },
+            }}
+          >
+            <AddCircleOutlineIcon sx={{ fontSize: '0.9rem' }} />
+          </IconButton>
         </Box>
         <Typography
           variant="caption"
@@ -439,7 +402,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         ))}
       </Box>
 
-      {/* Popover for adding node requirements */}
+      {/* Unified Popover for adding all types of requirements */}
       <Popover
         open={popoverOpen}
         anchorEl={anchorEl}
@@ -455,91 +418,93 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         onClick={(e) => e.stopPropagation()}
       >
         <List sx={{ py: 0.5, minWidth: 200 }}>
-          {availablePrerequisiteNodes.filter((n) => !requiredNodeIds.includes(n.id)).map((n) => (
-            <ListItemButton
-              key={n.id}
-              onClick={() => handleAddRequirement(n.id)}
-              sx={{ py: 1, px: 2 }}
-            >
-              <ListItemText
-                primary={n.title}
-                primaryTypographyProps={{
-                  variant: 'body2',
-                  sx: { fontSize: '0.8rem' },
-                }}
-              />
-            </ListItemButton>
-          ))}
-          {availablePrerequisiteNodes.filter((n) => !requiredNodeIds.includes(n.id)).length === 0 && (
+          {/* Show available gates (CONTACT, BOOKING) */}
+          {availableGatesToAdd.length > 0 && (
+            <>
+              <ListItem sx={{ py: 0, px: 2, pb: 0.5 }}>
+                <ListItemText
+                  primary="Gates"
+                  primaryTypographyProps={{
+                    variant: 'caption',
+                    sx: { fontSize: '0.7rem', fontWeight: 600, color: 'text.secondary' },
+                  }}
+                />
+              </ListItem>
+              {availableGatesToAdd.map((gate) => (
+                <ListItemButton
+                  key={gate}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newRequires = [...(node.requires || []), gate];
+                    updateNode(node.id, { requires: newRequires });
+                    setAnchorEl(null);
+                  }}
+                  sx={{ py: 1, px: 2 }}
+                >
+                  <ListItemIcon sx={{ minWidth: 32 }}>
+                    {gate === 'CONTACT' ? <ContactMailIcon fontSize="small" /> : <CalendarMonthIcon fontSize="small" />}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={gate === 'CONTACT' ? 'Contact' : 'Booking'}
+                    secondary={gate === 'CONTACT' ? 'Requires contact info' : 'Requires booking'}
+                    primaryTypographyProps={{
+                      variant: 'body2',
+                      sx: { fontSize: '0.8rem', fontWeight: 500 },
+                    }}
+                    secondaryTypographyProps={{
+                      variant: 'caption',
+                      sx: { fontSize: '0.7rem' },
+                    }}
+                  />
+                </ListItemButton>
+              ))}
+            </>
+          )}
+          
+          {/* Show available nodes (for data capture) */}
+          {isDataCapture && availablePrerequisiteNodes.filter((n) => !requiredNodeIds.includes(n.id)).length > 0 && (
+            <>
+              {availableGatesToAdd.length > 0 && <Divider sx={{ my: 0.5 }} />}
+              <ListItem sx={{ py: 0, px: 2, pb: 0.5, pt: availableGatesToAdd.length > 0 ? 1 : 0 }}>
+                <ListItemText
+                  primary="Other Items"
+                  primaryTypographyProps={{
+                    variant: 'caption',
+                    sx: { fontSize: '0.7rem', fontWeight: 600, color: 'text.secondary' },
+                  }}
+                />
+              </ListItem>
+              {availablePrerequisiteNodes.filter((n) => !requiredNodeIds.includes(n.id)).map((n) => (
+                <ListItemButton
+                  key={n.id}
+                  onClick={() => handleAddRequirement(n.id)}
+                  sx={{ py: 1, px: 2 }}
+                >
+                  <ListItemText
+                    primary={n.title}
+                    primaryTypographyProps={{
+                      variant: 'body2',
+                      sx: { fontSize: '0.8rem' },
+                    }}
+                  />
+                </ListItemButton>
+              ))}
+            </>
+          )}
+          
+          {/* Show message if nothing available */}
+          {availableGatesToAdd.length === 0 && 
+           (!isDataCapture || availablePrerequisiteNodes.filter((n) => !requiredNodeIds.includes(n.id)).length === 0) && (
             <ListItemButton disabled sx={{ py: 1, px: 2 }}>
               <ListItemText
-                primary="No other nodes available"
+                primary="No requirements available"
                 primaryTypographyProps={{
                   variant: 'body2',
-                  sx: { fontSize: '0.8rem', fontStyle: 'italic' },
+                  sx: { fontSize: '0.8rem', fontStyle: 'italic', color: 'text.disabled' },
                 }}
               />
             </ListItemButton>
           )}
-        </List>
-      </Popover>
-      
-      {/* Popover for adding gate requirements (controls lane placement) */}
-      <Popover
-        open={Boolean(gateAnchorEl)}
-        anchorEl={gateAnchorEl}
-        onClose={(e: any) => {
-          e?.stopPropagation?.();
-          setGateAnchorEl(null);
-        }}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'left',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'left',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <List sx={{ py: 0.5, minWidth: 180 }}>
-          <ListItem sx={{ py: 0, px: 2, pb: 0.5 }}>
-            <ListItemText
-              primary="Add gate requirement"
-              primaryTypographyProps={{
-                variant: 'caption',
-                sx: { fontSize: '0.7rem', fontWeight: 600, color: 'text.secondary' },
-              }}
-            />
-          </ListItem>
-          {availableGatesToAdd.map((gate) => (
-            <ListItemButton
-              key={gate}
-              onClick={(e) => {
-                e.stopPropagation();
-                const newRequires = [...(node.requires || []), gate];
-                updateNode(node.id, { requires: newRequires });
-                setGateAnchorEl(null);
-              }}
-              sx={{ py: 1, px: 2 }}
-            >
-              <ListItemIcon sx={{ minWidth: 32 }}>
-                {gate === 'CONTACT' ? <ContactMailIcon fontSize="small" /> : <CalendarMonthIcon fontSize="small" />}
-              </ListItemIcon>
-              <ListItemText
-                primary={gate === 'CONTACT' ? 'Contact' : 'Booking'}
-                secondary={gate === 'CONTACT' ? 'Requires contact info' : 'Requires booking'}
-                primaryTypographyProps={{
-                  variant: 'body2',
-                  sx: { fontSize: '0.8rem', fontWeight: 500 },
-                }}
-                secondaryTypographyProps={{
-                  variant: 'caption',
-                  sx: { fontSize: '0.7rem' },
-                }}
-              />
-            </ListItemButton>
-          ))}
         </List>
       </Popover>
     </Paper>
