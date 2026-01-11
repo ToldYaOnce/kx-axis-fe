@@ -274,42 +274,64 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
             return (
                 <DroppableLane key={lane} lane={lane} isLast={isLast}>
                 {/* Lane Header */}
-                <Paper
-                  elevation={0}
+                <Box
                   sx={{
                     position: 'sticky',
                     top: 0,
                     zIndex: 5,
                     p: 1.5,
                     mb: 2,
+                    mx: -2, // Flush with lane edges
                     backgroundColor: config.color,
-                    border: '1px solid',
+                    borderTop: '1px solid',
+                    borderBottom: '1px solid',
                     borderColor: 'divider',
+                    borderRadius: 0, // Square, no rounded corners
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
                   }}
                 >
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      textTransform: 'uppercase',
-                      fontWeight: 700,
-                      letterSpacing: 1,
-                      color: 'text.primary',
-                      display: 'block',
-                      mb: 0.5,
-                    }}
-                  >
-                    {config.label}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: 'text.secondary',
-                      fontSize: '0.65rem',
-                    }}
-                  >
-                    {config.description}
-                  </Typography>
-                </Paper>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        textTransform: 'uppercase',
+                        fontWeight: 700,
+                        letterSpacing: 1,
+                        color: 'text.primary',
+                        display: 'block',
+                        mb: 0.5,
+                      }}
+                    >
+                      {config.label}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: 'text.secondary',
+                        fontSize: '0.65rem',
+                      }}
+                    >
+                      {config.description}
+                    </Typography>
+                  </Box>
+                  
+                  {/* Double chevron pointing right */}
+                  {!isLast && (
+                    <Box
+                      sx={{
+                        fontSize: '1.5rem',
+                        fontWeight: 700,
+                        color: 'rgba(255, 255, 255, 0.4)',
+                        lineHeight: 1,
+                        userSelect: 'none',
+                      }}
+                    >
+                      »
+                    </Box>
+                  )}
+                </Box>
 
                 {/* Nodes in this lane */}
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
