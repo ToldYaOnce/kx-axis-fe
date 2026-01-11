@@ -382,6 +382,23 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
             </>
           )}
 
+        {/* Show what this node produces (metrics/data) */}
+        {node.satisfies?.metrics && node.satisfies.metrics.length > 0 && (
+          <Chip
+            icon={<CategoryIcon sx={{ fontSize: '0.8rem' }} />}
+            label={`Produces: ${node.satisfies.metrics.join(', ')}`}
+            size="small"
+            sx={{
+              height: 22,
+              fontSize: '0.7rem',
+              fontWeight: 600,
+              backgroundColor: '#E1F5FE',
+              color: '#01579B',
+              '& .MuiChip-icon': { color: '#01579B' },
+            }}
+          />
+        )}
+
         {/* Show which OTHER NODES this node unlocks */}
         {unlockedNodes.map((unlockedNode) => (
           <Chip
