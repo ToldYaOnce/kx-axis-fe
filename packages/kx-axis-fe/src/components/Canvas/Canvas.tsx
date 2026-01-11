@@ -148,7 +148,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
           // Position the node in the target lane
           // Calculate vertical position based on existing nodes in lane
           const nodesInTargetLane = flow.nodes.filter(n => calculateNodeLane(n) === targetLane);
-          const yPosition = nodesInTargetLane.length * 160; // Stack vertically
+          const yPosition = nodesInTargetLane.length * 180; // Stack vertically with 180px spacing
           
           newNode.ui = {
             ...newNode.ui!,
@@ -319,23 +319,30 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
 
                 {/* Nodes in this lane */}
                 <Box sx={{ position: 'relative', minHeight: 400 }}>
-                  {nodesInLane.map((node, nodeIndex) => (
-                    <Box
-                      key={node.id}
-                      sx={{
-                        position: 'absolute',
-                        left: 0,
-                        top: nodeIndex * 160, // Stack vertically with spacing
-                      }}
-                    >
-                      <NodeCard
-                        node={node}
-                        isSelected={selection.type === 'node' && selection.id === node.id}
-                        onClick={() => handleNodeClick(node)}
-                        isDraggable={true}
-                      />
-                    </Box>
-                  ))}
+                  {nodesInLane.map((node, nodeIndex) => {
+                    // Use stored ui.y if it's set and non-zero, otherwise calculate based on index
+                    const yPosition = (node.ui?.y != null && node.ui.y !== 0) 
+                      ? node.ui.y 
+                      : nodeIndex * 180; // 180px spacing for consistency
+                    
+                    return (
+                      <Box
+                        key={node.id}
+                        sx={{
+                          position: 'absolute',
+                          left: 0,
+                          top: yPosition,
+                        }}
+                      >
+                        <NodeCard
+                          node={node}
+                          isSelected={selection.type === 'node' && selection.id === node.id}
+                          onClick={() => handleNodeClick(node)}
+                          isDraggable={true}
+                        />
+                      </Box>
+                    );
+                  })}
 
                   {nodesInLane.length === 0 && (
                     <Box
