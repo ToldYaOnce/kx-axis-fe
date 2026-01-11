@@ -29,18 +29,18 @@ export const OverviewInspector: React.FC = () => {
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Active Captures
+            Data Capture Nodes
           </Typography>
           <Typography variant="body1" sx={{ fontWeight: 600 }}>
-            {flow.capturing.length}
+            {flow.nodes.filter(n => ['BASELINE_CAPTURE', 'GOAL_DEFINITION', 'DEADLINE_CAPTURE'].includes(n.kind)).length}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Required Captures
+            Conversation Nodes
           </Typography>
           <Typography variant="body1" sx={{ fontWeight: 600 }}>
-            {flow.capturing.filter((c) => c.required).length}
+            {flow.nodes.filter(n => ['EXPLANATION', 'REFLECTIVE_QUESTION'].includes(n.kind)).length}
           </Typography>
         </Box>
       </Paper>
@@ -64,38 +64,6 @@ export const OverviewInspector: React.FC = () => {
         {Object.keys(nodesByKind).length === 0 && (
           <Typography variant="caption" sx={{ color: 'text.disabled' }}>
             No nodes yet
-          </Typography>
-        )}
-      </Box>
-
-      <Divider sx={{ my: 3 }} />
-
-      {/* Captures */}
-      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-        Active Captures
-      </Typography>
-
-      <Box>
-        {flow.capturing.map((capture) => (
-          <Box key={capture.captureId} sx={{ mb: 1 }}>
-            <Typography variant="body2" sx={{ mb: 0.5 }}>
-              {capture.captureId}
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 0.5 }}>
-              {capture.required && (
-                <Chip label="Required" size="small" color="error" sx={{ height: 20 }} />
-              )}
-              <Chip
-                label={`${Math.round((capture.confidenceThreshold || 0.7) * 100)}% conf.`}
-                size="small"
-                sx={{ height: 20 }}
-              />
-            </Box>
-          </Box>
-        ))}
-        {flow.capturing.length === 0 && (
-          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-            No captures configured
           </Typography>
         )}
       </Box>
