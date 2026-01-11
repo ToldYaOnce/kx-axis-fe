@@ -317,20 +317,19 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                     </Typography>
                   </Box>
                   
-                  {/* Double chevron pointing right */}
-                  {!isLast && (
-                    <Box
-                      sx={{
-                        fontSize: '3.9rem',
-                        fontWeight: 700,
-                        color: 'rgba(255, 255, 255, 0.7)',
-                        lineHeight: 1,
-                        userSelect: 'none',
-                      }}
-                    >
-                      »
-                    </Box>
-                  )}
+                  {/* Double chevron pointing right (or spacer for last column) */}
+                  <Box
+                    sx={{
+                      fontSize: '3.9rem',
+                      fontWeight: 700,
+                      color: isLast ? 'transparent' : 'rgba(255, 255, 255, 0.7)',
+                      lineHeight: 1,
+                      userSelect: 'none',
+                      visibility: isLast ? 'hidden' : 'visible',
+                    }}
+                  >
+                    »
+                  </Box>
                 </Box>
 
                 {/* Nodes in this lane */}
