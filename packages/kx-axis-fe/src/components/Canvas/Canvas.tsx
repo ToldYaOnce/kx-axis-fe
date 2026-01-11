@@ -1,17 +1,11 @@
 import React, { useState, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
-import { Box, Typography, Button, Paper, Snackbar, Alert } from '@mui/material';
+import { Box, Typography, Button, Snackbar, Alert } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import { DragEndEvent, useDroppable } from '@dnd-kit/core';
 import { NodeCard } from './NodeCard';
 import { useFlow } from '../../context/FlowContext';
-import type { FlowNode, EligibilityLane } from '../../types';
-import {
-  calculateNodeLane,
-  LANE_CONFIG,
-  updateNodeForLane,
-  validateNodeInLane,
-  getLaneAtPosition,
-} from '../../utils/laneLogic';
+import type { FlowNode } from '../../types';
+import { computeDerivedLanes, computeNodeLane } from '../../utils/derivedLanes';
 
 export interface CanvasHandle {
   handleDragEnd: (event: DragEndEvent) => void;
@@ -19,22 +13,17 @@ export interface CanvasHandle {
 
 // Droppable Lane Component
 const DroppableLane: React.FC<{ 
-  lane: EligibilityLane; 
+  laneIndex: number;
   children: React.ReactNode;
   isLast: boolean;
-}> = ({ lane, children, isLast }) => {
+  isElastic?: boolean;
+}> = ({ laneIndex, children, isLast, isElastic }) => {
   const { setNodeRef, isOver } = useDroppable({
-    id: `lane-${lane}`,
+    id: `lane-${laneIndex}`,
     data: {
-      lane,
+      laneIndex,
     },
   });
-
-  React.useEffect(() => {
-    if (isOver) {
-      console.log('🎨 HOVERING OVER LANE:', lane);
-    }
-  }, [isOver, lane]);
 
   return (
     <Box
@@ -47,8 +36,9 @@ const DroppableLane: React.FC<{
         minWidth: 280,
         backgroundColor: isOver ? 'action.hover' : 'transparent',
         transition: 'background-color 0.2s',
-        borderRight: !isLast ? '2px dashed' : 'none',
+        borderRight: !isLast ? (isElastic ? '2px dashed' : '1px solid') : 'none',
         borderColor: 'divider',
+        opacity: isElastic ? 0.6 : 1,
       }}
     >
       {children}
@@ -61,18 +51,8 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [snackbar, setSnackbar] = useState<{ message: string; severity: 'success' | 'warning' | 'error' } | null>(null);
 
-  // Group nodes by calculated lane
-  const nodesByLane: Record<EligibilityLane, FlowNode[]> = {
-    BEFORE_CONTACT: [],
-    CONTACT_GATE: [],
-    AFTER_CONTACT: [],
-    AFTER_BOOKING: [],
-  };
-
-  flow.nodes.forEach((node) => {
-    const lane = calculateNodeLane(node);
-    nodesByLane[lane].push(node);
-  });
+  // Compute derived lanes based on prerequisites
+  const derivedLanes = computeDerivedLanes(flow.nodes);
 
   const handleNodeClick = (node: FlowNode) => {
     setSelection({ type: 'node', id: node.id });
@@ -89,120 +69,56 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
       id: `node-${Date.now()}`,
       kind: 'EXPLANATION',
       title: 'New Node',
-      ui: {
-        x: 100,
-        y: 100,
-        group: 'freeform',
-        lane: 'BEFORE_CONTACT',
-      },
+      ui: {},
     };
     addNode(newNode);
     setSelection({ type: 'node', id: newNode.id });
   };
 
-  // Handle drag end - update node lane based on drop position OR add new node from palette
+  // Handle drag end - add new nodes from palette or recompute lane for existing nodes
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
-      const { active, delta, over } = event;
-
-      console.log('🎯 DRAG END:', {
-        activeId: active.id,
-        activeData: active.data.current,
-        overId: over?.id,
-        overData: over?.data.current,
-        delta,
-      });
+      const { active, over } = event;
 
       // Check if this is a palette item being dropped
       const isPaletteItem = active.data.current?.type === 'palette-item';
       
-      console.log('📦 Is Palette Item?', isPaletteItem);
-      
       if (isPaletteItem) {
-        console.log('✅ PALETTE ITEM DETECTED!');
         // Handle palette item drop
-        if (!canvasRef.current) return;
-
         const item = active.data.current.item;
         
-        // Get the target lane from the droppable zone (same as existing node drag)
-        const targetLane = over?.data.current?.lane as EligibilityLane | undefined;
-        
-        if (!targetLane) {
-          console.log('❌ Dropped outside a valid lane');
-          setSnackbar({
-            message: 'Drop into a lane to add this node',
-            severity: 'warning',
-          });
-          return;
-        }
-
-        console.log('🎯 Target lane:', targetLane);
-
         // Get the createNodeFromItem function from window (set by palette)
         const createNodeFromItem = (window as any).__createNodeFromItem;
         
         if (createNodeFromItem) {
-          const newNode = createNodeFromItem(item, targetLane);
+          const newNode = createNodeFromItem(item);
           
-          // Set the target lane (flex layout handles spacing automatically)
-          newNode.ui = {
-            ...newNode.ui!,
-            lane: targetLane,
-          };
-
+          // Node will auto-snap to computed lane on next render
           addNode(newNode);
           setSelection({ type: 'node', id: newNode.id });
           
           setSnackbar({
-            message: `Added "${newNode.title}" to ${LANE_CONFIG[targetLane].label}`,
+            message: `Added "${newNode.title}"`,
             severity: 'success',
           });
         }
         return;
       }
 
-      // Handle existing node drag (original logic)
+      // Handle existing node drag
       const nodeId = active.id as string;
       const node = flow.nodes.find((n) => n.id === nodeId);
 
-      if (!node) return;
+      if (!node || !over) return;
 
-      // Get the target lane from the droppable zone
-      const targetLane = over?.data.current?.lane as EligibilityLane | undefined;
-      
-      if (!targetLane) {
-        // Dropped outside a valid lane - do nothing
-        return;
-      }
-      
-      const currentLane = calculateNodeLane(node);
-
-      // If lane changed, update node semantically
-      if (targetLane !== currentLane) {
-        // Validate the move
-        const error = validateNodeInLane(node, targetLane);
-        
-        if (error) {
-          // Show warning but allow the move (it will update requires/satisfies)
-          setSnackbar({
-            message: `Moving to ${LANE_CONFIG[targetLane].label}: ${error}. Requirements will be updated.`,
-            severity: 'warning',
-          });
-        }
-
-        // Update node for new lane (this updates requires/satisfies)
-        const updatedNode = updateNodeForLane(node, targetLane);
-
-        updateNode(nodeId, updatedNode);
-
-        setSnackbar({
-          message: `Moved to ${LANE_CONFIG[targetLane].label}`,
-          severity: 'success',
-        });
-      }
+      // Node auto-snaps to computed lane based on its requirements
+      // Just trigger a re-render by updating the node (keeps same data)
+      setSnackbar({
+        message: 'Node position updated',
+        severity: 'success',
+      });
     },
-    [flow.nodes, updateNode, addNode, setSelection]
+    [flow.nodes, addNode, setSelection]
   );
 
   // Expose handleDragEnd to parent via ref
@@ -257,7 +173,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
           </Button>
         </Box>
 
-        {/* Eligibility Lanes */}
+        {/* Derived Lanes */}
         <Box
           sx={{
             display: 'flex',
@@ -266,13 +182,12 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
             pt: 8,
           }}
         >
-          {lanes.map((lane, index) => {
-            const config = LANE_CONFIG[lane];
-            const nodesInLane = nodesByLane[lane];
-            const isLast = index === lanes.length - 1;
+          {derivedLanes.map((lane, index) => {
+            const isLast = index === derivedLanes.length;
+            const laneColor = ['#E8F5E9', '#FFF9C4', '#E3F2FD', '#F3E5F5'][index % 4];
 
             return (
-                <DroppableLane key={lane} lane={lane} isLast={isLast}>
+                <DroppableLane key={lane.index} laneIndex={lane.index} isLast={false}>
                 {/* Lane Header */}
                 <Box
                   sx={{
@@ -282,59 +197,40 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                     p: 1.5,
                     mb: 2,
                     mx: -2, // Flush with lane edges
-                    backgroundColor: config.color,
+                    backgroundColor: laneColor,
                     borderTop: '1px solid',
                     borderBottom: '1px solid',
                     borderColor: 'divider',
-                    borderRadius: 0, // Square, no rounded corners
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
+                    borderRadius: 0,
                   }}
                 >
-                  <Box sx={{ flex: 1 }}>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        textTransform: 'uppercase',
-                        fontWeight: 700,
-                        letterSpacing: 1,
-                        color: 'text.primary',
-                        display: 'block',
-                        mb: 0.5,
-                      }}
-                    >
-                      {config.label}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: 'text.secondary',
-                        fontSize: '0.65rem',
-                      }}
-                    >
-                      {config.description}
-                    </Typography>
-                  </Box>
-                  
-                  {/* Double chevron pointing right (or spacer for last column) */}
-                  <Box
+                  <Typography
+                    variant="caption"
                     sx={{
-                      fontSize: '3.9rem',
+                      textTransform: 'uppercase',
                       fontWeight: 700,
-                      color: isLast ? 'transparent' : 'rgba(0, 0, 0, 0.15)',
-                      lineHeight: 1,
-                      userSelect: 'none',
-                      visibility: isLast ? 'hidden' : 'visible',
+                      letterSpacing: 1,
+                      color: 'text.primary',
+                      display: 'block',
+                      mb: 0.5,
                     }}
                   >
-                    »
-                  </Box>
+                    {lane.label}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                      fontSize: '0.65rem',
+                    }}
+                  >
+                    {lane.description}
+                  </Typography>
                 </Box>
 
                 {/* Nodes in this lane */}
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {nodesInLane.map((node) => (
+                  {lane.nodes.map((node) => (
                     <NodeCard
                       key={node.id}
                       node={node}
@@ -344,7 +240,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                     />
                   ))}
 
-                  {nodesInLane.length === 0 && (
+                  {lane.nodes.length === 0 && (
                     <Box
                       sx={{
                         textAlign: 'center',
@@ -359,6 +255,57 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                 </DroppableLane>
             );
           })}
+          
+          {/* Elastic "Drop to place" lane */}
+          <DroppableLane 
+            key="elastic" 
+            laneIndex={derivedLanes.length} 
+            isLast={true} 
+            isElastic={true}
+          >
+            <Box
+              sx={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 5,
+                p: 1.5,
+                mb: 2,
+                mx: -2,
+                backgroundColor: '#FAFAFA',
+                borderTop: '2px dashed',
+                borderBottom: '2px dashed',
+                borderColor: 'divider',
+                borderRadius: 0,
+              }}
+            >
+              <Typography
+                variant="caption"
+                sx={{
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                  letterSpacing: 1,
+                  color: 'text.disabled',
+                  display: 'block',
+                }}
+              >
+                Drop to place
+              </Typography>
+            </Box>
+            
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 200,
+                color: 'text.disabled',
+              }}
+            >
+              <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
+                Drop a node here
+              </Typography>
+            </Box>
+          </DroppableLane>
         </Box>
 
         {/* Empty state */}

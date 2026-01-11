@@ -282,10 +282,45 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         </>
       )}
 
-      {/* Chips - ALWAYS VISIBLE (except Requires badges for Data Capture) */}
-      {!isDataCapture && (
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, minHeight: 24 }}>
-          {/* GOAL_GAP_TRACKER specific chips */}
+      {/* Inline "Needs before" section for all nodes with prerequisites */}
+      {gateRequirements.length > 0 && (
+        <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}>
+          <Typography
+            variant="caption"
+            sx={{
+              fontSize: '0.7rem',
+              fontWeight: 600,
+              color: 'text.secondary',
+              display: 'block',
+              mb: 0.5,
+            }}
+          >
+            Needs before
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {gateRequirements.map((gate) => (
+              <Chip
+                key={gate}
+                label={gate.toLowerCase()}
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: '0.65rem',
+                  fontWeight: 500,
+                  backgroundColor: 'transparent',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  color: 'text.secondary',
+                }}
+              />
+            ))}
+          </Box>
+        </Box>
+      )}
+
+      {/* Chips - ALWAYS VISIBLE */}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, minHeight: 24, mt: 1.5 }}>
+        {/* GOAL_GAP_TRACKER specific chips */}
           {node.kind === 'GOAL_GAP_TRACKER' && (
             <>
               <Chip
@@ -333,47 +368,26 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
             </>
           )}
 
-          {/* Show what gates this node REQUIRES (NOT for Data Capture nodes) */}
-          {gateRequirements.map((gate) => (
-            <Chip
-              key={`req-${gate}`}
-              icon={<LockIcon sx={{ fontSize: '0.8rem' }} />}
-              label={`Requires ${gate}`}
-              size="small"
-              sx={{
-                height: 22,
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                backgroundColor: '#FFE0B2',
-                color: '#E65100',
-                '& .MuiChip-icon': {
-                  color: '#E65100',
-                },
-              }}
-            />
-          ))}
-
-          {/* Show which OTHER NODES this node unlocks */}
-          {unlockedNodes.map((unlockedNode) => (
-            <Chip
-              key={`unlocks-${unlockedNode.id}`}
-              icon={<LockOpenIcon sx={{ fontSize: '0.8rem' }} />}
-              label={`Unlocks ${unlockedNode.title}`}
-              size="small"
-              sx={{
-                height: 22,
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                backgroundColor: '#C8E6C9',
+        {/* Show which OTHER NODES this node unlocks */}
+        {unlockedNodes.map((unlockedNode) => (
+          <Chip
+            key={`unlocks-${unlockedNode.id}`}
+            icon={<LockOpenIcon sx={{ fontSize: '0.8rem' }} />}
+            label={`Unlocks ${unlockedNode.title}`}
+            size="small"
+            sx={{
+              height: 22,
+              fontSize: '0.7rem',
+              fontWeight: 600,
+              backgroundColor: '#C8E6C9',
+              color: '#2E7D32',
+              '& .MuiChip-icon': {
                 color: '#2E7D32',
-                '& .MuiChip-icon': {
-                  color: '#2E7D32',
-                },
-              }}
-            />
-          ))}
-        </Box>
-      )}
+              },
+            }}
+          />
+        ))}
+      </Box>
 
       {/* Popover for adding requirements */}
       <Popover
