@@ -66,10 +66,52 @@ export const Canvas: React.FC = () => {
     setSelection({ type: 'node', id: newNode.id });
   };
 
-  // Handle drag end - update node lane based on drop position
+  // Handle drag end - update node lane based on drop position OR add new node from palette
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
-      const { active, delta } = event;
+      const { active, delta, over } = event;
+
+      // Check if this is a palette item being dropped
+      const isPaletteItem = active.data.current?.type === 'palette-item';
+      
+      if (isPaletteItem) {
+        // Handle palette item drop
+        if (!canvasRef.current) return;
+
+        const item = active.data.current.item;
+        const canvasWidth = canvasRef.current.offsetWidth;
+        
+        // Determine which lane based on drop position
+        // We need to estimate the drop position - use the canvas center + delta as approximation
+        const dropX = canvasWidth / 2 + delta.x;
+        const targetLane = getLaneAtPosition(dropX, canvasWidth);
+
+        // Get the createNodeFromItem function from window (set by palette)
+        const createNodeFromItem = (window as any).__createNodeFromItem;
+        
+        if (createNodeFromItem) {
+          const newNode = createNodeFromItem(item, targetLane);
+          
+          // Position the node based on drop location
+          newNode.ui = {
+            ...newNode.ui!,
+            x: dropX,
+            y: 100, // Default y position in lane
+            lane: targetLane,
+          };
+
+          addNode(newNode);
+          setSelection({ type: 'node', id: newNode.id });
+          
+          setSnackbar({
+            message: `Added "${newNode.title}" to ${LANE_CONFIG[targetLane].label}`,
+            severity: 'success',
+          });
+        }
+        return;
+      }
+
+      // Handle existing node drag (original logic)
       const nodeId = active.id as string;
       const node = flow.nodes.find((n) => n.id === nodeId);
 

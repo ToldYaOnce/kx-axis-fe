@@ -17,7 +17,9 @@ import ContactMailIcon from '@mui/icons-material/ContactMail';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import HandshakeIcon from '@mui/icons-material/Handshake';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { useFlow } from '../../context/FlowContext';
 import type { FlowNode, NodeKind } from '../../types';
 
@@ -89,10 +91,89 @@ const CONVERSATION_ITEMS: ConversationItem[] = [
   },
 ];
 
+// Draggable wrapper for individual conversation items
+const DraggableConversationItem: React.FC<{ item: ConversationItem }> = ({ item }) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `palette-${item.id}`,
+    data: {
+      type: 'palette-item',
+      item,
+    },
+  });
+
+  const style = transform
+    ? {
+        transform: CSS.Translate.toString(transform),
+      }
+    : undefined;
+
+  return (
+    <Paper
+      ref={setNodeRef}
+      elevation={0}
+      sx={{
+        mb: 1.5,
+        border: '1px solid',
+        borderColor: 'divider',
+        transition: isDragging ? 'none' : 'all 0.2s',
+        opacity: isDragging ? 0.5 : 1,
+        cursor: 'grab',
+        '&:active': {
+          cursor: 'grabbing',
+        },
+        '&:hover': {
+          borderColor: 'primary.main',
+          backgroundColor: 'action.hover',
+          transform: isDragging ? undefined : 'translateX(4px)',
+        },
+        ...style,
+      }}
+      {...attributes}
+      {...listeners}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 2, gap: 1 }}>
+        <DragIndicatorIcon sx={{ fontSize: '1rem', color: 'text.disabled' }} />
+        <Box sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center' }}>
+          {item.icon}
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              {item.title}
+            </Typography>
+            {item.kind === 'GOAL_GAP_TRACKER' && (
+              <Typography
+                variant="caption"
+                sx={{
+                  backgroundColor: 'primary.light',
+                  color: 'primary.dark',
+                  px: 0.75,
+                  py: 0.25,
+                  borderRadius: 0.5,
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                }}
+              >
+                NEW
+              </Typography>
+            )}
+          </Box>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+            {item.description}
+          </Typography>
+        </Box>
+      </Box>
+    </Paper>
+  );
+};
+
 export const ConversationItemsPalette: React.FC = () => {
   const { addNode } = useFlow();
 
-  const handleAddItem = (item: ConversationItem) => {
+  // Helper function to create a node from a conversation item
+  const createNodeFromItem = (item: ConversationItem, lane?: string): FlowNode => {
+    const targetLane = (lane || item.defaultLane) as 'BEFORE_CONTACT' | 'CONTACT_GATE' | 'AFTER_CONTACT' | 'AFTER_BOOKING';
+    
     const newNode: FlowNode = {
       id: `${item.id}-${Date.now()}`,
       kind: item.kind,
@@ -100,7 +181,7 @@ export const ConversationItemsPalette: React.FC = () => {
       ui: {
         x: 0,
         y: 0,
-        lane: item.defaultLane,
+        lane: targetLane,
       },
     };
 
@@ -159,8 +240,19 @@ export const ConversationItemsPalette: React.FC = () => {
       };
     }
 
-    addNode(newNode);
+    return newNode;
   };
+
+  // Expose createNodeFromItem for Canvas to use
+  // (Canvas will call this via context when handling drops)
+  React.useEffect(() => {
+    // Store the function in a way Canvas can access it
+    // This is a temporary solution; ideally we'd pass it through context
+    (window as any).__createNodeFromItem = createNodeFromItem;
+    return () => {
+      delete (window as any).__createNodeFromItem;
+    };
+  }, []);
 
   return (
     <Box sx={{ height: '100%', overflowY: 'auto', p: 3 }}>
@@ -168,63 +260,14 @@ export const ConversationItemsPalette: React.FC = () => {
         Conversation Items
       </Typography>
       <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 3 }}>
-        Drag or click to add to canvas
+        Drag items to a lane on the canvas
       </Typography>
 
-      <List sx={{ p: 0 }}>
+      <Box>
         {CONVERSATION_ITEMS.map((item) => (
-          <Paper
-            key={item.id}
-            elevation={0}
-            sx={{
-              mb: 1.5,
-              border: '1px solid',
-              borderColor: 'divider',
-              transition: 'all 0.2s',
-              '&:hover': {
-                borderColor: 'primary.main',
-                backgroundColor: 'action.hover',
-                transform: 'translateX(4px)',
-              },
-            }}
-          >
-            <ListItemButton onClick={() => handleAddItem(item)} sx={{ py: 1.5 }}>
-              <ListItemIcon sx={{ minWidth: 40, color: 'text.secondary' }}>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText
-                primary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {item.title}
-                    </Typography>
-                    {item.kind === 'GOAL_GAP_TRACKER' && (
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          backgroundColor: 'primary.light',
-                          color: 'primary.dark',
-                          px: 0.75,
-                          py: 0.25,
-                          borderRadius: 0.5,
-                          fontSize: '0.65rem',
-                          fontWeight: 700,
-                        }}
-                      >
-                        NEW
-                      </Typography>
-                    )}
-                  </Box>
-                }
-                secondary={item.description}
-                primaryTypographyProps={{ variant: 'body2' }}
-                secondaryTypographyProps={{ variant: 'caption', sx: { mt: 0.5 } }}
-              />
-              <AddCircleOutlineIcon sx={{ color: 'primary.main', fontSize: 20 }} />
-            </ListItemButton>
-          </Paper>
+          <DraggableConversationItem key={item.id} item={item} />
         ))}
-      </List>
+      </Box>
 
       <Divider sx={{ my: 3 }} />
 
