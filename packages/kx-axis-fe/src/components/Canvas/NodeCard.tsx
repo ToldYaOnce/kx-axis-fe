@@ -49,31 +49,24 @@ const NODE_COLORS: Record<NodeKind, string> = {
   HANDOFF: '#E94B3C',
 };
 
-// Available facts that can be required (human-labeled)
-const AVAILABLE_FACTS = [
-  { id: 'contact_email', label: 'Email address' },
-  { id: 'contact_phone', label: 'Phone number' },
-  { id: 'contact_name', label: 'Name' },
-  { id: 'goal_target', label: 'Target goal' },
-  { id: 'goal_baseline', label: 'Current baseline' },
-  { id: 'goal_timeline', label: 'Timeline' },
-  { id: 'booking_date', label: 'Booking date' },
-  { id: 'budget', label: 'Budget' },
-];
-
 // Determine if node is a Data Capture node (shows inline requirements)
 const isDataCaptureNode = (kind: NodeKind): boolean => {
   return ['BASELINE_CAPTURE', 'GOAL_DEFINITION', 'DEADLINE_CAPTURE'].includes(kind);
 };
 
 export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, isDraggable = false }) => {
-  const { updateNode, removeNode } = useFlow();
+  const { updateNode, removeNode, flow } = useFlow();
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
   const handleDelete = (event: React.MouseEvent) => {
     event.stopPropagation();
     removeNode(node.id);
   };
+
+  // Get other nodes that can be prerequisites (exclude this node and GATE nodes)
+  const availablePrerequisiteNodes = flow.nodes.filter(
+    (n) => n.id !== node.id && n.kind !== 'CONTACT_GATE'
+  );
 
   // Get GATE requirements and satisfactions (not node IDs)
   const gateRequirements = getNodeGateRequirements(node);
@@ -91,37 +84,31 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
       }
     : undefined;
 
-  // Get required facts (metrics that must exist before this node runs)
-  const requiredFacts = node.satisfies?.metrics || [];
+  // Get required node IDs (prerequisites - other nodes that must run first)
+  const requiredNodeIds = node.requires || [];
   const isDataCapture = isDataCaptureNode(node.kind);
 
-  // Handlers for inline requirement editing
+  // Handlers for inline requirement editing (node prerequisites)
   const handleAddRequirementClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
   };
 
-  const handleAddRequirement = (factId: string) => {
-    const currentMetrics = node.satisfies?.metrics || [];
-    if (!currentMetrics.includes(factId)) {
+  const handleAddRequirement = (nodeId: string) => {
+    const currentRequires = node.requires || [];
+    if (!currentRequires.includes(nodeId)) {
       updateNode(node.id, {
-        satisfies: {
-          ...node.satisfies,
-          metrics: [...currentMetrics, factId],
-        },
+        requires: [...currentRequires, nodeId],
       });
     }
     setAnchorEl(null);
   };
 
-  const handleRemoveRequirement = (event: React.MouseEvent, factId: string) => {
+  const handleRemoveRequirement = (event: React.MouseEvent, nodeId: string) => {
     event.stopPropagation();
-    const currentMetrics = node.satisfies?.metrics || [];
+    const currentRequires = node.requires || [];
     updateNode(node.id, {
-      satisfies: {
-        ...node.satisfies,
-        metrics: currentMetrics.filter((m) => m !== factId),
-      },
+      requires: currentRequires.filter((id) => id !== nodeId),
     });
   };
 
@@ -240,14 +227,14 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
               Must know before
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
-              {requiredFacts.map((factId) => {
-                const fact = AVAILABLE_FACTS.find((f) => f.id === factId);
+              {requiredNodeIds.map((nodeId) => {
+                const requiredNode = flow.nodes.find((n) => n.id === nodeId);
                 return (
                   <Chip
-                    key={factId}
-                    label={fact?.label || factId}
+                    key={nodeId}
+                    label={requiredNode?.title || nodeId}
                     size="small"
-                    onDelete={(e) => handleRemoveRequirement(e, factId)}
+                    onDelete={(e) => handleRemoveRequirement(e, nodeId)}
                     deleteIcon={<CloseIcon sx={{ fontSize: '0.9rem' }} />}
                     sx={{
                       height: 20,
@@ -396,14 +383,14 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         onClick={(e) => e.stopPropagation()}
       >
         <List sx={{ py: 0.5, minWidth: 200 }}>
-          {AVAILABLE_FACTS.filter((fact) => !requiredFacts.includes(fact.id)).map((fact) => (
+          {availablePrerequisiteNodes.filter((n) => !requiredNodeIds.includes(n.id)).map((n) => (
             <ListItemButton
-              key={fact.id}
-              onClick={() => handleAddRequirement(fact.id)}
+              key={n.id}
+              onClick={() => handleAddRequirement(n.id)}
               sx={{ py: 1, px: 2 }}
             >
               <ListItemText
-                primary={fact.label}
+                primary={n.title}
                 primaryTypographyProps={{
                   variant: 'body2',
                   sx: { fontSize: '0.8rem' },
@@ -411,10 +398,10 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
               />
             </ListItemButton>
           ))}
-          {AVAILABLE_FACTS.filter((fact) => !requiredFacts.includes(fact.id)).length === 0 && (
+          {availablePrerequisiteNodes.filter((n) => !requiredNodeIds.includes(n.id)).length === 0 && (
             <ListItemButton disabled sx={{ py: 1, px: 2 }}>
               <ListItemText
-                primary="No more facts available"
+                primary="No other nodes available"
                 primaryTypographyProps={{
                   variant: 'body2',
                   sx: { fontSize: '0.8rem', fontStyle: 'italic' },
