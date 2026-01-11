@@ -1,7 +1,7 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { Box, Typography, Button, Paper, Snackbar, Alert } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import { DndContext, DragEndEvent, useSensor, useSensors, PointerSensor, useDroppable } from '@dnd-kit/core';
+import { DragEndEvent, useDroppable } from '@dnd-kit/core';
 import { NodeCard } from './NodeCard';
 import { useFlow } from '../../context/FlowContext';
 import type { FlowNode, EligibilityLane } from '../../types';
@@ -12,6 +12,10 @@ import {
   validateNodeInLane,
   getLaneAtPosition,
 } from '../../utils/laneLogic';
+
+export interface CanvasHandle {
+  handleDragEnd: (event: DragEndEvent) => void;
+}
 
 // Droppable Lane Component
 const DroppableLane: React.FC<{ 
@@ -52,19 +56,10 @@ const DroppableLane: React.FC<{
   );
 };
 
-export const Canvas: React.FC = () => {
+export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
   const { flow, selection, setSelection, addNode, updateNode } = useFlow();
   const canvasRef = useRef<HTMLDivElement>(null);
   const [snackbar, setSnackbar] = useState<{ message: string; severity: 'success' | 'warning' | 'error' } | null>(null);
-
-  // DnD sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // Require 8px movement before drag starts
-      },
-    })
-  );
 
   // Group nodes by calculated lane
   const nodesByLane: Record<EligibilityLane, FlowNode[]> = {
@@ -201,13 +196,17 @@ export const Canvas: React.FC = () => {
         });
       }
     },
-    [flow.nodes, updateNode]
+    [flow.nodes, updateNode, addNode, setSelection]
   );
+
+  // Expose handleDragEnd to parent via ref
+  useImperativeHandle(ref, () => ({
+    handleDragEnd,
+  }), [handleDragEnd]);
 
   const lanes: EligibilityLane[] = ['BEFORE_CONTACT', 'CONTACT_GATE', 'AFTER_CONTACT', 'AFTER_BOOKING'];
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <Box
         ref={canvasRef}
         onClick={handleCanvasClick}
@@ -377,6 +376,5 @@ export const Canvas: React.FC = () => {
           )}
         </Snackbar>
       </Box>
-    </DndContext>
   );
-};
+});

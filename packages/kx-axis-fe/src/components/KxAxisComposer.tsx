@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Box, CssBaseline, ThemeProvider, createTheme, Drawer } from '@mui/material';
+import { DndContext, useSensor, useSensors, PointerSensor, DragEndEvent } from '@dnd-kit/core';
 import { FlowProvider } from '../context/FlowContext';
 import { TopBar } from './TopBar';
-import { Canvas } from './Canvas/Canvas';
+import { Canvas, type CanvasHandle } from './Canvas/Canvas';
 import { Inspector } from './Inspector/Inspector';
 import { SimulatePanel } from './Simulate/SimulatePanel';
 import { ConversationItemsPalette } from './ConversationItems/ConversationItemsPalette';
@@ -58,6 +59,22 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
 }) => {
   const [simulateOpen, setSimulateOpen] = useState(false);
   const [capturesOpen, setCapturesOpen] = useState(false);
+  const canvasRef = useRef<CanvasHandle>(null);
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px movement before drag starts
+      },
+    })
+  );
+
+  // Drag end handler - delegates to Canvas
+  const handleDragEnd = (event: DragEndEvent) => {
+    console.log('🎯 KxAxisComposer handleDragEnd called');
+    canvasRef.current?.handleDragEnd(event);
+  };
 
   const handleSimulate = () => {
     setSimulateOpen(true);
@@ -102,33 +119,35 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
           />
 
           {/* Main Content Area */}
-          <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-            {/* Conversation Items Palette (Left) */}
-            <Drawer
-              variant="permanent"
-              anchor="left"
-              sx={{
-                width: 320,
-                flexShrink: 0,
-                '& .MuiDrawer-paper': {
+          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+            <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+              {/* Conversation Items Palette (Left) */}
+              <Drawer
+                variant="permanent"
+                anchor="left"
+                sx={{
                   width: 320,
-                  boxSizing: 'border-box',
-                  position: 'relative',
-                  borderRight: '1px solid',
-                  borderColor: 'divider',
-                  overflowY: 'auto',
-                },
-              }}
-            >
-              <ConversationItemsPalette />
-            </Drawer>
+                  flexShrink: 0,
+                  '& .MuiDrawer-paper': {
+                    width: 320,
+                    boxSizing: 'border-box',
+                    position: 'relative',
+                    borderRight: '1px solid',
+                    borderColor: 'divider',
+                    overflowY: 'auto',
+                  },
+                }}
+              >
+                <ConversationItemsPalette />
+              </Drawer>
 
-            {/* Canvas Area (Center) */}
-            <Canvas />
+              {/* Canvas Area (Center) */}
+              <Canvas ref={canvasRef} />
 
-            {/* Inspector Panel (Right) */}
-            <Inspector />
-          </Box>
+              {/* Inspector Panel (Right) */}
+              <Inspector />
+            </Box>
+          </DndContext>
 
           {/* Simulate Panel (Right Drawer) */}
           <SimulatePanel open={simulateOpen} onClose={() => setSimulateOpen(false)} />
