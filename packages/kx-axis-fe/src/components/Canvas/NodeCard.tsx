@@ -67,8 +67,13 @@ const isDataCaptureNode = (kind: NodeKind): boolean => {
 };
 
 export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, isDraggable = false }) => {
-  const { updateNode } = useFlow();
+  const { updateNode, removeNode } = useFlow();
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+
+  const handleDelete = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    removeNode(node.id);
+  };
 
   // Get GATE requirements and satisfactions (not node IDs)
   const gateRequirements = getNodeGateRequirements(node);
@@ -188,6 +193,20 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         >
           {node.kind.replace('_', ' ')}
         </Typography>
+        <IconButton
+          size="small"
+          onClick={handleDelete}
+          sx={{
+            p: 0.5,
+            color: 'text.secondary',
+            '&:hover': {
+              color: 'error.main',
+              backgroundColor: 'error.light',
+            },
+          }}
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
       </Box>
 
       {/* Title */}

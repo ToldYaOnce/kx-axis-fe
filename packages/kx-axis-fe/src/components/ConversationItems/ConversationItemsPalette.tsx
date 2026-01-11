@@ -313,11 +313,11 @@ export const ConversationItemsPalette: React.FC = () => {
       </Typography>
 
       <Box>
-        {CONVERSATION_ITEMS.map((item) => (
+        {CONVERSATION_ITEMS.filter(item => !usedItemIds.has(item.id)).map((item) => (
           <DraggableConversationItem 
             key={item.id} 
             item={item} 
-            isUsed={usedItemIds.has(item.id)}
+            isUsed={false}
           />
         ))}
       </Box>
