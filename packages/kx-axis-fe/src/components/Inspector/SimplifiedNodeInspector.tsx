@@ -74,19 +74,24 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
   if (node.requires?.includes('CONTACT')) locks.push('Contact');
   if (node.requires?.includes('BOOKING')) locks.push('Booking');
 
-  // Determine unlocks/produces (what this node satisfies)
+  // Determine unlocks (gates and states this node satisfies)
   const unlocks: string[] = [];
   if (node.satisfies?.gates?.includes('CONTACT')) unlocks.push('Contact Captured');
   if (node.satisfies?.gates?.includes('BOOKING')) unlocks.push('Booking Confirmed');
   if (node.satisfies?.gates?.includes('HANDOFF')) unlocks.push('Handoff Complete');
-  if (node.kind === 'GOAL_GAP_TRACKER') {
-    unlocks.push('Delta Ready', 'Category Ready');
-  }
   if (node.satisfies?.states?.includes('GOAL_GAP_CAPTURED')) {
     unlocks.push('Goal Gap Captured');
   }
+  
+  // Determine produces (metrics/data this node produces)
+  const produces: string[] = [];
   if (node.satisfies?.metrics && node.satisfies.metrics.length > 0) {
-    unlocks.push(`${node.satisfies.metrics.length} metric${node.satisfies.metrics.length > 1 ? 's' : ''}`);
+    produces.push(...node.satisfies.metrics);
+  }
+  if (node.kind === 'GOAL_GAP_TRACKER') {
+    // Add GOAL_GAP_TRACKER specific outputs
+    if (!produces.includes('goal_delta')) produces.push('Delta');
+    if (!produces.includes('goal_category')) produces.push('Category');
   }
 
   // Lane info
@@ -159,10 +164,10 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
 
       <Divider sx={{ my: 3 }} />
 
-      {/* 2. Locks & Unlocks */}
+      {/* 2. Locks (Requirements) */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-          Locks & Unlocks
+          Locks
         </Typography>
 
         {isDataCaptureNode && (
@@ -185,67 +190,103 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
           </Box>
         )}
 
-        {/* Locks (what this requires) */}
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1, display: 'block' }}>
-            🔒 Locks (what's required first)
+        <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1, display: 'block' }}>
+          🔒 What's required first
+        </Typography>
+        {locks.length > 0 ? (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {locks.map((lock) => (
+              <Chip
+                key={lock}
+                icon={<LockIcon sx={{ fontSize: '0.8rem' }} />}
+                label={`Requires ${lock}`}
+                size="small"
+                sx={{
+                  height: 24,
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: '#FFE0B2',
+                  color: '#E65100',
+                  '& .MuiChip-icon': { color: '#E65100' },
+                }}
+              />
+            ))}
+          </Box>
+        ) : (
+          <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
+            No locks — can run anytime
           </Typography>
-          {locks.length > 0 ? (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-              {locks.map((lock) => (
-                <Chip
-                  key={lock}
-                  icon={<LockIcon sx={{ fontSize: '0.8rem' }} />}
-                  label={`Requires ${lock}`}
-                  size="small"
-                  sx={{
-                    height: 24,
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    backgroundColor: '#FFE0B2',
-                    color: '#E65100',
-                    '& .MuiChip-icon': { color: '#E65100' },
-                  }}
-                />
-              ))}
-            </Box>
-          ) : (
-            <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
-              No locks — can run anytime
-            </Typography>
-          )}
-        </Box>
+        )}
+      </Box>
 
-        {/* Unlocks/Produces (what this satisfies) */}
-        <Box>
-          <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1, display: 'block' }}>
-            🔓 Unlocks / Produces
+      <Divider sx={{ my: 3 }} />
+
+      {/* 3. Unlocks */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
+          Unlocks
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1, display: 'block' }}>
+          🔓 What this enables
+        </Typography>
+        {unlocks.length > 0 ? (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {unlocks.map((unlock) => (
+              <Chip
+                key={unlock}
+                icon={<CheckCircleOutlineIcon sx={{ fontSize: '0.8rem' }} />}
+                label={unlock}
+                size="small"
+                sx={{
+                  height: 24,
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: '#C8E6C9',
+                  color: '#2E7D32',
+                  '& .MuiChip-icon': { color: '#2E7D32' },
+                }}
+              />
+            ))}
+          </Box>
+        ) : (
+          <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
+            Doesn't unlock gates or states
           </Typography>
-          {unlocks.length > 0 ? (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-              {unlocks.map((unlock) => (
-                <Chip
-                  key={unlock}
-                  icon={<CheckCircleOutlineIcon sx={{ fontSize: '0.8rem' }} />}
-                  label={unlock}
-                  size="small"
-                  sx={{
-                    height: 24,
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    backgroundColor: '#C8E6C9',
-                    color: '#2E7D32',
-                    '& .MuiChip-icon': { color: '#2E7D32' },
-                  }}
-                />
-              ))}
-            </Box>
-          ) : (
-            <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
-              No explicit outputs
-            </Typography>
-          )}
-        </Box>
+        )}
+      </Box>
+
+      <Divider sx={{ my: 3 }} />
+
+      {/* 4. Produces */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
+          Produces
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1, display: 'block' }}>
+          📊 Data/metrics produced
+        </Typography>
+        {produces.length > 0 ? (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {produces.map((metric) => (
+              <Chip
+                key={metric}
+                label={metric}
+                size="small"
+                sx={{
+                  height: 24,
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  backgroundColor: '#E1F5FE',
+                  color: '#01579B',
+                }}
+              />
+            ))}
+          </Box>
+        ) : (
+          <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
+            No data produced
+          </Typography>
+        )}
       </Box>
 
       <Divider sx={{ my: 3 }} />
