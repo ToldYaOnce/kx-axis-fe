@@ -1,9 +1,9 @@
-import React from 'react';
-import { Box, Typography, Chip, Divider, Paper } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Typography, Chip, Divider, Paper, TextField } from '@mui/material';
 import { useFlow } from '../../context/FlowContext';
 
 export const OverviewInspector: React.FC = () => {
-  const { flow } = useFlow();
+  const { flow, updateFlow } = useFlow();
 
   const nodesByKind = flow.nodes.reduce((acc, node) => {
     acc[node.kind] = (acc[node.kind] || 0) + 1;
@@ -16,6 +16,31 @@ export const OverviewInspector: React.FC = () => {
       <Typography variant="h6" sx={{ fontWeight: 500, mb: 3 }}>
         Flow Overview
       </Typography>
+
+      {/* Editable Flow Name */}
+      <TextField
+        label="Flow Name"
+        value={flow.name}
+        onChange={(e) => updateFlow({ name: e.target.value })}
+        fullWidth
+        size="small"
+        sx={{ mb: 2 }}
+      />
+
+      {/* Editable Flow Description */}
+      <TextField
+        label="Description"
+        value={flow.description || ''}
+        onChange={(e) => updateFlow({ description: e.target.value })}
+        fullWidth
+        size="small"
+        multiline
+        rows={2}
+        sx={{ mb: 3 }}
+        helperText="A brief description of what this conversation flow does"
+      />
+
+      <Divider sx={{ my: 3 }} />
 
       {/* Stats */}
       <Paper sx={{ p: 2, mb: 3, backgroundColor: 'action.hover' }}>

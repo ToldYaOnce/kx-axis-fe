@@ -5,17 +5,17 @@ import type { ConversationFlow } from '../types';
  * Delta-first philosophy: Target → Baseline → Delta → Category
  */
 export const goalGapDemoFlow: ConversationFlow = {
-  id: 'fitness-goal-gap-demo',
-  name: 'Fitness Onboarding with Goal Gap Tracking',
-  description: 'Demonstrates delta-first capture without thinking about reps/weight/time theories',
-  industry: 'Fitness',
+  id: 'demo-conversation-flow',
+  name: 'Sample Conversation Flow',
+  description: 'A sample flow demonstrating conversation items and requirements',
+  industry: 'General',
   
   nodes: [
     // 1. Welcome - BEFORE CONTACT
     {
       id: 'welcome-1',
       kind: 'EXPLANATION',
-      title: 'Welcome to FitFlow',
+      title: 'Welcome / Introduction',
       purpose: 'Greet the user and set expectations',
       ui: {
         x: 100,
@@ -30,7 +30,7 @@ export const goalGapDemoFlow: ConversationFlow = {
     {
       id: 'reflect-1',
       kind: 'REFLECTIVE_QUESTION',
-      title: 'What motivated you to start today?',
+      title: 'Reflective Question',
       purpose: 'Gauge readiness and motivation level',
       ui: {
         x: 100,
@@ -134,8 +134,8 @@ export const goalGapDemoFlow: ConversationFlow = {
     {
       id: 'booking-1',
       kind: 'ACTION_BOOKING',
-      title: 'Book Your First Session',
-      purpose: 'Schedule initial consultation or training session',
+      title: 'Book Consultation',
+      purpose: 'Schedule initial consultation',
       ui: {
         x: 100,
         y: 50,
@@ -155,7 +155,7 @@ export const goalGapDemoFlow: ConversationFlow = {
       id: 'promo-1',
       kind: 'EXPLANATION',
       title: 'Send Welcome Offer',
-      purpose: 'Share discount or promo for first month',
+      purpose: 'Share promotional offer',
       ui: {
         x: 100,
         y: 50,
