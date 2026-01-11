@@ -72,6 +72,14 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
   const gateRequirements = getNodeGateRequirements(node);
   const gateSatisfactions = getNodeGateSatisfactions(node);
 
+  // Calculate which OTHER NODES this node unlocks
+  // (nodes that require gates this node satisfies)
+  const unlockedNodes = flow.nodes.filter((otherNode) => {
+    if (otherNode.id === node.id) return false;
+    const otherRequires = getNodeGateRequirements(otherNode);
+    return gateSatisfactions.some((gate) => otherRequires.includes(gate));
+  });
+
   // Draggable setup
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: node.id,
@@ -345,12 +353,12 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
             />
           ))}
 
-          {/* Show what gates this node SATISFIES */}
-          {gateSatisfactions.map((gate) => (
+          {/* Show which OTHER NODES this node unlocks */}
+          {unlockedNodes.map((unlockedNode) => (
             <Chip
-              key={`sat-${gate}`}
+              key={`unlocks-${unlockedNode.id}`}
               icon={<LockOpenIcon sx={{ fontSize: '0.8rem' }} />}
-              label={`Unlocks ${gate}`}
+              label={`Unlocks ${unlockedNode.title}`}
               size="small"
               sx={{
                 height: 22,
