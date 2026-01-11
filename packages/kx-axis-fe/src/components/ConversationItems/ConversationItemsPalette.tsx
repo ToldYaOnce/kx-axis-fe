@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -9,7 +9,15 @@ import {
   ListItemIcon,
   Paper,
   Divider,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
@@ -203,6 +211,14 @@ const DraggableConversationItem: React.FC<{ item: ConversationItem; isUsed: bool
 
 export const ConversationItemsPalette: React.FC = () => {
   const { addNode, flow } = useFlow();
+  
+  // State for dynamic conversation items
+  const [conversationItems, setConversationItems] = useState<ConversationItem[]>(CONVERSATION_ITEMS);
+  
+  // State for "+ New item" dialog
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newItemType, setNewItemType] = useState<NodeKind | ''>('');
+  const [newItemTitle, setNewItemTitle] = useState('');
 
   // Track which single-use items are already on the canvas
   const usedItemIds = new Set<string>();
@@ -218,6 +234,72 @@ export const ConversationItemsPalette: React.FC = () => {
       }
     });
   });
+  
+  // Handle opening dialog
+  const handleOpenDialog = () => {
+    setDialogOpen(true);
+    setNewItemType('');
+    setNewItemTitle('');
+  };
+  
+  // Handle closing dialog
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setNewItemType('');
+    setNewItemTitle('');
+  };
+  
+  // Handle type selection (prefill title)
+  const handleTypeChange = (type: NodeKind) => {
+    setNewItemType(type);
+    
+    // Prefill title based on type
+    const titleMap: Record<NodeKind, string> = {
+      'EXPLANATION': 'New Explanation',
+      'REFLECTIVE_QUESTION': 'New Question',
+      'GOAL_GAP_TRACKER': 'Goal Gap Tracker',
+      'BASELINE_CAPTURE': 'New Capture',
+      'ACTION_BOOKING': 'Book Appointment',
+      'HANDOFF': 'Handoff to Human',
+      'GOAL_DEFINITION': 'Define Goal',
+      'DEADLINE_CAPTURE': 'Capture Deadline',
+    };
+    
+    setNewItemTitle(titleMap[type] || 'New Item');
+  };
+  
+  // Handle create new item
+  const handleCreateItem = () => {
+    if (!newItemType || !newItemTitle.trim()) return;
+    
+    // Get icon for type
+    const iconMap: Record<NodeKind, React.ReactElement> = {
+      'EXPLANATION': <InfoOutlinedIcon />,
+      'REFLECTIVE_QUESTION': <QuestionAnswerIcon />,
+      'GOAL_GAP_TRACKER': <ShowChartIcon />,
+      'BASELINE_CAPTURE': <ContactMailIcon />,
+      'ACTION_BOOKING': <CalendarMonthIcon />,
+      'HANDOFF': <HandshakeIcon />,
+      'GOAL_DEFINITION': <InfoOutlinedIcon />,
+      'DEADLINE_CAPTURE': <CalendarMonthIcon />,
+    };
+    
+    // Create new conversation item
+    const newItem: ConversationItem = {
+      id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      kind: newItemType as NodeKind,
+      title: newItemTitle.trim(),
+      description: 'Custom item',
+      icon: iconMap[newItemType as NodeKind] || <InfoOutlinedIcon />,
+      defaultLane: 'BEFORE_CONTACT',
+    };
+    
+    // Add to list
+    setConversationItems([...conversationItems, newItem]);
+    
+    // Close dialog
+    handleCloseDialog();
+  };
 
   // Helper function to create a node from a conversation item
   const createNodeFromItem = (item: ConversationItem, lane?: string): FlowNode => {
@@ -308,12 +390,34 @@ export const ConversationItemsPalette: React.FC = () => {
       <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
         Conversation Items
       </Typography>
-      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 3 }}>
-        Drag items to a lane on the canvas
+      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 2 }}>
+        Drag items to the canvas
       </Typography>
+      
+      {/* + New item button */}
+      <Button
+        variant="outlined"
+        size="small"
+        startIcon={<AddIcon />}
+        onClick={handleOpenDialog}
+        fullWidth
+        sx={{
+          mb: 3,
+          textTransform: 'none',
+          justifyContent: 'flex-start',
+          borderColor: 'divider',
+          color: 'text.primary',
+          '&:hover': {
+            borderColor: 'primary.main',
+            backgroundColor: 'action.hover',
+          },
+        }}
+      >
+        + New item
+      </Button>
 
       <Box>
-        {CONVERSATION_ITEMS.filter(item => !usedItemIds.has(item.id)).map((item) => (
+        {conversationItems.filter(item => !usedItemIds.has(item.id)).map((item) => (
           <DraggableConversationItem 
             key={item.id} 
             item={item} 
@@ -341,6 +445,53 @@ export const ConversationItemsPalette: React.FC = () => {
           No need to think about reps/weight/time theories.
         </Typography>
       </Box>
+      
+      {/* Create New Item Dialog */}
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Create New Item</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Item Type Selection */}
+            <TextField
+              select
+              label="Item Type"
+              value={newItemType}
+              onChange={(e) => handleTypeChange(e.target.value as NodeKind)}
+              fullWidth
+              required
+            >
+              <MenuItem value="EXPLANATION">Explanation</MenuItem>
+              <MenuItem value="REFLECTIVE_QUESTION">Reflective Question</MenuItem>
+              <MenuItem value="GOAL_GAP_TRACKER">Goal Gap Tracker</MenuItem>
+              <MenuItem value="BASELINE_CAPTURE">Contact Capture</MenuItem>
+              <MenuItem value="ACTION_BOOKING">Action Booking</MenuItem>
+              <MenuItem value="HANDOFF">Handoff</MenuItem>
+            </TextField>
+            
+            {/* Title Input */}
+            <TextField
+              label="Title"
+              value={newItemTitle}
+              onChange={(e) => setNewItemTitle(e.target.value.slice(0, 60))}
+              fullWidth
+              required
+              helperText={`${newItemTitle.length}/60 characters`}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog} color="inherit">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleCreateItem} 
+            variant="contained" 
+            disabled={!newItemType || !newItemTitle.trim()}
+          >
+            Create
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

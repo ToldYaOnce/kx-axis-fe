@@ -143,35 +143,6 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
           backgroundSize: '20px 20px',
         }}
       >
-        {/* Canvas Controls */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 16,
-            left: 16,
-            zIndex: 10,
-            display: 'flex',
-            gap: 1,
-          }}
-        >
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<AddCircleOutlineIcon />}
-            onClick={handleAddNode}
-            sx={{
-              textTransform: 'none',
-              backgroundColor: 'background.paper',
-              color: 'text.primary',
-              boxShadow: 1,
-              '&:hover': {
-                backgroundColor: 'background.default',
-              },
-            }}
-          >
-            Add Node
-          </Button>
-        </Box>
 
         {/* Derived Lanes */}
         <Box
@@ -320,10 +291,10 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
             }}
           >
             <Typography variant="h6" sx={{ color: 'text.secondary', mb: 2 }}>
-              No nodes yet
+              No items yet
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.disabled', mb: 3 }}>
-              Click "Add Node" to start building your conversation flow
+              Drag items from the left panel to start building your flow
             </Typography>
           </Box>
         )}
