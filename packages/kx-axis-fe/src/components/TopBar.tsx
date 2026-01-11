@@ -49,32 +49,31 @@ export const TopBar: React.FC<TopBarProps> = ({ onSimulate, onValidate, onPublis
         backgroundColor: 'background.paper',
       }}
     >
-      {/* Flow Title & Description */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: 500, color: 'text.primary' }}>
-            {flow.name}
-          </Typography>
-          {flow.description && (
-            <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 400 }}>
-              {flow.description}
-            </Typography>
-          )}
-        </Box>
-        <IconButton
-          size="small"
-          onClick={handleOpenEditDialog}
-          sx={{
-            color: 'text.secondary',
-            '&:hover': {
-              color: 'text.primary',
-              backgroundColor: 'action.hover',
-            },
-          }}
-        >
-          <EditIcon fontSize="small" />
-        </IconButton>
-      </Box>
+      {/* Flow Title */}
+      <Typography variant="h6" sx={{ fontWeight: 500, color: 'text.primary' }}>
+        {flow.name}
+      </Typography>
+
+      {flow.description && (
+        <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 400 }}>
+          {flow.description}
+        </Typography>
+      )}
+
+      {/* Edit Button */}
+      <IconButton
+        size="small"
+        onClick={handleOpenEditDialog}
+        sx={{
+          color: 'text.secondary',
+          '&:hover': {
+            color: 'text.primary',
+            backgroundColor: 'action.hover',
+          },
+        }}
+      >
+        <EditIcon fontSize="small" />
+      </IconButton>
 
       {/* Spacer */}
       <Box sx={{ flexGrow: 1 }} />
