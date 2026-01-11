@@ -132,7 +132,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
       onClick={onClick}
       elevation={isSelected ? 8 : isDragging ? 12 : 1}
       sx={{
-        width: 240,
+        width: 280,
         minHeight: 120,
         p: 2,
         cursor: isDraggable ? 'grab' : 'pointer',

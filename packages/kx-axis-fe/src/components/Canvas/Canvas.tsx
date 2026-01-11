@@ -333,7 +333,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                 </Box>
 
                 {/* Nodes in this lane */}
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {nodesInLane.map((node) => (
                     <NodeCard
                       key={node.id}
