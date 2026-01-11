@@ -282,6 +282,17 @@ export const ConversationItemsPalette: React.FC = () => {
         usedItemIds.add(itemId);
       }
     });
+    
+    // Check for preset-based items by matching title and captures
+    conversationItems.forEach((item) => {
+      // For INFO_CAPTURE items with presets, check by title match
+      if (item.captures && item.captures.length > 0) {
+        // Match by title (e.g., "Get name" preset)
+        if (node.title === item.title && node.kind === item.kind) {
+          usedItemIds.add(item.id);
+        }
+      }
+    });
   });
   
   // Handle opening dialog

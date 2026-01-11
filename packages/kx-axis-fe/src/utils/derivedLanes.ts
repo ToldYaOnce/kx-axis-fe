@@ -11,15 +11,22 @@ export interface DerivedLane {
 /**
  * Extract facts that a node needs before it can run
  */
-function getNodeNeedsBefore(node: FlowNode): string[] {
+function getNodeNeedsBefore(node: FlowNode, allNodes: FlowNode[]): string[] {
   const needs: string[] = [];
   
-  // Gates from requires (CONTACT, BOOKING, etc.)
+  // Gates and node dependencies from requires
   if (node.requires) {
     node.requires.forEach(req => {
-      // Filter out node IDs (they typically have hyphens)
+      // Check if it's a gate (CONTACT, BOOKING, etc.)
       if (!req.includes('-') && req.length < 20) {
         needs.push(req.toLowerCase());
+      } else {
+        // It's a node ID - look up what that node produces
+        const requiredNode = allNodes.find(n => n.id === req);
+        if (requiredNode) {
+          // Use node title as the requirement
+          needs.push(requiredNode.title.toLowerCase());
+        }
       }
     });
   }
@@ -42,6 +49,9 @@ function getNodeProduces(node: FlowNode): string[] {
   if (node.satisfies?.metrics) {
     produces.push(...node.satisfies.metrics);
   }
+  
+  // The node itself (by title) is a fact that can be required by other nodes
+  produces.push(node.title.toLowerCase());
   
   return produces;
 }
@@ -70,7 +80,7 @@ export function computeDerivedLanes(nodes: FlowNode[]): DerivedLane[] {
     
     // Find nodes that can be placed in this lane
     remainingNodes.forEach(node => {
-      const needsBefore = getNodeNeedsBefore(node);
+      const needsBefore = getNodeNeedsBefore(node, nodes);
       
       // Lane 0: no prerequisites
       if (laneIndex === 0 && needsBefore.length === 0) {
@@ -89,9 +99,9 @@ export function computeDerivedLanes(nodes: FlowNode[]): DerivedLane[] {
     if (nodesInThisLane.length === 0 && remainingNodes.length > 0) {
       // Place remaining nodes in subsequent lanes based on unfulfilled prereqs
       const nodeWithLeastUnmetPrereqs = remainingNodes.reduce((best, node) => {
-        const needsBefore = getNodeNeedsBefore(node);
+        const needsBefore = getNodeNeedsBefore(node, nodes);
         const unmetCount = needsBefore.filter(f => !availableFacts.has(f)).length;
-        const bestUnmetCount = getNodeNeedsBefore(best).filter(f => !availableFacts.has(f)).length;
+        const bestUnmetCount = getNodeNeedsBefore(best, nodes).filter(f => !availableFacts.has(f)).length;
         return unmetCount < bestUnmetCount ? node : best;
       });
       
@@ -121,7 +131,7 @@ export function computeDerivedLanes(nodes: FlowNode[]): DerivedLane[] {
       // Find most common prerequisites in this lane
       const prereqCounts = new Map<string, number>();
       nodesInThisLane.forEach(node => {
-        getNodeNeedsBefore(node).forEach(fact => {
+        getNodeNeedsBefore(node, nodes).forEach(fact => {
           prereqCounts.set(fact, (prereqCounts.get(fact) || 0) + 1);
         });
       });
