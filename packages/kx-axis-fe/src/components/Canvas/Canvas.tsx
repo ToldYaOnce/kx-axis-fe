@@ -26,6 +26,12 @@ const DroppableLane: React.FC<{
     },
   });
 
+  React.useEffect(() => {
+    if (isOver) {
+      console.log('🎨 HOVERING OVER LANE:', lane);
+    }
+  }, [isOver, lane]);
+
   return (
     <Box
       ref={setNodeRef}
@@ -104,10 +110,21 @@ export const Canvas: React.FC = () => {
     (event: DragEndEvent) => {
       const { active, delta, over } = event;
 
+      console.log('🎯 DRAG END:', {
+        activeId: active.id,
+        activeData: active.data.current,
+        overId: over?.id,
+        overData: over?.data.current,
+        delta,
+      });
+
       // Check if this is a palette item being dropped
       const isPaletteItem = active.data.current?.type === 'palette-item';
       
+      console.log('📦 Is Palette Item?', isPaletteItem);
+      
       if (isPaletteItem) {
+        console.log('✅ PALETTE ITEM DETECTED!');
         // Handle palette item drop
         if (!canvasRef.current) return;
 

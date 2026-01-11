@@ -101,6 +101,19 @@ const DraggableConversationItem: React.FC<{ item: ConversationItem }> = ({ item 
     },
   });
 
+  React.useEffect(() => {
+    if (isDragging) {
+      console.log('🚀 BEGIN DRAGGING:', {
+        id: `palette-${item.id}`,
+        title: item.title,
+        kind: item.kind,
+        defaultLane: item.defaultLane,
+      });
+    } else {
+      console.log('🛑 STOP DRAGGING:', item.title);
+    }
+  }, [isDragging, item]);
+
   const style = transform
     ? {
         transform: CSS.Translate.toString(transform),
