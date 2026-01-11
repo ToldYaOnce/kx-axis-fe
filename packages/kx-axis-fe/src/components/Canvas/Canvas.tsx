@@ -148,7 +148,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
           // Position the node in the target lane
           // Calculate vertical position based on existing nodes in lane
           const nodesInTargetLane = flow.nodes.filter(n => calculateNodeLane(n) === targetLane);
-          const yPosition = nodesInTargetLane.length * 180; // Stack vertically with 180px spacing
+          const yPosition = nodesInTargetLane.length * 150; // Stack vertically with 150px spacing
           
           newNode.ui = {
             ...newNode.ui!,
@@ -323,7 +323,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                     // Use stored ui.y if it's set and non-zero, otherwise calculate based on index
                     const yPosition = (node.ui?.y != null && node.ui.y !== 0) 
                       ? node.ui.y 
-                      : nodeIndex * 180; // 180px spacing for consistency
+                      : nodeIndex * 150; // Spacing: 150px = ~30px gap between cards
                     
                     return (
                       <Box
