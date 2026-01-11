@@ -145,6 +145,13 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         },
         backgroundColor: 'background.paper',
         opacity: isDragging ? 0.5 : 1,
+        userSelect: 'none', // Prevent text selection during drag
+        WebkitUserSelect: 'none',
+        MozUserSelect: 'none',
+        msUserSelect: 'none',
+        '&:active': {
+          cursor: isDraggable ? 'grabbing' : 'pointer',
+        },
         ...style,
       }}
       {...attributes}
@@ -153,7 +160,19 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
       {/* Header with icon and drag handle */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
         {isDraggable && (
-          <DragIndicatorIcon sx={{ fontSize: '1rem', color: 'text.disabled' }} />
+          <DragIndicatorIcon 
+            sx={{ 
+              fontSize: '1.2rem', 
+              color: 'text.secondary',
+              cursor: 'grab',
+              '&:hover': {
+                color: 'primary.main',
+              },
+              '&:active': {
+                cursor: 'grabbing',
+              },
+            }} 
+          />
         )}
         <Box sx={{ color: NODE_COLORS[node.kind] }}>{NODE_ICONS[node.kind]}</Box>
         <Typography
