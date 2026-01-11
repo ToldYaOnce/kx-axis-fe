@@ -322,7 +322,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                     sx={{
                       fontSize: '3.9rem',
                       fontWeight: 700,
-                      color: isLast ? 'transparent' : 'rgba(255, 255, 255, 0.7)',
+                      color: isLast ? 'transparent' : 'rgba(0, 0, 0, 0.15)',
                       lineHeight: 1,
                       userSelect: 'none',
                       visibility: isLast ? 'hidden' : 'visible',
