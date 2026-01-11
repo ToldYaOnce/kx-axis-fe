@@ -70,13 +70,13 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
     (n) => n.id !== node.id && n.kind !== 'CONTACT_GATE'
   );
   
-  // Available gates that can be added as requirements
-  const AVAILABLE_GATES = ['CONTACT', 'BOOKING'];
-  const availableGatesToAdd = AVAILABLE_GATES.filter(g => !gateRequirements.includes(g));
-
   // Get GATE requirements and satisfactions (not node IDs)
   const gateRequirements = getNodeGateRequirements(node);
   const gateSatisfactions = getNodeGateSatisfactions(node);
+  
+  // Available gates that can be added as requirements
+  const AVAILABLE_GATES = ['CONTACT', 'BOOKING'];
+  const availableGatesToAdd = AVAILABLE_GATES.filter(g => !gateRequirements.includes(g));
 
   // Calculate which OTHER NODES this node unlocks
   // (nodes that require gates this node satisfies)
