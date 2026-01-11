@@ -98,7 +98,8 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
     : undefined;
 
   // Get required node IDs (prerequisites - other nodes that must run first)
-  const requiredNodeIds = node.requires || [];
+  // Filter out gates since they're displayed separately
+  const requiredNodeIds = (node.requires || []).filter(req => !gateRequirements.includes(req));
   const isDataCapture = isDataCaptureNode(node.kind);
 
   // Handlers for inline requirement editing (node prerequisites)
