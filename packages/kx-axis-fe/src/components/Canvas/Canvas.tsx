@@ -33,7 +33,7 @@ const DroppableLane: React.FC<{
         position: 'relative',
         px: 2,
         py: 2,
-        minWidth: 280,
+        minWidth: 360,
         minHeight: '100%', // Ensure lanes extend full height
         backgroundColor: isOver ? 'action.hover' : 'transparent',
         transition: 'background-color 0.2s',
