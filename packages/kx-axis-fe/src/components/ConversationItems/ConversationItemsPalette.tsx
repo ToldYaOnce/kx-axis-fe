@@ -38,6 +38,7 @@ interface ConversationItem {
   description: string;
   icon: React.ReactElement;
   defaultLane: 'BEFORE_CONTACT' | 'CONTACT_GATE' | 'AFTER_CONTACT' | 'AFTER_BOOKING';
+  captures?: string[]; // For INFO_CAPTURE items
 }
 
 const CONVERSATION_ITEMS: ConversationItem[] = [
@@ -100,7 +101,7 @@ const CONVERSATION_ITEMS: ConversationItem[] = [
 ];
 
 // Draggable wrapper for individual conversation items
-const DraggableConversationItem: React.FC<{ item: ConversationItem; isUsed: boolean }> = ({ item, isUsed }) => {
+const DraggableConversationItem: React.FC<{ item: ConversationItem & { captures?: string[] }; isUsed: boolean }> = ({ item, isUsed }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `palette-${item.id}`,
     data: {
@@ -203,10 +204,57 @@ const DraggableConversationItem: React.FC<{ item: ConversationItem; isUsed: bool
           <Typography variant="caption" sx={{ color: isUsed ? 'text.disabled' : 'text.secondary', display: 'block', mt: 0.5 }}>
             {item.description}
           </Typography>
+          {/* Show captures for INFO_CAPTURE items */}
+          {item.captures && item.captures.length > 0 && (
+            <Typography variant="caption" sx={{ color: 'primary.main', display: 'block', mt: 0.5, fontSize: '0.65rem', fontWeight: 600 }}>
+              Captures: {item.captures.slice(0, 2).join(', ')}
+              {item.captures.length > 2 && ` +${item.captures.length - 2}`}
+            </Typography>
+          )}
         </Box>
       </Box>
     </Paper>
   );
+};
+
+// Generic conversation item kinds (UI-facing)
+type ConversationItemKind = 
+  | 'EXPLANATION' 
+  | 'REFLECTIVE_QUESTION' 
+  | 'INFO_CAPTURE' 
+  | 'GOAL_GAP_TRACKER' 
+  | 'ACTION' 
+  | 'HANDOFF';
+
+// Presets for INFO_CAPTURE
+type InfoCapturePreset = 'blank' | 'get_name' | 'get_contact_info';
+
+interface PresetConfig {
+  label: string;
+  title: string;
+  captures: string[];
+  produces: string[];
+}
+
+const INFO_CAPTURE_PRESETS: Record<InfoCapturePreset, PresetConfig> = {
+  blank: {
+    label: 'Blank',
+    title: 'New Capture',
+    captures: [],
+    produces: [],
+  },
+  get_name: {
+    label: 'Get name',
+    title: 'Get name',
+    captures: ['firstName', 'lastName'],
+    produces: ['firstName', 'lastName'],
+  },
+  get_contact_info: {
+    label: 'Get contact info',
+    title: 'Get contact info',
+    captures: ['email', 'phone'],
+    produces: ['email', 'phone'],
+  },
 };
 
 export const ConversationItemsPalette: React.FC = () => {
@@ -217,8 +265,9 @@ export const ConversationItemsPalette: React.FC = () => {
   
   // State for "+ New item" dialog
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [newItemType, setNewItemType] = useState<NodeKind | ''>('');
+  const [newItemType, setNewItemType] = useState<ConversationItemKind | ''>('');
   const [newItemTitle, setNewItemTitle] = useState('');
+  const [selectedPreset, setSelectedPreset] = useState<InfoCapturePreset>('blank');
 
   // Track which single-use items are already on the canvas
   const usedItemIds = new Set<string>();
@@ -240,6 +289,7 @@ export const ConversationItemsPalette: React.FC = () => {
     setDialogOpen(true);
     setNewItemType('');
     setNewItemTitle('');
+    setSelectedPreset('blank');
   };
   
   // Handle closing dialog
@@ -247,62 +297,83 @@ export const ConversationItemsPalette: React.FC = () => {
     setDialogOpen(false);
     setNewItemType('');
     setNewItemTitle('');
+    setSelectedPreset('blank');
   };
   
   // Handle type selection (prefill title)
-  const handleTypeChange = (type: NodeKind) => {
+  const handleTypeChange = (type: ConversationItemKind) => {
     setNewItemType(type);
+    setSelectedPreset('blank'); // Reset preset when type changes
     
     // Prefill title based on type
-    const titleMap: Record<NodeKind, string> = {
+    const titleMap: Record<ConversationItemKind, string> = {
       'EXPLANATION': 'New Explanation',
       'REFLECTIVE_QUESTION': 'New Question',
+      'INFO_CAPTURE': 'New Capture',
       'GOAL_GAP_TRACKER': 'Goal Gap Tracker',
-      'BASELINE_CAPTURE': 'New Capture',
-      'ACTION_BOOKING': 'Book Appointment',
+      'ACTION': 'New Action',
       'HANDOFF': 'Handoff to Human',
-      'GOAL_DEFINITION': 'Define Goal',
-      'DEADLINE_CAPTURE': 'Capture Deadline',
     };
     
     setNewItemTitle(titleMap[type] || 'New Item');
+  };
+  
+  // Handle preset selection (for INFO_CAPTURE only)
+  const handlePresetChange = (preset: InfoCapturePreset) => {
+    setSelectedPreset(preset);
+    const presetConfig = INFO_CAPTURE_PRESETS[preset];
+    setNewItemTitle(presetConfig.title);
   };
   
   // Handle create new item
   const handleCreateItem = () => {
     if (!newItemType || !newItemTitle.trim()) return;
     
-    // Get icon for type
-    const iconMap: Record<NodeKind, React.ReactElement> = {
-      'EXPLANATION': <InfoOutlinedIcon />,
-      'REFLECTIVE_QUESTION': <QuestionAnswerIcon />,
-      'GOAL_GAP_TRACKER': <ShowChartIcon />,
-      'BASELINE_CAPTURE': <ContactMailIcon />,
-      'ACTION_BOOKING': <CalendarMonthIcon />,
-      'HANDOFF': <HandshakeIcon />,
-      'GOAL_DEFINITION': <InfoOutlinedIcon />,
-      'DEADLINE_CAPTURE': <CalendarMonthIcon />,
+    // Map UI-facing kinds to internal NodeKind
+    const kindToNodeKind: Record<ConversationItemKind, NodeKind> = {
+      'EXPLANATION': 'EXPLANATION',
+      'REFLECTIVE_QUESTION': 'REFLECTIVE_QUESTION',
+      'INFO_CAPTURE': 'BASELINE_CAPTURE', // Map to existing type
+      'GOAL_GAP_TRACKER': 'GOAL_GAP_TRACKER',
+      'ACTION': 'ACTION_BOOKING', // Map to existing type
+      'HANDOFF': 'HANDOFF',
     };
     
+    // Get icon for type
+    const iconMap: Record<ConversationItemKind, React.ReactElement> = {
+      'EXPLANATION': <InfoOutlinedIcon />,
+      'REFLECTIVE_QUESTION': <QuestionAnswerIcon />,
+      'INFO_CAPTURE': <ContactMailIcon />,
+      'GOAL_GAP_TRACKER': <ShowChartIcon />,
+      'ACTION': <CalendarMonthIcon />,
+      'HANDOFF': <HandshakeIcon />,
+    };
+    
+    // Get preset config for INFO_CAPTURE
+    const presetConfig = newItemType === 'INFO_CAPTURE' ? INFO_CAPTURE_PRESETS[selectedPreset] : null;
+    
     // Create new conversation item
-    const newItem: ConversationItem = {
+    const newItem: ConversationItem & { captures?: string[] } = {
       id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      kind: newItemType as NodeKind,
+      kind: kindToNodeKind[newItemType],
       title: newItemTitle.trim(),
-      description: 'Custom item',
-      icon: iconMap[newItemType as NodeKind] || <InfoOutlinedIcon />,
+      description: presetConfig 
+        ? `Captures: ${presetConfig.captures.join(', ') || 'custom fields'}`
+        : 'Custom item',
+      icon: iconMap[newItemType] || <InfoOutlinedIcon />,
       defaultLane: 'BEFORE_CONTACT',
+      captures: presetConfig?.captures || undefined,
     };
     
     // Add to list
-    setConversationItems([...conversationItems, newItem]);
+    setConversationItems([...conversationItems, newItem] as any);
     
     // Close dialog
     handleCloseDialog();
   };
 
   // Helper function to create a node from a conversation item
-  const createNodeFromItem = (item: ConversationItem, lane?: string): FlowNode => {
+  const createNodeFromItem = (item: ConversationItem & { captures?: string[] }, lane?: string): FlowNode => {
     const targetLane = (lane || item.defaultLane) as 'BEFORE_CONTACT' | 'CONTACT_GATE' | 'AFTER_CONTACT' | 'AFTER_BOOKING';
     
     const newNode: FlowNode = {
@@ -315,6 +386,13 @@ export const ConversationItemsPalette: React.FC = () => {
         lane: targetLane,
       },
     };
+    
+    // Add captures/produces for INFO_CAPTURE items with presets
+    if (item.kind === 'BASELINE_CAPTURE' && item.captures && item.captures.length > 0) {
+      newNode.satisfies = {
+        metrics: item.captures,
+      };
+    }
 
     // Add default config for GOAL_GAP_TRACKER
     if (item.kind === 'GOAL_GAP_TRACKER') {
@@ -448,25 +526,41 @@ export const ConversationItemsPalette: React.FC = () => {
       
       {/* Create New Item Dialog */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Create New Item</DialogTitle>
+        <DialogTitle>Create new item</DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
             {/* Item Type Selection */}
             <TextField
               select
-              label="Item Type"
+              label="Item type"
               value={newItemType}
-              onChange={(e) => handleTypeChange(e.target.value as NodeKind)}
+              onChange={(e) => handleTypeChange(e.target.value as ConversationItemKind)}
               fullWidth
               required
             >
               <MenuItem value="EXPLANATION">Explanation</MenuItem>
-              <MenuItem value="REFLECTIVE_QUESTION">Reflective Question</MenuItem>
-              <MenuItem value="GOAL_GAP_TRACKER">Goal Gap Tracker</MenuItem>
-              <MenuItem value="BASELINE_CAPTURE">Contact Capture</MenuItem>
-              <MenuItem value="ACTION_BOOKING">Action Booking</MenuItem>
+              <MenuItem value="REFLECTIVE_QUESTION">Reflective question</MenuItem>
+              <MenuItem value="INFO_CAPTURE">Info capture</MenuItem>
+              <MenuItem value="GOAL_GAP_TRACKER">Goal gap tracker</MenuItem>
+              <MenuItem value="ACTION">Action</MenuItem>
               <MenuItem value="HANDOFF">Handoff</MenuItem>
             </TextField>
+            
+            {/* Preset Selector (only for INFO_CAPTURE) */}
+            {newItemType === 'INFO_CAPTURE' && (
+              <TextField
+                select
+                label="Start from a preset (optional)"
+                value={selectedPreset}
+                onChange={(e) => handlePresetChange(e.target.value as InfoCapturePreset)}
+                fullWidth
+                size="small"
+              >
+                <MenuItem value="blank">Blank</MenuItem>
+                <MenuItem value="get_name">Get name</MenuItem>
+                <MenuItem value="get_contact_info">Get contact info</MenuItem>
+              </TextField>
+            )}
             
             {/* Title Input */}
             <TextField
