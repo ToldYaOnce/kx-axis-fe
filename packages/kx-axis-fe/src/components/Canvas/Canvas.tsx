@@ -14,7 +14,11 @@ import {
 } from '../../utils/laneLogic';
 
 // Droppable Lane Component
-const DroppableLane: React.FC<{ lane: EligibilityLane; children: React.ReactNode }> = ({ lane, children }) => {
+const DroppableLane: React.FC<{ 
+  lane: EligibilityLane; 
+  children: React.ReactNode;
+  isLast: boolean;
+}> = ({ lane, children, isLast }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `lane-${lane}`,
     data: {
@@ -33,6 +37,8 @@ const DroppableLane: React.FC<{ lane: EligibilityLane; children: React.ReactNode
         minWidth: 280,
         backgroundColor: isOver ? 'action.hover' : 'transparent',
         transition: 'background-color 0.2s',
+        borderRight: !isLast ? '2px dashed' : 'none',
+        borderColor: 'divider',
       }}
     >
       {children}
@@ -241,16 +247,10 @@ export const Canvas: React.FC = () => {
           {lanes.map((lane, index) => {
             const config = LANE_CONFIG[lane];
             const nodesInLane = nodesByLane[lane];
+            const isLast = index === lanes.length - 1;
 
             return (
-              <Box
-                key={lane}
-                sx={{
-                  borderRight: index < lanes.length - 1 ? '2px dashed' : 'none',
-                  borderColor: 'divider',
-                }}
-              >
-                <DroppableLane lane={lane}>
+                <DroppableLane key={lane} lane={lane} isLast={isLast}>
                 {/* Lane Header */}
                 <Paper
                   elevation={0}
@@ -322,7 +322,6 @@ export const Canvas: React.FC = () => {
                   )}
                 </Box>
                 </DroppableLane>
-              </Box>
             );
           })}
         </Box>
