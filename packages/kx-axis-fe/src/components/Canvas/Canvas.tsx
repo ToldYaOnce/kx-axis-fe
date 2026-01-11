@@ -34,11 +34,14 @@ const DroppableLane: React.FC<{
         px: 2,
         py: 2,
         minWidth: 280,
+        minHeight: '100%', // Ensure lanes extend full height
         backgroundColor: isOver ? 'action.hover' : 'transparent',
         transition: 'background-color 0.2s',
         borderRight: !isLast ? (isElastic ? '2px dashed' : '1px solid') : 'none',
         borderColor: 'divider',
         opacity: isElastic ? 0.6 : 1,
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       {children}
@@ -148,8 +151,8 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
         <Box
           sx={{
             display: 'flex',
-            height: '100%',
-            minHeight: 600,
+            minHeight: 'calc(100vh - 80px)', // Ensure lanes extend full viewport height
+            height: 'auto',
             pt: 8,
           }}
         >
@@ -200,7 +203,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                 </Box>
 
                 {/* Nodes in this lane */}
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
                   {lane.nodes.map((node) => (
                     <NodeCard
                       key={node.id}
@@ -269,6 +272,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 minHeight: 200,
+                flex: 1,
                 color: 'text.disabled',
               }}
             >
