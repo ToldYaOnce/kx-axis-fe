@@ -218,7 +218,8 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                         borderBottom: '28px solid transparent',
                         borderLeft: `20px solid ${laneColor}`,
                         filter: 'drop-shadow(2px 0 3px rgba(0,0,0,0.15))',
-                        zIndex: 10,
+                        zIndex: 100,
+                        pointerEvents: 'none',
                       }}
                     />
                   )}
