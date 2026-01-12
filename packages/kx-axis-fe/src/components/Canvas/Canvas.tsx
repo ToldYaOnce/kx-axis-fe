@@ -163,9 +163,8 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
             const laneColor = ['#E8F5E9', '#FFF9C4', '#E3F2FD', '#F3E5F5'][index % 4];
 
             return (
-              <Box key={lane.index} sx={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                <DroppableLane laneIndex={lane.index} isLast={false}>
-                {/* Lane Header */}
+                <DroppableLane key={lane.index} laneIndex={lane.index} isLast={false}>
+                {/* Lane Header with chevron */}
                 <Box
                   sx={{
                     position: 'sticky',
@@ -204,6 +203,25 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                   >
                     {lane.description}
                   </Typography>
+                  
+                  {/* Chevron arrow to next lane */}
+                  {!isLast && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        right: -20,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 0,
+                        height: 0,
+                        borderTop: '28px solid transparent',
+                        borderBottom: '28px solid transparent',
+                        borderLeft: `20px solid ${laneColor}`,
+                        filter: 'drop-shadow(2px 0 3px rgba(0,0,0,0.15))',
+                        zIndex: 10,
+                      }}
+                    />
+                  )}
                 </Box>
 
                 {/* Nodes in this lane */}
@@ -231,35 +249,6 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                   )}
                 </Box>
                 </DroppableLane>
-                
-                {/* Chevron arrow connecting to next lane */}
-                {!isLast && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      right: -20,
-                      top: 0,
-                      bottom: 0,
-                      width: 40,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      zIndex: 10,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 0,
-                        height: 0,
-                        borderTop: '32px solid transparent',
-                        borderBottom: '32px solid transparent',
-                        borderLeft: `20px solid ${laneColor}`,
-                        filter: 'drop-shadow(2px 0 3px rgba(0,0,0,0.15))',
-                      }}
-                    />
-                  </Box>
-                )}
-              </Box>
             );
           })}
           
