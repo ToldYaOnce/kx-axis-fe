@@ -62,3 +62,41 @@ export {
   updateNodeForLane,
 } from './utils/laneLogic';
 
+// ========== EXECUTION MODE ==========
+
+// Main Execution Mode component
+export { ExecutionMode } from './components/Simulator/ExecutionMode';
+
+// Simulator context
+export { SimulatorProvider, useSimulator } from './context/SimulatorContext';
+
+// Simulator types
+export type {
+  Channel,
+  LeadState,
+  ScenarioContext,
+  KnownFacts,
+  Intent,
+  AffectScalars,
+  Signals,
+  Progress,
+  BlabberMode,
+  ControlFlags,
+  ControllerOutput,
+  ExecutionDecision,
+  ConstraintDelta,
+  ExecutionMetadata,
+  ExecutionResult,
+  ConversationTurn,
+  NodeStatus,
+  SimulationNode,
+  SimulationBranch,
+  SimulationRun,
+  StartSimulationRequest,
+  StartSimulationResponse,
+  StepSimulationRequest,
+  StepSimulationResponse,
+  ForkSimulationRequest,
+  ForkSimulationResponse,
+} from './types/simulator';
+
