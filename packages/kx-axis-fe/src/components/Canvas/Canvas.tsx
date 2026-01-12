@@ -17,7 +17,8 @@ const DroppableLane: React.FC<{
   children: React.ReactNode;
   isLast: boolean;
   isElastic?: boolean;
-}> = ({ laneIndex, children, isLast, isElastic }) => {
+  laneColor?: string;
+}> = ({ laneIndex, children, isLast, isElastic, laneColor }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `lane-${laneIndex}`,
     data: {
@@ -44,6 +45,21 @@ const DroppableLane: React.FC<{
         opacity: isElastic ? 0.6 : 1,
         display: 'flex',
         flexDirection: 'column',
+        // Chevron arrow using ::after pseudo-element
+        '&::after': !isLast && !isElastic ? {
+          content: '""',
+          position: 'absolute',
+          right: -20,
+          top: 40,
+          width: 0,
+          height: 0,
+          borderTop: '28px solid transparent',
+          borderBottom: '28px solid transparent',
+          borderLeft: `20px solid ${laneColor || '#E8F5E9'}`,
+          filter: 'drop-shadow(2px 0 3px rgba(0,0,0,0.15))',
+          zIndex: 1000,
+          pointerEvents: 'none',
+        } : {},
       }}
     >
       {children}
@@ -164,7 +180,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
 
             return (
               <React.Fragment key={lane.index}>
-                <DroppableLane laneIndex={lane.index} isLast={false}>
+                <DroppableLane laneIndex={lane.index} isLast={false} laneColor={laneColor}>
                 {/* Lane Header */}
                 <Box
                   sx={{
@@ -231,32 +247,6 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                   )}
                 </Box>
                 </DroppableLane>
-                
-                {/* Chevron arrow between lanes */}
-                {!isLast && (
-                  <Box
-                    sx={{
-                      position: 'relative',
-                      width: 0,
-                      flexShrink: 0,
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      pt: 3.5, // Align with header center
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 0,
-                        height: 0,
-                        borderTop: '28px solid transparent',
-                        borderBottom: '28px solid transparent',
-                        borderLeft: `20px solid ${laneColor}`,
-                        filter: 'drop-shadow(2px 0 3px rgba(0,0,0,0.15))',
-                        pointerEvents: 'none',
-                      }}
-                    />
-                  </Box>
-                )}
               </React.Fragment>
             );
           })}
