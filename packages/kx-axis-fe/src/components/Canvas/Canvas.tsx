@@ -181,6 +181,26 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                     borderBottom: '1px solid',
                     borderColor: 'divider',
                     borderRadius: 0,
+                    // Arrow overlapping the right border
+                    '&::after': !isLast ? {
+                      content: '"→"',
+                      position: 'absolute',
+                      right: -18,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      fontSize: '2rem',
+                      fontWeight: 900,
+                      color: 'rgba(0, 0, 0, 0.3)',
+                      backgroundColor: 'white',
+                      width: 36,
+                      height: 36,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '50%',
+                      zIndex: 10,
+                      pointerEvents: 'none',
+                    } : {},
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
@@ -244,32 +264,6 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                   )}
                 </Box>
                 </DroppableLane>
-                
-                {/* Simple arrow between lanes */}
-                {!isLast && (
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      justifyContent: 'center',
-                      pt: 3,
-                      px: 1,
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Typography
-                      variant="h5"
-                      sx={{
-                        color: 'text.secondary',
-                        opacity: 0.5,
-                        fontWeight: 300,
-                        userSelect: 'none',
-                      }}
-                    >
-                      →
-                    </Typography>
-                  </Box>
-                )}
               </React.Fragment>
             );
           })}
