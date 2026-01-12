@@ -210,11 +210,12 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                   <Box
                     sx={{
                       width: '100%',
-                      height: 2,
-                      backgroundColor: 'rgba(0, 0, 0, 0.06)',
+                      height: 4,
+                      backgroundColor: 'rgba(0, 0, 0, 0.1)',
                       position: 'relative',
-                      borderRadius: 1,
+                      borderRadius: 2,
                       overflow: 'hidden',
+                      mt: 0.5,
                     }}
                   >
                     <Box
@@ -224,9 +225,10 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                         top: 0,
                         height: '100%',
                         width: `${Math.min(100, (index + 1) * 25)}%`,
-                        backgroundColor: 'rgba(0, 0, 0, 0.15)',
-                        borderRadius: 1,
+                        backgroundColor: 'rgba(0, 0, 0, 0.35)',
+                        borderRadius: 2,
                         transition: 'width 0.3s ease',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
                       }}
                     />
                   </Box>
