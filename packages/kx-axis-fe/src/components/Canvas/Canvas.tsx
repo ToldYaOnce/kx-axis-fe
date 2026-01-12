@@ -171,6 +171,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                     top: 0,
                     zIndex: 5,
                     p: 1.5,
+                    pb: 1,
                     mb: 2,
                     mx: -2, // Flush with lane edges
                     backgroundColor: laneColor,
@@ -198,10 +199,37 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                     sx={{
                       color: 'text.secondary',
                       fontSize: '0.65rem',
+                      display: 'block',
+                      mb: 1,
                     }}
                   >
                     {lane.description}
                   </Typography>
+                  
+                  {/* Progress indicator - shows flow from left to right */}
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: 2,
+                      backgroundColor: 'rgba(0, 0, 0, 0.06)',
+                      position: 'relative',
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        left: 0,
+                        top: 0,
+                        height: '100%',
+                        width: `${Math.min(100, (index + 1) * 25)}%`,
+                        backgroundColor: 'rgba(0, 0, 0, 0.15)',
+                        borderRadius: 1,
+                        transition: 'width 0.3s ease',
+                      }}
+                    />
+                  </Box>
                 </Box>
 
                 {/* Nodes in this lane */}
