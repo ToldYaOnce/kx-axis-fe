@@ -223,8 +223,18 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         {node.title}
       </Typography>
 
-      {/* Unified "Must know before" section - shows both gate requirements and node prerequisites */}
-      <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}>
+      {/* "Must know before" section - shows both gate requirements and node prerequisites */}
+      <Box 
+        sx={{ 
+          mt: 1.5, 
+          pt: 1.5, 
+          borderTop: '1px dashed', 
+          borderColor: 'divider',
+          '&:hover .add-requirement-btn': {
+            opacity: 1,
+          },
+        }}
+      >
         <Typography
           variant="caption"
           sx={{
@@ -238,6 +248,20 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
           Must know before
         </Typography>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+          {/* Show "Can run anytime" when no requirements */}
+          {gateRequirements.length === 0 && requiredNodeIds.length === 0 && (
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: '0.7rem',
+                color: 'text.disabled',
+                fontStyle: 'italic',
+              }}
+            >
+              — None —
+            </Typography>
+          )}
+          
           {/* Show gate requirements (CONTACT, BOOKING) */}
           {gateRequirements.map((gate) => (
             <Chip
@@ -246,7 +270,6 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
               size="small"
               onDelete={(e) => {
                 e.stopPropagation();
-                // Remove this gate requirement
                 const newRequires = (node.requires || []).filter(r => r !== gate);
                 updateNode(node.id, { requires: newRequires });
               }}
@@ -298,9 +321,10 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
             );
           })}
           
-          {/* Add requirement button - unified */}
+          {/* Add requirement button - only visible on hover */}
           <IconButton
             size="small"
+            className="add-requirement-btn"
             onClick={(e) => {
               e.stopPropagation();
               setAnchorEl(e.currentTarget);
@@ -309,6 +333,8 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
               width: 20,
               height: 20,
               color: 'text.secondary',
+              opacity: 0,
+              transition: 'opacity 0.2s ease',
               '&:hover': {
                 color: 'primary.main',
                 backgroundColor: 'action.hover',
@@ -318,107 +344,114 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
             <AddCircleOutlineIcon sx={{ fontSize: '0.9rem' }} />
           </IconButton>
         </Box>
-        <Typography
-          variant="caption"
-          sx={{
-            fontSize: '0.65rem',
-            color: 'text.disabled',
-            fontStyle: 'italic',
-            display: 'block',
-            mt: 0.5,
-          }}
-        >
-          Controls which lane this item appears in
-        </Typography>
       </Box>
 
-      {/* Chips - ALWAYS VISIBLE */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, minHeight: 24, mt: 1.5 }}>
-        {/* GOAL_GAP_TRACKER specific chips */}
-          {node.kind === 'GOAL_GAP_TRACKER' && (
-            <>
-              <Chip
-                icon={<TrendingUpIcon sx={{ fontSize: '0.8rem' }} />}
-                label="Captures: Target + Baseline"
-                size="small"
-                sx={{
-                  height: 22,
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  backgroundColor: '#E3F2FD',
-                  color: '#1565C0',
-                  '& .MuiChip-icon': { color: '#1565C0' },
-                }}
-              />
-              <Chip
-                icon={<CategoryIcon sx={{ fontSize: '0.8rem' }} />}
-                label="Produces: Delta + Category"
-                size="small"
-                sx={{
-                  height: 22,
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  backgroundColor: '#F3E5F5',
-                  color: '#6A1B9A',
-                  '& .MuiChip-icon': { color: '#6A1B9A' },
-                }}
-              />
-              {node.goalGapTracker?.deadlinePolicyDefault && 
-               node.goalGapTracker.deadlinePolicyDefault !== 'INHERIT' && (
+      {/* "After this, we know" section - what this node produces */}
+      {((node.satisfies?.metrics && node.satisfies.metrics.length > 0) || 
+        node.kind === 'GOAL_GAP_TRACKER') && (
+        <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}>
+          <Typography
+            variant="caption"
+            sx={{
+              fontSize: '0.7rem',
+              fontWeight: 600,
+              color: 'text.secondary',
+              display: 'block',
+              mb: 0.5,
+            }}
+          >
+            After this, we know
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {/* GOAL_GAP_TRACKER specific outputs */}
+            {node.kind === 'GOAL_GAP_TRACKER' && (
+              <>
                 <Chip
-                  icon={<EventIcon sx={{ fontSize: '0.8rem' }} />}
-                  label={`Deadline: ${node.goalGapTracker.deadlinePolicyDefault.replace('_', ' ')}`}
+                  label="target + baseline"
                   size="small"
                   sx={{
-                    height: 22,
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    backgroundColor: '#FFF3E0',
-                    color: '#E65100',
-                    '& .MuiChip-icon': { color: '#E65100' },
+                    height: 20,
+                    fontSize: '0.65rem',
+                    fontWeight: 500,
+                    backgroundColor: '#E3F2FD',
+                    color: '#1565C0',
                   }}
                 />
-              )}
-            </>
-          )}
+                <Chip
+                  label="delta + category"
+                  size="small"
+                  sx={{
+                    height: 20,
+                    fontSize: '0.65rem',
+                    fontWeight: 500,
+                    backgroundColor: '#F3E5F5',
+                    color: '#6A1B9A',
+                  }}
+                />
+                {node.goalGapTracker?.deadlinePolicyDefault && 
+                 node.goalGapTracker.deadlinePolicyDefault !== 'INHERIT' && (
+                  <Chip
+                    label="deadline"
+                    size="small"
+                    sx={{
+                      height: 20,
+                      fontSize: '0.65rem',
+                      fontWeight: 500,
+                      backgroundColor: '#FFF3E0',
+                      color: '#E65100',
+                    }}
+                  />
+                )}
+              </>
+            )}
 
-        {/* Show what this node produces (metrics/data) */}
-        {node.satisfies?.metrics && node.satisfies.metrics.length > 0 && (
-          <Chip
-            icon={<CategoryIcon sx={{ fontSize: '0.8rem' }} />}
-            label={`Produces: ${node.satisfies.metrics.join(', ')}`}
-            size="small"
-            sx={{
-              height: 22,
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              backgroundColor: '#E1F5FE',
-              color: '#01579B',
-              '& .MuiChip-icon': { color: '#01579B' },
-            }}
-          />
-        )}
+            {/* Show what this node produces (metrics/data) */}
+            {node.satisfies?.metrics && node.satisfies.metrics.map((metric) => (
+              <Chip
+                key={metric}
+                label={metric}
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: '0.65rem',
+                  fontWeight: 500,
+                  backgroundColor: '#E1F5FE',
+                  color: '#01579B',
+                }}
+              />
+            ))}
+          </Box>
+        </Box>
+      )}
 
-        {/* Show which OTHER NODES this node unlocks */}
-        {unlockedNodes.map((unlockedNode) => (
-          <Chip
-            key={`unlocks-${unlockedNode.id}`}
-            icon={<LockOpenIcon sx={{ fontSize: '0.8rem' }} />}
-            label={`Unlocks ${unlockedNode.title}`}
-            size="small"
-            sx={{
-              height: 22,
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              backgroundColor: '#C8E6C9',
-              color: '#2E7D32',
-              '& .MuiChip-icon': {
-                color: '#2E7D32',
-              },
-            }}
-          />
-        ))}
-      </Box>
+      {/* "Unlocks" section - visually subordinate */}
+      {unlockedNodes.length > 0 && (
+        <Box sx={{ mt: 1 }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {unlockedNodes.map((unlockedNode) => (
+              <Chip
+                key={`unlocks-${unlockedNode.id}`}
+                icon={<LockOpenIcon sx={{ fontSize: '0.7rem' }} />}
+                label={`unlocks ${unlockedNode.title}`}
+                size="small"
+                sx={{
+                  height: 18,
+                  fontSize: '0.6rem',
+                  fontWeight: 400,
+                  backgroundColor: 'transparent',
+                  border: '1px solid',
+                  borderColor: 'success.light',
+                  color: 'text.disabled',
+                  '& .MuiChip-icon': {
+                    color: 'success.light',
+                    fontSize: '0.7rem',
+                  },
+                }}
+              />
+            ))}
+          </Box>
+        </Box>
+      )}
 
       {/* Unified Popover for adding all types of requirements */}
       <Popover

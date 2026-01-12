@@ -103,10 +103,10 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header */}
+      {/* Header - lighter, more secondary */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h6" sx={{ fontWeight: 500 }}>
-          Node Details
+        <Typography variant="subtitle1" sx={{ fontWeight: 500, color: 'text.secondary' }}>
+          Item Details
         </Typography>
         <IconButton
           size="small"
@@ -117,12 +117,12 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
         </IconButton>
       </Box>
 
-      {/* ========== DEFAULT SECTIONS ========== */}
+      {/* ========== MAIN SECTION ========== */}
 
-      {/* 1. Node */}
+      {/* 1. What this does */}
       <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-          Node
+        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary', mb: 2, textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: 0.5 }}>
+          What this does
         </Typography>
 
         <TextField
@@ -162,156 +162,131 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
         />
       </Box>
 
-      <Divider sx={{ my: 3 }} />
+      <Divider sx={{ my: 2, borderColor: 'divider', opacity: 0.3 }} />
 
-      {/* 2. Locks (Requirements) */}
+      {/* 2. When this can run (read-only mirror) */}
       <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-          Locks
+        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary', mb: 1.5, textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: 0.5 }}>
+          When this can run
         </Typography>
-
-        {isDataCaptureNode && (
-          <Box
-            sx={{
-              mb: 2,
-              p: 1.5,
-              backgroundColor: 'info.lighter',
-              borderRadius: 1,
-              border: '1px dashed',
-              borderColor: 'info.light',
-            }}
-          >
-            <Typography variant="caption" sx={{ color: 'info.dark', fontWeight: 600 }}>
-              💡 Edit requirements on the card
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
-              Data Capture nodes show "Must know before" inline. Click the + button on the card to add/remove requirements.
-            </Typography>
-          </Box>
-        )}
-
-        <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1, display: 'block' }}>
-          🔒 What's required first
-        </Typography>
-        {locks.length > 0 ? (
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {locks.map((lock) => (
-              <Chip
-                key={lock}
-                icon={<LockIcon sx={{ fontSize: '0.8rem' }} />}
-                label={`Requires ${lock}`}
-                size="small"
-                sx={{
-                  height: 24,
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  backgroundColor: '#FFE0B2',
-                  color: '#E65100',
-                  '& .MuiChip-icon': { color: '#E65100' },
-                }}
-              />
-            ))}
-          </Box>
-        ) : (
-          <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
-            No locks — can run anytime
-          </Typography>
-        )}
-      </Box>
-
-      <Divider sx={{ my: 3 }} />
-
-      {/* 3. Unlocks */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-          Unlocks
-        </Typography>
-        <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1, display: 'block' }}>
-          🔓 What this enables
-        </Typography>
-        {unlocks.length > 0 ? (
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {unlocks.map((unlock) => (
-              <Chip
-                key={unlock}
-                icon={<CheckCircleOutlineIcon sx={{ fontSize: '0.8rem' }} />}
-                label={unlock}
-                size="small"
-                sx={{
-                  height: 24,
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  backgroundColor: '#C8E6C9',
-                  color: '#2E7D32',
-                  '& .MuiChip-icon': { color: '#2E7D32' },
-                }}
-              />
-            ))}
-          </Box>
-        ) : (
-          <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
-            Doesn't unlock gates or states
-          </Typography>
-        )}
-      </Box>
-
-      <Divider sx={{ my: 3 }} />
-
-      {/* 4. Produces */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-          Produces
-        </Typography>
-        <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1, display: 'block' }}>
-          📊 Data/metrics produced
-        </Typography>
-        {produces.length > 0 ? (
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {produces.map((metric) => (
-              <Chip
-                key={metric}
-                label={metric}
-                size="small"
-                sx={{
-                  height: 24,
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  backgroundColor: '#E1F5FE',
-                  color: '#01579B',
-                }}
-              />
-            ))}
-          </Box>
-        ) : (
-          <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
-            No data produced
-          </Typography>
-        )}
-      </Box>
-
-      <Divider sx={{ my: 3 }} />
-
-      {/* 3. Eligibility (Simplified) */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-          Eligibility
-        </Typography>
-
+        
         <Box
           sx={{
             p: 1.5,
-            backgroundColor: 'action.hover',
+            backgroundColor: 'background.default',
             borderRadius: 1,
             border: '1px solid',
             borderColor: 'divider',
           }}
         >
-          <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
-            Runs in: <strong>{runsIn}</strong>
-          </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
-            Move between lanes on the canvas to change eligibility
-          </Typography>
+          {locks.length > 0 ? (
+            <Box>
+              <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mb: 0.75, fontSize: '0.7rem' }}>
+                Must know before:
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {locks.map((lock) => (
+                  <Chip
+                    key={lock}
+                    label={lock.toLowerCase()}
+                    size="small"
+                    sx={{
+                      height: 20,
+                      fontSize: '0.65rem',
+                      fontWeight: 500,
+                      backgroundColor: 'transparent',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      color: 'text.secondary',
+                    }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          ) : (
+            <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic', fontSize: '0.7rem' }}>
+              No prerequisites — can run anytime
+            </Typography>
+          )}
+        </Box>
+        <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mt: 1, fontSize: '0.65rem', fontStyle: 'italic' }}>
+          Edit prerequisites on the card to change this
+        </Typography>
+      </Box>
+
+      <Divider sx={{ my: 2, borderColor: 'divider', opacity: 0.3 }} />
+
+      {/* 3. What this reveals (read-only mirror) */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary', mb: 1.5, textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: 0.5 }}>
+          What this reveals
+        </Typography>
+        
+        <Box
+          sx={{
+            p: 1.5,
+            backgroundColor: 'background.default',
+            borderRadius: 1,
+            border: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          {produces.length > 0 || unlocks.length > 0 ? (
+            <Box>
+              {produces.length > 0 && (
+                <Box sx={{ mb: produces.length > 0 && unlocks.length > 0 ? 1.5 : 0 }}>
+                  <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mb: 0.75, fontSize: '0.7rem' }}>
+                    Data captured:
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {produces.map((metric) => (
+                      <Chip
+                        key={metric}
+                        label={metric}
+                        size="small"
+                        sx={{
+                          height: 20,
+                          fontSize: '0.65rem',
+                          fontWeight: 500,
+                          backgroundColor: '#E1F5FE',
+                          color: '#01579B',
+                        }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+              {unlocks.length > 0 && (
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mb: 0.75, fontSize: '0.7rem' }}>
+                    Gates unlocked:
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {unlocks.map((unlock) => (
+                      <Chip
+                        key={unlock}
+                        label={unlock}
+                        size="small"
+                        sx={{
+                          height: 20,
+                          fontSize: '0.65rem',
+                          fontWeight: 500,
+                          backgroundColor: 'transparent',
+                          border: '1px solid',
+                          borderColor: 'success.light',
+                          color: 'text.secondary',
+                        }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          ) : (
+            <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic', fontSize: '0.7rem' }}>
+              No data or gates produced
+            </Typography>
+          )}
         </Box>
       </Box>
 
