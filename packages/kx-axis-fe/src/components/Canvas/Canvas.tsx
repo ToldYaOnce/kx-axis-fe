@@ -237,10 +237,10 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                   <Box
                     sx={{
                       position: 'absolute',
-                      right: -16,
-                      top: 8,
-                      width: 32,
-                      height: 48,
+                      right: -20,
+                      top: 0,
+                      bottom: 0,
+                      width: 40,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -251,10 +251,10 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                       sx={{
                         width: 0,
                         height: 0,
-                        borderTop: '24px solid transparent',
-                        borderBottom: '24px solid transparent',
-                        borderLeft: `16px solid ${laneColor}`,
-                        filter: 'drop-shadow(1px 0 2px rgba(0,0,0,0.1))',
+                        borderTop: '32px solid transparent',
+                        borderBottom: '32px solid transparent',
+                        borderLeft: `20px solid ${laneColor}`,
+                        filter: 'drop-shadow(2px 0 3px rgba(0,0,0,0.15))',
                       }}
                     />
                   </Box>
