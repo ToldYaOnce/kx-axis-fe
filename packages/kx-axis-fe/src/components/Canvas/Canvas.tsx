@@ -163,7 +163,8 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
             const laneColor = ['#E8F5E9', '#FFF9C4', '#E3F2FD', '#F3E5F5'][index % 4];
 
             return (
-                <DroppableLane key={lane.index} laneIndex={lane.index} isLast={false}>
+              <Box key={lane.index} sx={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                <DroppableLane laneIndex={lane.index} isLast={false}>
                 {/* Lane Header */}
                 <Box
                   sx={{
@@ -199,39 +200,10 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                     sx={{
                       color: 'text.secondary',
                       fontSize: '0.65rem',
-                      display: 'block',
-                      mb: 1,
                     }}
                   >
                     {lane.description}
                   </Typography>
-                  
-                  {/* Progress indicator - shows flow from left to right */}
-                  <Box
-                    sx={{
-                      width: '100%',
-                      height: 4,
-                      backgroundColor: 'rgba(0, 0, 0, 0.1)',
-                      position: 'relative',
-                      borderRadius: 2,
-                      overflow: 'hidden',
-                      mt: 0.5,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        left: 0,
-                        top: 0,
-                        height: '100%',
-                        width: `${Math.min(100, (index + 1) * 25)}%`,
-                        backgroundColor: 'rgba(0, 0, 0, 0.35)',
-                        borderRadius: 2,
-                        transition: 'width 0.3s ease',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                      }}
-                    />
-                  </Box>
                 </Box>
 
                 {/* Nodes in this lane */}
@@ -259,6 +231,35 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                   )}
                 </Box>
                 </DroppableLane>
+                
+                {/* Chevron arrow connecting to next lane */}
+                {!isLast && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      right: -16,
+                      top: 8,
+                      width: 32,
+                      height: 48,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 10,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 0,
+                        height: 0,
+                        borderTop: '24px solid transparent',
+                        borderBottom: '24px solid transparent',
+                        borderLeft: `16px solid ${laneColor}`,
+                        filter: 'drop-shadow(1px 0 2px rgba(0,0,0,0.1))',
+                      }}
+                    />
+                  </Box>
+                )}
+              </Box>
             );
           })}
           
