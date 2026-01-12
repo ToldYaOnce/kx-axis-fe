@@ -171,6 +171,9 @@ export interface FlowNode {
   // Prerequisites (hard gates)
   requires?: string[];  // Gate IDs: 'CONTACT', 'BOOKING', or other node IDs
   
+  // Produced facts (data revealed after this node completes)
+  produces?: string[];  // Fact keys: 'email', 'phone', 'booking_date', etc.
+  
   // What this node satisfies
   satisfies?: NodeSatisfaction;
   

@@ -7,7 +7,6 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Chip,
   Divider,
   IconButton,
   Accordion,
@@ -18,11 +17,9 @@ import {
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import LockIcon from '@mui/icons-material/Lock';
-import LockOpenIcon from '@mui/icons-material/LockOpen';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useFlow } from '../../context/FlowContext';
 import type { FlowNode, NodeKind } from '../../types';
+import { ChipListEditor } from '../shared/ChipListEditor';
 
 interface SimplifiedNodeInspectorProps {
   nodeId: string;
@@ -69,12 +66,74 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
     updateNode(nodeId, updates);
   };
 
-  // Determine locks (what this node requires)
-  const locks: string[] = [];
-  if (node.requires?.includes('CONTACT')) locks.push('Contact');
-  if (node.requires?.includes('BOOKING')) locks.push('Booking');
+  // Prerequisites management
+  const handleAddPrerequisite = (value: string) => {
+    const currentRequires = node.requires || [];
+    if (!currentRequires.includes(value)) {
+      updateNode(nodeId, {
+        requires: [...currentRequires, value],
+      });
+    }
+  };
 
-  // Determine unlocks (gates and states this node satisfies)
+  const handleRemovePrerequisite = (value: string) => {
+    const currentRequires = node.requires || [];
+    updateNode(nodeId, {
+      requires: currentRequires.filter((id) => id !== value),
+    });
+  };
+
+  // Produces management
+  const handleAddProduced = (value: string) => {
+    const currentProduces = node.produces || [];
+    if (!currentProduces.includes(value)) {
+      updateNode(nodeId, {
+        produces: [...currentProduces, value],
+      });
+    }
+  };
+
+  const handleRemoveProduced = (value: string) => {
+    const currentProduces = node.produces || [];
+    updateNode(nodeId, {
+      produces: currentProduces.filter((id) => id !== value),
+    });
+  };
+
+  // Prerequisite suggestions (gates + other nodes)
+  const prerequisiteSuggestions = [
+    { value: 'CONTACT', label: 'Contact', description: 'Email or phone required' },
+    { value: 'BOOKING', label: 'Booking', description: 'Appointment scheduled' },
+    ...flow.nodes
+      .filter((n) => n.id !== nodeId)
+      .map((n) => ({
+        value: n.id,
+        label: n.title,
+        description: undefined,
+      })),
+  ];
+
+  // Produces suggestions (from other nodes + common facts)
+  const commonFacts = ['email', 'phone', 'name', 'booking_date', 'booking_type', 'goal', 'target', 'baseline', 'delta', 'category'];
+  const existingProduces = new Set(
+    flow.nodes.flatMap((n) => n.produces || [])
+  );
+  const producesSuggestions = [
+    ...Array.from(existingProduces).map((fact) => ({
+      value: fact,
+      label: fact,
+      description: undefined,
+    })),
+    ...commonFacts
+      .filter((fact) => !existingProduces.has(fact))
+      .map((fact) => ({
+        value: fact,
+        label: fact,
+        description: undefined,
+      })),
+  ];
+
+  // Determine unlocks (gates this node satisfies) - READ-ONLY
   const unlocks: string[] = [];
   if (node.satisfies?.gates?.includes('CONTACT')) unlocks.push('Contact Captured');
   if (node.satisfies?.gates?.includes('BOOKING')) unlocks.push('Booking Confirmed');
@@ -82,24 +141,10 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
   if (node.satisfies?.states?.includes('GOAL_GAP_CAPTURED')) {
     unlocks.push('Goal Gap Captured');
   }
-  
-  // Determine produces (metrics/data this node produces)
-  const produces: string[] = [];
-  if (node.satisfies?.metrics && node.satisfies.metrics.length > 0) {
-    produces.push(...node.satisfies.metrics);
-  }
-  if (node.kind === 'GOAL_GAP_TRACKER') {
-    // Add GOAL_GAP_TRACKER specific outputs
-    if (!produces.includes('goal_delta')) produces.push('Delta');
-    if (!produces.includes('goal_category')) produces.push('Category');
-  }
 
   // Lane info
   const lane = node.ui?.lane || 'BEFORE_CONTACT';
   const runsIn = LANE_LABELS[lane] || lane;
-
-  // Check if this is a Data Capture node
-  const isDataCaptureNode = ['BASELINE_CAPTURE', 'GOAL_DEFINITION', 'DEADLINE_CAPTURE'].includes(node.kind);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -164,130 +209,82 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
 
       <Divider sx={{ my: 2, borderColor: 'divider', opacity: 0.3 }} />
 
-      {/* 2. When this can run (read-only mirror) */}
+      {/* 2. When this can run (editable prerequisites) */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary', mb: 1.5, textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: 0.5 }}>
           When this can run
         </Typography>
         
-        <Box
-          sx={{
-            p: 1.5,
-            backgroundColor: 'background.default',
-            borderRadius: 1,
-            border: '1px solid',
-            borderColor: 'divider',
-          }}
-        >
-          {locks.length > 0 ? (
-            <Box>
-              <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mb: 0.75, fontSize: '0.7rem' }}>
-                Must know before:
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {locks.map((lock) => (
-                  <Chip
-                    key={lock}
-                    label={lock.toLowerCase()}
-                    size="small"
-                    sx={{
-                      height: 20,
-                      fontSize: '0.65rem',
-                      fontWeight: 500,
-                      backgroundColor: 'transparent',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      color: 'text.secondary',
-                    }}
-                  />
-                ))}
-              </Box>
-            </Box>
-          ) : (
-            <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic', fontSize: '0.7rem' }}>
-              No prerequisites — can run anytime
-            </Typography>
-          )}
-        </Box>
-        <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mt: 1, fontSize: '0.65rem', fontStyle: 'italic' }}>
-          Edit prerequisites on the card to change this
-        </Typography>
+        <ChipListEditor
+          label="Must know before"
+          values={node.requires || []}
+          onAdd={handleAddPrerequisite}
+          onRemove={handleRemovePrerequisite}
+          placeholder="Add prerequisite"
+          suggestions={prerequisiteSuggestions}
+          allowCustom={false}
+          emptyText="No prerequisites — can run anytime"
+          helperText="These determine where the item appears"
+        />
       </Box>
 
       <Divider sx={{ my: 2, borderColor: 'divider', opacity: 0.3 }} />
 
-      {/* 3. What this reveals (read-only mirror) */}
+      {/* 3. What this reveals */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary', mb: 1.5, textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: 0.5 }}>
           What this reveals
         </Typography>
         
-        <Box
-          sx={{
-            p: 1.5,
-            backgroundColor: 'background.default',
-            borderRadius: 1,
-            border: '1px solid',
-            borderColor: 'divider',
-          }}
-        >
-          {produces.length > 0 || unlocks.length > 0 ? (
-            <Box>
-              {produces.length > 0 && (
-                <Box sx={{ mb: produces.length > 0 && unlocks.length > 0 ? 1.5 : 0 }}>
-                  <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mb: 0.75, fontSize: '0.7rem' }}>
-                    Data captured:
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {produces.map((metric) => (
-                      <Chip
-                        key={metric}
-                        label={metric}
-                        size="small"
-                        sx={{
-                          height: 20,
-                          fontSize: '0.65rem',
-                          fontWeight: 500,
-                          backgroundColor: '#E1F5FE',
-                          color: '#01579B',
-                        }}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-              {unlocks.length > 0 && (
-                <Box>
-                  <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block', mb: 0.75, fontSize: '0.7rem' }}>
-                    Gates unlocked:
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {unlocks.map((unlock) => (
-                      <Chip
-                        key={unlock}
-                        label={unlock}
-                        size="small"
-                        sx={{
-                          height: 20,
-                          fontSize: '0.65rem',
-                          fontWeight: 500,
-                          backgroundColor: 'transparent',
-                          border: '1px solid',
-                          borderColor: 'success.light',
-                          color: 'text.secondary',
-                        }}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-            </Box>
-          ) : (
-            <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic', fontSize: '0.7rem' }}>
-              No data or gates produced
+        {/* Editable produces (data captured) */}
+        <ChipListEditor
+          label="Data captured"
+          values={node.produces || []}
+          onAdd={handleAddProduced}
+          onRemove={handleRemoveProduced}
+          placeholder="e.g., email, booking_date"
+          suggestions={producesSuggestions}
+          allowCustom={true}
+          emptyText="No data captured"
+        />
+
+        {/* Read-only gates unlocked */}
+        {unlocks.length > 0 && (
+          <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed', borderColor: 'divider' }}>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                color: 'text.secondary',
+                display: 'block',
+                mb: 0.5,
+              }}
+            >
+              Gates unlocked (read-only)
             </Typography>
-          )}
-        </Box>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+              {unlocks.map((unlock) => (
+                <Typography
+                  key={unlock}
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.65rem',
+                    fontWeight: 500,
+                    color: 'text.disabled',
+                    px: 1,
+                    py: 0.5,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: '4px',
+                  }}
+                >
+                  {unlock}
+                </Typography>
+              ))}
+            </Box>
+          </Box>
+        )}
       </Box>
 
       <Divider sx={{ my: 3 }} />

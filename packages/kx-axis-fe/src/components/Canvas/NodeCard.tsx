@@ -1,25 +1,21 @@
 import React, { useState } from 'react';
-import { Box, Typography, Chip, Paper, Divider, IconButton, Popover, List, ListItem, ListItemButton, ListItemText, ListItemIcon } from '@mui/material';
+import { Box, Typography, Chip, Paper, IconButton } from '@mui/material';
 import DataObjectIcon from '@mui/icons-material/DataObject';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import ContactMailIcon from '@mui/icons-material/ContactMail';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
-import LockIcon from '@mui/icons-material/Lock';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import CategoryIcon from '@mui/icons-material/Category';
-import EventIcon from '@mui/icons-material/Event';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CloseIcon from '@mui/icons-material/Close';
+import ContactMailIcon from '@mui/icons-material/ContactMail';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import type { FlowNode, NodeKind } from '../../types';
 import { getNodeGateRequirements, getNodeGateSatisfactions } from '../../utils/laneLogic';
 import { useFlow } from '../../context/FlowContext';
+import { ChipListEditor } from '../shared/ChipListEditor';
 
 interface NodeCardProps {
   node: FlowNode;
@@ -57,25 +53,15 @@ const isDataCaptureNode = (kind: NodeKind): boolean => {
 
 export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, isDraggable = false }) => {
   const { updateNode, removeNode, flow } = useFlow();
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
   const handleDelete = (event: React.MouseEvent) => {
     event.stopPropagation();
     removeNode(node.id);
   };
 
-  // Get other nodes that can be prerequisites (exclude this node and GATE nodes)
-  const availablePrerequisiteNodes = flow.nodes.filter(
-    (n) => n.id !== node.id && n.kind !== 'CONTACT_GATE'
-  );
-  
   // Get GATE requirements and satisfactions (not node IDs)
   const gateRequirements = getNodeGateRequirements(node);
   const gateSatisfactions = getNodeGateSatisfactions(node);
-  
-  // Available gates that can be added as requirements
-  const AVAILABLE_GATES = ['CONTACT', 'BOOKING'];
-  const availableGatesToAdd = AVAILABLE_GATES.filter(g => !gateRequirements.includes(g));
 
   // Calculate which OTHER NODES this node unlocks
   // (nodes that require gates this node satisfies)
@@ -97,40 +83,72 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
       }
     : undefined;
 
-  // Get required node IDs (prerequisites - other nodes that must run first)
-  // Filter out gates since they're displayed separately
-  const requiredNodeIds = (node.requires || []).filter(req => !gateRequirements.includes(req));
-  const isDataCapture = isDataCaptureNode(node.kind);
-
-  // Handlers for inline requirement editing (node prerequisites)
-  const handleAddRequirementClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleAddRequirement = (nodeId: string) => {
+  // Prerequisites management
+  const handleAddPrerequisite = (value: string) => {
     const currentRequires = node.requires || [];
-    if (!currentRequires.includes(nodeId)) {
+    if (!currentRequires.includes(value)) {
       updateNode(node.id, {
-        requires: [...currentRequires, nodeId],
+        requires: [...currentRequires, value],
       });
     }
-    setAnchorEl(null);
   };
 
-  const handleRemoveRequirement = (event: React.MouseEvent, nodeId: string) => {
-    event.stopPropagation();
+  const handleRemovePrerequisite = (value: string) => {
     const currentRequires = node.requires || [];
     updateNode(node.id, {
-      requires: currentRequires.filter((id) => id !== nodeId),
+      requires: currentRequires.filter((id) => id !== value),
     });
   };
 
-  const handleClosePopover = () => {
-    setAnchorEl(null);
+  // Produces management
+  const handleAddProduced = (value: string) => {
+    const currentProduces = node.produces || [];
+    if (!currentProduces.includes(value)) {
+      updateNode(node.id, {
+        produces: [...currentProduces, value],
+      });
+    }
   };
 
-  const popoverOpen = Boolean(anchorEl);
+  const handleRemoveProduced = (value: string) => {
+    const currentProduces = node.produces || [];
+    updateNode(node.id, {
+      produces: currentProduces.filter((id) => id !== value),
+    });
+  };
+
+  // Prerequisite suggestions (gates + other nodes)
+  const prerequisiteSuggestions = [
+    { value: 'CONTACT', label: 'Contact', description: 'Email or phone required' },
+    { value: 'BOOKING', label: 'Booking', description: 'Appointment scheduled' },
+    ...flow.nodes
+      .filter((n) => n.id !== node.id)
+      .map((n) => ({
+        value: n.id,
+        label: n.title,
+        description: undefined,
+      })),
+  ];
+
+  // Produces suggestions (from other nodes + common facts)
+  const commonFacts = ['email', 'phone', 'name', 'booking_date', 'booking_type', 'goal', 'target', 'baseline', 'delta', 'category'];
+  const existingProduces = new Set(
+    flow.nodes.flatMap((n) => n.produces || [])
+  );
+  const producesSuggestions = [
+    ...Array.from(existingProduces).map((fact) => ({
+      value: fact,
+      label: fact,
+      description: undefined,
+    })),
+    ...commonFacts
+      .filter((fact) => !existingProduces.has(fact))
+      .map((fact) => ({
+        value: fact,
+        label: fact,
+        description: undefined,
+      })),
+  ];
 
   return (
     <Paper
@@ -223,206 +241,31 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         {node.title}
       </Typography>
 
-      {/* "Must know before" section - shows both gate requirements and node prerequisites */}
-      <Box 
-        sx={{ 
-          mt: 1.5, 
-          pt: 1.5, 
-          borderTop: '1px dashed', 
-          borderColor: 'divider',
-          '&:hover .add-requirement-btn': {
-            opacity: 1,
-          },
-        }}
-      >
-        <Typography
-          variant="caption"
-          sx={{
-            fontSize: '0.7rem',
-            fontWeight: 600,
-            color: 'text.secondary',
-            display: 'block',
-            mb: 0.5,
-          }}
-        >
-          Must know before
-        </Typography>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
-          {/* Show "Can run anytime" when no requirements */}
-          {gateRequirements.length === 0 && requiredNodeIds.length === 0 && (
-            <Typography
-              variant="caption"
-              sx={{
-                fontSize: '0.7rem',
-                color: 'text.disabled',
-                fontStyle: 'italic',
-              }}
-            >
-              — None —
-            </Typography>
-          )}
-          
-          {/* Show gate requirements (CONTACT, BOOKING) */}
-          {gateRequirements.map((gate) => (
-            <Chip
-              key={gate}
-              label={gate.toLowerCase()}
-              size="small"
-              onDelete={(e) => {
-                e.stopPropagation();
-                const newRequires = (node.requires || []).filter(r => r !== gate);
-                updateNode(node.id, { requires: newRequires });
-              }}
-              deleteIcon={<CloseIcon sx={{ fontSize: '0.9rem' }} />}
-              sx={{
-                height: 20,
-                fontSize: '0.65rem',
-                fontWeight: 500,
-                backgroundColor: 'transparent',
-                border: '1px solid',
-                borderColor: 'divider',
-                color: 'text.secondary',
-                '& .MuiChip-deleteIcon': {
-                  color: 'text.disabled',
-                  '&:hover': {
-                    color: 'error.main',
-                  },
-                },
-              }}
-            />
-          ))}
-          
-          {/* Show node prerequisites (other nodes) */}
-          {requiredNodeIds.map((nodeId) => {
-            const requiredNode = flow.nodes.find((n) => n.id === nodeId);
-            return (
-              <Chip
-                key={nodeId}
-                label={requiredNode?.title || nodeId}
-                size="small"
-                onDelete={(e) => handleRemoveRequirement(e, nodeId)}
-                deleteIcon={<CloseIcon sx={{ fontSize: '0.9rem' }} />}
-                sx={{
-                  height: 20,
-                  fontSize: '0.65rem',
-                  fontWeight: 500,
-                  backgroundColor: 'transparent',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  color: 'text.secondary',
-                  '& .MuiChip-deleteIcon': {
-                    color: 'text.disabled',
-                    '&:hover': {
-                      color: 'text.secondary',
-                    },
-                  },
-                }}
-              />
-            );
-          })}
-          
-          {/* Add requirement button - only visible on hover */}
-          <IconButton
-            size="small"
-            className="add-requirement-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setAnchorEl(e.currentTarget);
-            }}
-            sx={{
-              width: 20,
-              height: 20,
-              color: 'text.secondary',
-              opacity: 0,
-              transition: 'opacity 0.2s ease',
-              '&:hover': {
-                color: 'primary.main',
-                backgroundColor: 'action.hover',
-              },
-            }}
-          >
-            <AddCircleOutlineIcon sx={{ fontSize: '0.9rem' }} />
-          </IconButton>
-        </Box>
-      </Box>
+      {/* "Must know before" section - editable prerequisites */}
+      <ChipListEditor
+        label="Must know before"
+        values={node.requires || []}
+        onAdd={handleAddPrerequisite}
+        onRemove={handleRemovePrerequisite}
+        placeholder="Add prerequisite"
+        suggestions={prerequisiteSuggestions}
+        allowCustom={false}
+        emptyText="— None —"
+        compact
+      />
 
-      {/* "After this, we know" section - what this node produces */}
-      {((node.satisfies?.metrics && node.satisfies.metrics.length > 0) || 
-        node.kind === 'GOAL_GAP_TRACKER') && (
-        <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed', borderColor: 'divider' }}>
-          <Typography
-            variant="caption"
-            sx={{
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              color: 'text.secondary',
-              display: 'block',
-              mb: 0.5,
-            }}
-          >
-            After this, we know
-          </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {/* GOAL_GAP_TRACKER specific outputs */}
-            {node.kind === 'GOAL_GAP_TRACKER' && (
-              <>
-                <Chip
-                  label="target + baseline"
-                  size="small"
-                  sx={{
-                    height: 20,
-                    fontSize: '0.65rem',
-                    fontWeight: 500,
-                    backgroundColor: '#E3F2FD',
-                    color: '#1565C0',
-                  }}
-                />
-                <Chip
-                  label="delta + category"
-                  size="small"
-                  sx={{
-                    height: 20,
-                    fontSize: '0.65rem',
-                    fontWeight: 500,
-                    backgroundColor: '#F3E5F5',
-                    color: '#6A1B9A',
-                  }}
-                />
-                {node.goalGapTracker?.deadlinePolicyDefault && 
-                 node.goalGapTracker.deadlinePolicyDefault !== 'INHERIT' && (
-                  <Chip
-                    label="deadline"
-                    size="small"
-                    sx={{
-                      height: 20,
-                      fontSize: '0.65rem',
-                      fontWeight: 500,
-                      backgroundColor: '#FFF3E0',
-                      color: '#E65100',
-                    }}
-                  />
-                )}
-              </>
-            )}
-
-            {/* Show what this node produces (metrics/data) */}
-            {node.satisfies?.metrics && node.satisfies.metrics.map((metric) => (
-              <Chip
-                key={metric}
-                label={metric}
-                size="small"
-                sx={{
-                  height: 20,
-                  fontSize: '0.65rem',
-                  fontWeight: 500,
-                  backgroundColor: '#E1F5FE',
-                  color: '#01579B',
-                }}
-              />
-            ))}
-          </Box>
-        </Box>
-      )}
+      {/* "After this, we know" section - editable produces */}
+      <ChipListEditor
+        label="After this, we know"
+        values={node.produces || []}
+        onAdd={handleAddProduced}
+        onRemove={handleRemoveProduced}
+        placeholder="e.g., email, booking_date"
+        suggestions={producesSuggestions}
+        allowCustom={true}
+        emptyText="— Nothing —"
+        compact
+      />
 
       {/* "Unlocks" section - visually subordinate */}
       {unlockedNodes.length > 0 && (
@@ -453,111 +296,6 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         </Box>
       )}
 
-      {/* Unified Popover for adding all types of requirements */}
-      <Popover
-        open={popoverOpen}
-        anchorEl={anchorEl}
-        onClose={handleClosePopover}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'left',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'left',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <List sx={{ py: 0.5, minWidth: 200 }}>
-          {/* Show available gates (CONTACT, BOOKING) */}
-          {availableGatesToAdd.length > 0 && (
-            <>
-              <ListItem sx={{ py: 0, px: 2, pb: 0.5 }}>
-                <ListItemText
-                  primary="Gates"
-                  primaryTypographyProps={{
-                    variant: 'caption',
-                    sx: { fontSize: '0.7rem', fontWeight: 600, color: 'text.secondary' },
-                  }}
-                />
-              </ListItem>
-              {availableGatesToAdd.map((gate) => (
-                <ListItemButton
-                  key={gate}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const newRequires = [...(node.requires || []), gate];
-                    updateNode(node.id, { requires: newRequires });
-                    setAnchorEl(null);
-                  }}
-                  sx={{ py: 1, px: 2 }}
-                >
-                  <ListItemIcon sx={{ minWidth: 32 }}>
-                    {gate === 'CONTACT' ? <ContactMailIcon fontSize="small" /> : <CalendarMonthIcon fontSize="small" />}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={gate === 'CONTACT' ? 'Contact' : 'Booking'}
-                    secondary={gate === 'CONTACT' ? 'Requires contact info' : 'Requires booking'}
-                    primaryTypographyProps={{
-                      variant: 'body2',
-                      sx: { fontSize: '0.8rem', fontWeight: 500 },
-                    }}
-                    secondaryTypographyProps={{
-                      variant: 'caption',
-                      sx: { fontSize: '0.7rem' },
-                    }}
-                  />
-                </ListItemButton>
-              ))}
-            </>
-          )}
-          
-          {/* Show available nodes (for data capture) */}
-          {isDataCapture && availablePrerequisiteNodes.filter((n) => !requiredNodeIds.includes(n.id)).length > 0 && (
-            <>
-              {availableGatesToAdd.length > 0 && <Divider sx={{ my: 0.5 }} />}
-              <ListItem sx={{ py: 0, px: 2, pb: 0.5, pt: availableGatesToAdd.length > 0 ? 1 : 0 }}>
-                <ListItemText
-                  primary="Other Items"
-                  primaryTypographyProps={{
-                    variant: 'caption',
-                    sx: { fontSize: '0.7rem', fontWeight: 600, color: 'text.secondary' },
-                  }}
-                />
-              </ListItem>
-              {availablePrerequisiteNodes.filter((n) => !requiredNodeIds.includes(n.id)).map((n) => (
-                <ListItemButton
-                  key={n.id}
-                  onClick={() => handleAddRequirement(n.id)}
-                  sx={{ py: 1, px: 2 }}
-                >
-                  <ListItemText
-                    primary={n.title}
-                    primaryTypographyProps={{
-                      variant: 'body2',
-                      sx: { fontSize: '0.8rem' },
-                    }}
-                  />
-                </ListItemButton>
-              ))}
-            </>
-          )}
-          
-          {/* Show message if nothing available */}
-          {availableGatesToAdd.length === 0 && 
-           (!isDataCapture || availablePrerequisiteNodes.filter((n) => !requiredNodeIds.includes(n.id)).length === 0) && (
-            <ListItemButton disabled sx={{ py: 1, px: 2 }}>
-              <ListItemText
-                primary="No requirements available"
-                primaryTypographyProps={{
-                  variant: 'body2',
-                  sx: { fontSize: '0.8rem', fontStyle: 'italic', color: 'text.disabled' },
-                }}
-              />
-            </ListItemButton>
-          )}
-        </List>
-      </Popover>
     </Paper>
   );
 };

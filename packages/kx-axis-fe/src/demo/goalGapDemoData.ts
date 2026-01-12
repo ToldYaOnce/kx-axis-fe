@@ -47,6 +47,7 @@ export const goalGapDemoFlow: ConversationFlow = {
       kind: 'GOAL_GAP_TRACKER',
       title: 'Goal Gap Tracker',
       purpose: 'Capture target, baseline, compute delta, classify category',
+      produces: ['target', 'baseline', 'delta', 'category'],
       ui: {
         x: 100,
         y: 310,
@@ -114,6 +115,7 @@ export const goalGapDemoFlow: ConversationFlow = {
       kind: 'BASELINE_CAPTURE',
       title: 'Capture Contact Info',
       purpose: 'Get email/phone for follow-up',
+      produces: ['email', 'phone'],
       ui: {
         x: 100,
         y: 50,
@@ -136,6 +138,7 @@ export const goalGapDemoFlow: ConversationFlow = {
       kind: 'ACTION_BOOKING',
       title: 'Book Consultation',
       purpose: 'Schedule initial consultation',
+      produces: ['booking_date', 'booking_type'],
       ui: {
         x: 100,
         y: 50,
