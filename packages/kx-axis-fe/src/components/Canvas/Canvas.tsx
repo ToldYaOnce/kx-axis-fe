@@ -17,8 +17,7 @@ const DroppableLane: React.FC<{
   children: React.ReactNode;
   isLast: boolean;
   isElastic?: boolean;
-  laneColor?: string;
-}> = ({ laneIndex, children, isLast, isElastic, laneColor }) => {
+}> = ({ laneIndex, children, isLast, isElastic }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `lane-${laneIndex}`,
     data: {
@@ -45,20 +44,6 @@ const DroppableLane: React.FC<{
         opacity: isElastic ? 0.6 : 1,
         display: 'flex',
         flexDirection: 'column',
-        // Chevron arrow using ::after pseudo-element
-        '&::after': !isLast && !isElastic ? {
-          content: '""',
-          position: 'absolute',
-          right: -20,
-          top: 24,
-          width: 0,
-          height: 0,
-          borderTop: '28px solid transparent',
-          borderBottom: '28px solid transparent',
-          borderLeft: `20px solid ${laneColor || '#E8F5E9'}`,
-          zIndex: 1000,
-          pointerEvents: 'none',
-        } : {},
       }}
     >
       {children}
@@ -176,10 +161,11 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
           {derivedLanes.map((lane, index) => {
             const isLast = index === derivedLanes.length;
             const laneColor = ['#E8F5E9', '#FFF9C4', '#E3F2FD', '#F3E5F5'][index % 4];
+            const stepNumber = ['①', '②', '③', '④', '⑤'][index] || `${index + 1}`;
 
             return (
               <React.Fragment key={lane.index}>
-                <DroppableLane laneIndex={lane.index} isLast={false} laneColor={laneColor}>
+                <DroppableLane laneIndex={lane.index} isLast={false}>
                 {/* Lane Header */}
                 <Box
                   sx={{
@@ -197,19 +183,31 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                     borderRadius: 0,
                   }}
                 >
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      textTransform: 'uppercase',
-                      fontWeight: 700,
-                      letterSpacing: 1,
-                      color: 'text.primary',
-                      display: 'block',
-                      mb: 0.5,
-                    }}
-                  >
-                    {lane.label}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontSize: '1.1rem',
+                        fontWeight: 600,
+                        color: 'text.secondary',
+                        lineHeight: 1,
+                      }}
+                    >
+                      {stepNumber}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        textTransform: 'uppercase',
+                        fontWeight: 700,
+                        letterSpacing: 1,
+                        color: 'text.primary',
+                        flex: 1,
+                      }}
+                    >
+                      {lane.label}
+                    </Typography>
+                  </Box>
                   <Typography
                     variant="caption"
                     sx={{
@@ -246,6 +244,32 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                   )}
                 </Box>
                 </DroppableLane>
+                
+                {/* Simple arrow between lanes */}
+                {!isLast && (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      justifyContent: 'center',
+                      pt: 3,
+                      px: 1,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Typography
+                      variant="h5"
+                      sx={{
+                        color: 'text.secondary',
+                        opacity: 0.5,
+                        fontWeight: 300,
+                        userSelect: 'none',
+                      }}
+                    >
+                      →
+                    </Typography>
+                  </Box>
+                )}
               </React.Fragment>
             );
           })}
