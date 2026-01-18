@@ -147,3 +147,4 @@ Once backend adds full support for `industry` field:
 - `INDUSTRY_CONVERSATION_ITEMS.md` - Industry-specific items configuration
 - `ICON_MAPPING_FIX.md` - Icon support for all industries
 
+

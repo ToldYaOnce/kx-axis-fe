@@ -26,6 +26,7 @@ interface ChipListEditorProps {
   emptyText?: string;
   compact?: boolean;
   helperText?: string;
+  getDisplayLabel?: (value: string) => string; // Map value to user-friendly display label
 }
 
 export const ChipListEditor: React.FC<ChipListEditorProps> = ({
@@ -39,6 +40,7 @@ export const ChipListEditor: React.FC<ChipListEditorProps> = ({
   emptyText = '— None —',
   compact = false,
   helperText,
+  getDisplayLabel,
 }) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [customValue, setCustomValue] = useState('');
@@ -104,7 +106,7 @@ export const ChipListEditor: React.FC<ChipListEditorProps> = ({
         {values.map((value) => (
           <Chip
             key={value}
-            label={value}
+            label={getDisplayLabel ? getDisplayLabel(value) : value}
             size="small"
             onDelete={(e) => handleRemove(e, value)}
             deleteIcon={<CloseIcon sx={{ fontSize: '0.9rem' }} />}

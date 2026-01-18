@@ -7,7 +7,7 @@ export const OverviewInspector: React.FC = () => {
   const { flow, updateFlow } = useFlow();
 
   const nodesByKind = flow.nodes.reduce((acc, node) => {
-    acc[node.kind] = (acc[node.kind] || 0) + 1;
+    acc[node.type] = (acc[node.type] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
@@ -90,7 +90,7 @@ export const OverviewInspector: React.FC = () => {
             Data Capture Nodes
           </Typography>
           <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
-            {flow.nodes.filter(n => ['BASELINE_CAPTURE', 'GOAL_DEFINITION', 'DEADLINE_CAPTURE'].includes(n.kind)).length}
+            {flow.nodes.filter(n => ['BASELINE_CAPTURE', 'GOAL_DEFINITION', 'DEADLINE_CAPTURE'].includes(n.type)).length}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -98,7 +98,7 @@ export const OverviewInspector: React.FC = () => {
             Conversation Nodes
           </Typography>
           <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
-            {flow.nodes.filter(n => ['EXPLANATION', 'REFLECTIVE_QUESTION'].includes(n.kind)).length}
+            {flow.nodes.filter(n => ['EXPLANATION', 'REFLECTIVE_QUESTION'].includes(n.type)).length}
           </Typography>
         </Box>
       </Paper>

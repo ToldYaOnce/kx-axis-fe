@@ -31,6 +31,7 @@ import { defaultLightTheme, kxgryndeTheme } from '../theme';
 import { goalGapDemoFlow } from './goalGapDemoData';
 import type { ConversationFlow } from '../types';
 import { INDUSTRIES } from '../utils/conversationItems';
+import { ToastProvider } from '../context/ToastContext';
 
 type AppMode = 'design' | 'execution';
 type ThemeMode = 'default' | 'kxgrynde';
@@ -124,9 +125,9 @@ export const DemoApp: React.FC = () => {
     setIsCreatingFlow(true);
     try {
       // Create an empty flow with industry
-      const result = await flowAPI.createFlow({
+      const createPayload = {
         name: newFlowName.trim(),
-        primaryGoal: 'BOOKING',
+        primaryGoal: 'BOOKING',  // ✅ STRING (not object!)
         description: `A ${newFlowIndustry} conversation flow`,
         industry: newFlowIndustry,  // Pass industry to backend
         // Include empty draft
@@ -134,7 +135,7 @@ export const DemoApp: React.FC = () => {
           nodes: [],
           edges: [],
           entryNodeIds: [],
-          primaryGoal: { type: 'GATE', gate: 'BOOKING', description: 'Flow completion goal' },
+          primaryGoal: { type: 'GATE', gate: 'BOOKING', description: 'Flow completion goal' },  // ✅ Object is OK here
           gateDefinitions: {},
           factAliases: {},
         },
@@ -144,9 +145,22 @@ export const DemoApp: React.FC = () => {
             laneAssignments: {},
           },
         },
-      });
+      };
       
-      console.log('Flow created:', result);
+      console.log('');
+      console.log('='.repeat(60));
+      console.log('🚀 CREATING NEW FLOW');
+      console.log('='.repeat(60));
+      console.log('✅ Flow-level primaryGoal (MUST BE STRING):', createPayload.primaryGoal);
+      console.log('✅ Flow-level primaryGoal TYPE:', typeof createPayload.primaryGoal);
+      console.log('✅ DraftGraph primaryGoal (CAN BE OBJECT):', createPayload.draftGraph.primaryGoal);
+      console.log('✅ DraftGraph primaryGoal TYPE:', typeof createPayload.draftGraph.primaryGoal);
+      console.log('='.repeat(60));
+      console.log('');
+      
+      const result = await flowAPI.createFlow(createPayload);
+      
+      console.log('✅ Flow created successfully:', result);
       
       // Store industry in localStorage (temporary until backend fully supports it)
       try {
@@ -193,7 +207,8 @@ export const DemoApp: React.FC = () => {
   return (
     <ThemeProvider theme={activeTheme}>
       <CssBaseline />
-      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <ToastProvider>
+        <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
         {/* Top Bar */}
         <Box
         sx={{
@@ -377,7 +392,8 @@ export const DemoApp: React.FC = () => {
             {toastMessage}
           </Alert>
         </Snackbar>
-      </Box>
+        </Box>
+      </ToastProvider>
     </ThemeProvider>
   );
 };

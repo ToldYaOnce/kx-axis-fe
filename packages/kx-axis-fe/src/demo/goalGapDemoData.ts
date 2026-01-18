@@ -64,7 +64,7 @@ export const goalGapDemoFlow: ConversationFlow = {
     // 1. Welcome - BEFORE CONTACT
     {
       id: 'welcome-1',
-      kind: 'EXPLANATION',
+      type: 'EXPLANATION',
       title: 'Welcome / Introduction',
       purpose: 'Greet the user and set expectations',
       produces: ['WELCOME_SHOWN'], // completion marker
@@ -80,7 +80,7 @@ export const goalGapDemoFlow: ConversationFlow = {
     // 2. Reflective Question - BEFORE CONTACT
     {
       id: 'reflect-1',
-      kind: 'REFLECTIVE_QUESTION',
+      type: 'REFLECTIVE_QUESTION',
       title: 'Reflective Question',
       purpose: 'Gauge readiness and motivation level',
       produces: ['REFLECTION_COMPLETE'], // completion marker
@@ -96,7 +96,7 @@ export const goalGapDemoFlow: ConversationFlow = {
     // 3. GOAL_GAP_TRACKER - BEFORE CONTACT (the star of the show!)
     {
       id: 'goal-gap-1',
-      kind: 'GOAL_GAP_TRACKER',
+      type: 'GOAL_GAP_TRACKER',
       title: 'Goal Gap Tracker',
       purpose: 'Capture target, baseline, compute delta, classify category',
       produces: ['target', 'baseline', 'delta', 'category'],
@@ -167,7 +167,7 @@ export const goalGapDemoFlow: ConversationFlow = {
     // 4. Contact Capture - CONTACT_GATE
     {
       id: 'contact-1',
-      kind: 'BASELINE_CAPTURE',
+      type: 'BASELINE_CAPTURE',
       title: 'Capture Contact Info',
       purpose: 'Get email/phone for follow-up',
       produces: ['email', 'phone'],
@@ -194,7 +194,7 @@ export const goalGapDemoFlow: ConversationFlow = {
     // 5. Booking - AFTER CONTACT
     {
       id: 'booking-1',
-      kind: 'ACTION_BOOKING',
+      type: 'ACTION_BOOKING',
       title: 'Book Consultation',
       purpose: 'Schedule initial consultation',
       produces: ['booking_date', 'booking_type'],
@@ -218,7 +218,7 @@ export const goalGapDemoFlow: ConversationFlow = {
     // 6. Send Promo - AFTER BOOKING
     {
       id: 'promo-1',
-      kind: 'EXPLANATION',
+      type: 'EXPLANATION',
       title: 'Send Welcome Offer',
       purpose: 'Share promotional offer',
       ui: {
@@ -238,7 +238,7 @@ export const goalGapDemoFlow: ConversationFlow = {
     // 7. Handoff - AFTER BOOKING
     {
       id: 'handoff-1',
-      kind: 'HANDOFF',
+      type: 'HANDOFF',
       title: 'Connect with Your Trainer',
       purpose: 'Transfer to human trainer for personalized planning',
       ui: {

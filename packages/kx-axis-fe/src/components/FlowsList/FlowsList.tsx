@@ -31,6 +31,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { flowAPI } from '../../api/flowClient';
 import type { FlowListItem } from '../../types/flow-api';
+import { useToast } from '../../context/ToastContext';
 
 interface FlowsListProps {
   onOpenFlow: (flowId: string, versionId?: string) => void;
@@ -38,6 +39,7 @@ interface FlowsListProps {
 }
 
 export const FlowsList: React.FC<FlowsListProps> = ({ onOpenFlow, onCreateNew }) => {
+  const { showError } = useToast();
   const [flows, setFlows] = useState<FlowListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +84,7 @@ export const FlowsList: React.FC<FlowsListProps> = ({ onOpenFlow, onCreateNew })
       setFlowToDelete(null);
     } catch (err: any) {
       console.error('Failed to delete flow:', err);
-      alert(`Failed to delete flow: ${err.message || 'Unknown error'}`);
+      showError(`Failed to delete flow: ${err.message || 'Unknown error'}`);
     } finally {
       setIsDeleting(false);
     }

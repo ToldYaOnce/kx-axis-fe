@@ -16,8 +16,11 @@ import {
   DialogActions,
   TextField,
   MenuItem,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
@@ -25,7 +28,6 @@ import ContactMailIcon from '@mui/icons-material/ContactMail';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import HandshakeIcon from '@mui/icons-material/Handshake';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import GpsFixedIcon from '@mui/icons-material/GpsFixed';
@@ -60,15 +62,13 @@ import VipIcon from '@mui/icons-material/WorkspacePremium';
 import GavelIcon from '@mui/icons-material/Gavel';
 import HeartIcon from '@mui/icons-material/Favorite';
 import CardIcon from '@mui/icons-material/CreditCard';
-import { useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
 import { useFlow } from '../../context/FlowContext';
 import type { FlowNode, NodeKind } from '../../types';
 import { getConversationItemsForIndustry, getGeneralItems, getIndustrySpecificItems } from '../../utils/conversationItems';
 
 interface ConversationItem {
   id: string;
-  kind: NodeKind;
+  type: NodeKind;  // Backend expects 'type'
   title: string;
   description: string;
   icon: React.ReactElement;
@@ -80,7 +80,7 @@ interface ConversationItem {
 const CONVERSATION_ITEMS: ConversationItem[] = [
   {
     id: 'welcome',
-    kind: 'EXPLANATION',
+    type: 'EXPLANATION',
     title: 'Welcome / Introduction',
     description: 'Greet and set expectations',
     icon: <InfoOutlinedIcon />,
@@ -88,7 +88,7 @@ const CONVERSATION_ITEMS: ConversationItem[] = [
   },
   {
     id: 'reflective',
-    kind: 'REFLECTIVE_QUESTION',
+    type: 'REFLECTIVE_QUESTION',
     title: 'Reflective Question',
     description: 'Ask them to reflect on readiness',
     icon: <QuestionAnswerIcon />,
@@ -96,7 +96,7 @@ const CONVERSATION_ITEMS: ConversationItem[] = [
   },
   {
     id: 'goal-gap',
-    kind: 'GOAL_GAP_TRACKER',
+    type: 'GOAL_GAP_TRACKER',
     title: 'Goal Gap Tracker',
     description: 'Target → Baseline → Delta → Category',
     icon: <ShowChartIcon />,
@@ -104,7 +104,7 @@ const CONVERSATION_ITEMS: ConversationItem[] = [
   },
   {
     id: 'contact',
-    kind: 'BASELINE_CAPTURE',
+    type: 'BASELINE_CAPTURE',
     title: 'Contact Capture',
     description: 'Get email/phone for follow-up',
     icon: <ContactMailIcon />,
@@ -112,7 +112,7 @@ const CONVERSATION_ITEMS: ConversationItem[] = [
   },
   {
     id: 'booking',
-    kind: 'ACTION_BOOKING',
+    type: 'ACTION_BOOKING',
     title: 'Book Consultation',
     description: 'Schedule a session or call',
     icon: <CalendarMonthIcon />,
@@ -120,7 +120,7 @@ const CONVERSATION_ITEMS: ConversationItem[] = [
   },
   {
     id: 'promo',
-    kind: 'EXPLANATION',
+    type: 'EXPLANATION',
     title: 'Send Promo',
     description: 'Share discount or offer',
     icon: <LocalOfferIcon />,
@@ -128,7 +128,7 @@ const CONVERSATION_ITEMS: ConversationItem[] = [
   },
   {
     id: 'handoff',
-    kind: 'HANDOFF',
+    type: 'HANDOFF',
     title: 'Handoff',
     description: 'Transfer to human',
     icon: <HandshakeIcon />,
@@ -136,69 +136,36 @@ const CONVERSATION_ITEMS: ConversationItem[] = [
   },
 ];
 
-// Draggable wrapper for individual conversation items
-const DraggableConversationItem: React.FC<{ item: ConversationItem & { captures?: string[] }; isUsed: boolean }> = ({ item, isUsed }) => {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: `palette-${item.id}`,
-    data: {
-      type: 'palette-item',
-      item,
-    },
-    disabled: isUsed,
-  });
-
-  React.useEffect(() => {
-    if (isDragging) {
-      console.log('🚀 BEGIN DRAGGING:', {
-        id: `palette-${item.id}`,
-        title: item.title,
-        kind: item.kind,
-        defaultLane: item.defaultLane,
-      });
-    } else {
-      console.log('🛑 STOP DRAGGING:', item.title);
-    }
-  }, [isDragging, item]);
-
-  const style = transform
-    ? {
-        transform: CSS.Translate.toString(transform),
-      }
-    : undefined;
-
+// Simple clickable conversation item with "Add" button
+const ConversationItemCard: React.FC<{ 
+  item: ConversationItem & { captures?: string[] }; 
+  isUsed: boolean;
+  onAdd: () => void;
+}> = ({ item, isUsed, onAdd }) => {
   return (
     <Paper
-      ref={setNodeRef}
       elevation={0}
       sx={{
         mb: 1.5,
         border: '1px solid',
         borderColor: isUsed ? 'divider' : 'divider',
-        transition: isDragging ? 'none' : 'all 0.2s',
-        opacity: isUsed ? 0.4 : (isDragging ? 0.5 : 1),
-        cursor: isUsed ? 'not-allowed' : 'grab',
-        zIndex: isDragging ? 9999 : 'auto',
+        transition: 'all 0.2s',
+        opacity: isUsed ? 0.5 : 1,
         position: 'relative',
-        pointerEvents: isUsed ? 'none' : 'auto',
         backgroundColor: isUsed ? 'action.disabledBackground' : 'background.paper',
-        '&:active': {
-          cursor: isUsed ? 'not-allowed' : 'grabbing',
+        '&:hover': isUsed ? {} : {
+          borderColor: 'primary.main',
+          bgcolor: 'action.hover',
         },
-        '&:hover': {
-          borderColor: isUsed ? 'divider' : 'primary.main',
-          backgroundColor: isUsed ? 'action.disabledBackground' : 'action.hover',
-          transform: isUsed ? undefined : (isDragging ? undefined : 'translateX(4px)'),
-        },
-        ...style,
       }}
-      {...attributes}
-      {...listeners}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 2, gap: 1 }}>
-        <DragIndicatorIcon sx={{ fontSize: '1rem', color: isUsed ? 'action.disabled' : 'text.disabled' }} />
+      <Box sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 2, gap: 1.5 }}>
+        {/* Icon */}
         <Box sx={{ color: isUsed ? 'action.disabled' : 'text.secondary', display: 'flex', alignItems: 'center' }}>
           {item.icon}
         </Box>
+        
+        {/* Content */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography variant="body2" sx={{ fontWeight: 600, color: isUsed ? 'text.disabled' : 'text.primary' }}>
@@ -233,7 +200,7 @@ const DraggableConversationItem: React.FC<{ item: ConversationItem & { captures?
                   fontWeight: 700,
                 }}
               >
-                ON CANVAS
+                ADDED
               </Typography>
             )}
           </Box>
@@ -248,6 +215,24 @@ const DraggableConversationItem: React.FC<{ item: ConversationItem & { captures?
             </Typography>
           )}
         </Box>
+
+        {/* Add Button */}
+        <Tooltip title={isUsed ? "Already added" : "Add to flow"}>
+          <span>
+            <IconButton
+              size="small"
+              onClick={onAdd}
+              disabled={isUsed}
+              color="primary"
+              sx={{
+                opacity: isUsed ? 0 : 1,
+                transition: 'opacity 0.2s',
+              }}
+            >
+              <AddCircleOutlineIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
       </Box>
     </Paper>
   );
@@ -363,7 +348,7 @@ export const ConversationItemsPalette: React.FC = () => {
       
       return {
         id: item.id,
-        kind: item.kind as NodeKind,
+        type: item.type as NodeKind,
         title: item.title,
         description: item.description,
         icon: iconMap[item.icon || 'info'] || <InfoOutlinedIcon />,
@@ -403,7 +388,7 @@ export const ConversationItemsPalette: React.FC = () => {
       // Method 2: For preset-based items, match by title and kind
       // e.g., "Get name" preset items created via dialog
       if (item.captures && item.captures.length > 0) {
-        if (node.title === item.title && node.kind === item.kind) {
+        if (node.title === item.title && node.type === item.type) {
           usedItemIds.add(item.id);
           return;
         }
@@ -487,7 +472,7 @@ export const ConversationItemsPalette: React.FC = () => {
     // Create new conversation item
     const newItem: ConversationItem & { captures?: string[] } = {
       id: `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      kind: kindToNodeKind[newItemType],
+      type: kindToNodeKind[newItemType],
       title: newItemTitle.trim(),
       description: presetConfig 
         ? `Captures: ${presetConfig.captures.join(', ') || 'custom fields'}`
@@ -510,7 +495,7 @@ export const ConversationItemsPalette: React.FC = () => {
     
     const newNode: FlowNode = {
       id: `${item.id}-${Date.now()}`,
-      kind: item.kind,
+      type: item.type,
       title: item.title,
       ui: {
         x: 0,
@@ -520,14 +505,14 @@ export const ConversationItemsPalette: React.FC = () => {
     };
     
     // Add captures/produces for INFO_CAPTURE items with presets
-    if (item.kind === 'BASELINE_CAPTURE' && item.captures && item.captures.length > 0) {
+    if (item.type === 'BASELINE_CAPTURE' && item.captures && item.captures.length > 0) {
       newNode.satisfies = {
         metrics: item.captures,
       };
     }
 
     // Add default config for GOAL_GAP_TRACKER
-    if (item.kind === 'GOAL_GAP_TRACKER') {
+    if (item.type === 'GOAL_GAP_TRACKER') {
       newNode.goalGapTracker = {
         targetLabel: "What's the exact outcome you want?",
         baselineLabel: "Where are you at right now with that?",
@@ -553,32 +538,36 @@ export const ConversationItemsPalette: React.FC = () => {
         states: ['GOAL_GAP_CAPTURED'],
         metrics: ['goal_target', 'goal_baseline', 'goal_delta', 'goal_category'],
       };
+      newNode.produces = ['goal_target', 'goal_baseline', 'goal_delta', 'goal_category'];
     }
 
     // Add default config for contact capture
-    if (item.id === 'contact' && item.kind === 'BASELINE_CAPTURE') {
+    if (item.id === 'contact' && item.type === 'BASELINE_CAPTURE') {
       newNode.satisfies = {
         gates: ['CONTACT'],
         metrics: ['contact_email', 'contact_phone'],
       };
+      newNode.produces = ['contact_email', 'contact_phone'];
     }
 
     // Add default config for booking
-    if (item.kind === 'ACTION_BOOKING') {
-      newNode.requires = ['CONTACT'];
+    if (item.type === 'ACTION_BOOKING') {
+      newNode.requires = ['contact_email'];  // Lowercase fact name, not 'CONTACT'
       newNode.satisfies = {
         gates: ['BOOKING'],
         metrics: ['booking_date'],
       };
+      newNode.produces = ['booking_date', 'booking_type'];
     }
 
     // Add default config for handoff
-    if (item.kind === 'HANDOFF') {
-      newNode.requires = ['BOOKING'];
+    if (item.type === 'HANDOFF') {
+      newNode.requires = ['booking_date'];  // Lowercase fact name
       newNode.satisfies = {
         gates: ['HANDOFF'],
         states: ['HANDOFF_COMPLETE'],
       };
+      newNode.produces = ['handoff_complete'];
     }
 
     return newNode;
@@ -595,13 +584,19 @@ export const ConversationItemsPalette: React.FC = () => {
     };
   }, []);
 
+  // Handler to add an item to the flow
+  const handleAddItem = (item: ConversationItem & { captures?: string[] }) => {
+    const newNode = createNodeFromItem(item);
+    addNode(newNode);
+  };
+
   return (
     <Box sx={{ height: '100%', overflowY: 'auto', p: 3 }}>
       <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
         Conversation Items
       </Typography>
       <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 2 }}>
-        Drag items to the canvas
+        Click + to add items to your flow
       </Typography>
       
       {/* + New item button */}
@@ -627,11 +622,12 @@ export const ConversationItemsPalette: React.FC = () => {
       </Button>
 
       <Box>
-        {conversationItems.filter(item => !usedItemIds.has(item.id)).map((item) => (
-          <DraggableConversationItem 
+        {conversationItems.map((item) => (
+          <ConversationItemCard 
             key={item.id} 
             item={item} 
-            isUsed={false}
+            isUsed={usedItemIds.has(item.id)}
+            onAdd={() => handleAddItem(item)}
           />
         ))}
       </Box>

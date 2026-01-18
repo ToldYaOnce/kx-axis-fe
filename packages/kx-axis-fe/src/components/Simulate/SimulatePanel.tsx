@@ -66,11 +66,11 @@ export const SimulatePanel: React.FC<SimulatePanelProps> = ({ open, onClose }) =
     const selectedNodeData = flow.nodes.find((n) => n.id === selectedNode);
 
     const exampleMessage = selectedNodeData
-      ? `[${selectedNodeData.kind}] ${selectedNodeData.title}: This is a simulated message based on your flow configuration. In a real system, this would be dynamically generated based on the node's content and the lead's context.`
+      ? `[${selectedNodeData.type}] ${selectedNodeData.title}: This is a simulated message based on your flow configuration. In a real system, this would be dynamically generated based on the node's content and the lead's context.`
       : 'No eligible nodes found for this configuration.';
 
     // Generate mock outputs for GOAL_GAP_TRACKER nodes
-    const goalGapTrackerNode = flow.nodes.find((n) => n.kind === 'GOAL_GAP_TRACKER');
+    const goalGapTrackerNode = flow.nodes.find((n) => n.type === 'GOAL_GAP_TRACKER');
     const mockGoalGapOutputs = goalGapTrackerNode
       ? {
           target: 'bench 300 lbs',

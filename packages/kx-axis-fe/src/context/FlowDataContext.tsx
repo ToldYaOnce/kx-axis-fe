@@ -174,20 +174,52 @@ export const FlowDataProvider: React.FC<FlowDataProviderProps> = ({
         finalIndustry: industry,
       });
       
+      // Load UI layout from localStorage
+      let uiLayout: { nodePositions: Record<string, { x: number; y: number }>; laneAssignments: Record<string, string> } | null = null;
+      if (flowId) {
+        try {
+          const storedLayout = localStorage.getItem(`flow-${flowId}-layout`);
+          if (storedLayout) {
+            uiLayout = JSON.parse(storedLayout);
+            console.log('📐 Loaded UI layout from localStorage:', uiLayout);
+          }
+        } catch (error) {
+          console.warn('Failed to load layout from localStorage:', error);
+        }
+      }
+      
       const conversationFlow: ConversationFlow = {
         id: flow.flowId,
         name: flow.name,
         description: flow.description,
         industry,  // Include industry with fallback chain
-        nodes: draft.draftGraph.nodes.map((node) => ({
-          id: node.id,
-          kind: node.type as any,  // Map backend 'type' to frontend 'kind'
-          title: node.title,
-          // Convert backend nested structure to frontend flat arrays
-          requires: node.requires?.facts || [],
-          produces: node.produces?.facts || [],
-          // Note: uiLayout is separate in backend
-        })),
+        nodes: draft.draftGraph.nodes.map((node) => {
+          // Apply UI layout if available
+          const position = uiLayout?.nodePositions?.[node.id];
+          const lane = uiLayout?.laneAssignments?.[node.id];
+          
+          return {
+            id: node.id,
+            type: node.type as any,  // Map backend 'type' to frontend 'type' (NOT 'kind')
+            title: node.title,
+            // Convert backend nested structure to frontend flat arrays
+            requires: node.requires?.facts || [],
+            produces: node.produces?.facts || [],
+            // Apply UI positioning from localStorage
+            ...(position && lane ? {
+              ui: {
+                x: position.x,
+                y: position.y,
+                lane: lane as any,
+              }
+            } : {}),
+            // Copy over any config data that should be in the node
+            ...(node.config?.satisfies ? { satisfies: node.config.satisfies } : {}),
+            ...(node.config?.goalGapTracker ? { goalGapTracker: node.config.goalGapTracker } : {}),
+            ...(node.config?.deadlineEnforcement ? { deadlineEnforcement: node.config.deadlineEnforcement } : {}),
+            ...(node.config?.eligibility ? { eligibility: node.config.eligibility } : {}),
+          };
+        }),
         activeGoalLenses: [],
         metadata: {
           createdAt: flow.createdAt,
@@ -198,42 +230,131 @@ export const FlowDataProvider: React.FC<FlowDataProviderProps> = ({
       setCurrentFlow(conversationFlow);
       
       if (isInitialLoadRef.current) {
-        isInitialLoadRef.current = false;
         onFlowLoaded?.(conversationFlow);
+        // Note: Don't set isInitialLoadRef to false yet - let autosave effect do it
       }
     }
-  }, [flow, draft, onFlowLoaded]);
+  }, [flow, draft, onFlowLoaded, flowId]);
   
   // Autosave when flow changes (but not on initial load or when viewing a version)
   useEffect(() => {
-    if (!autosaveEnabled || !currentFlow || isInitialLoadRef.current || currentVersion) {
+    // Skip autosave if disabled, no flow loaded, viewing a version, or on initial load
+    if (!autosaveEnabled || !currentFlow || currentVersion) {
+      return;
+    }
+    
+    // Skip autosave on initial load, then mark as no longer initial
+    if (isInitialLoadRef.current) {
+      console.log('⏭️  Skipping autosave on initial load');
+      isInitialLoadRef.current = false;
       return;
     }
     
     // Convert ConversationFlow to DraftGraph
+    // Include all normalization fields for deterministic controller
     const draftGraph: DraftGraph = {
-      nodes: currentFlow.nodes.map((node) => ({
-        id: node.id,
-        type: node.kind,  // Map frontend 'kind' to backend 'type'
-        title: node.title,
-        // Convert frontend flat arrays to backend nested structure
-        requires: node.requires && node.requires.length > 0 
-          ? { facts: node.requires }
-          : undefined,
-        produces: node.produces && node.produces.length > 0
-          ? { facts: node.produces }
-          : undefined,
-        config: {},  // TODO: map node config
-      })),
-      edges: [],  // TODO: extract edges from nodes
+      // ========== EXECUTION METADATA ==========
+      entryNodeIds: (currentFlow as any).entryNodeIds || [currentFlow.nodes[0]?.id],
+      
+      primaryGoal: (currentFlow as any).primaryGoal || {
+        type: 'GATE',
+        gate: 'BOOKING',
+        description: 'User has booked a consultation',
+      },
+      
+      gateDefinitions: (currentFlow as any).gateDefinitions || {
+        CONTACT: {
+          satisfiedBy: {
+            metricsAny: ['contact_email', 'contact_phone'],
+          },
+        },
+        BOOKING: {
+          satisfiedBy: {
+            metricsAll: ['booking_date', 'booking_type'],
+          },
+        },
+        HANDOFF: {
+          satisfiedBy: {
+            statesAll: ['HANDOFF_COMPLETE'],
+          },
+        },
+      },
+      
+      factAliases: (currentFlow as any).factAliases || {
+        target: 'goal_target',
+        baseline: 'goal_baseline',
+        delta: 'goal_delta',
+        category: 'goal_category',
+        email: 'contact_email',
+        phone: 'contact_phone',
+      },
+      
+      defaults: (currentFlow as any).defaults || {
+        retryPolicy: {
+          maxAttempts: 2,
+          onExhaust: "BROADEN",
+          cooldownTurns: 0,
+          promptVariantStrategy: "ROTATE"
+        }
+      },
+      
+      _semantics: (currentFlow as any)._semantics || {
+        retryPolicy: "RetryPolicy counts attempts to achieve a node's objective across turns. Attempts may re-ask/rephrase the node prompt without re-executing side effects. runPolicy.maxExecutions remains the hard cap for executing the node."
+      },
+      
+      // ========== NODES ==========
+      nodes: currentFlow.nodes.map((node) => {
+        const nodeSatisfies = (node as any).satisfies;
+        const cleanedSatisfies = nodeSatisfies ? {
+          ...(nodeSatisfies.gates && { gates: nodeSatisfies.gates }),
+          ...(nodeSatisfies.states && { states: nodeSatisfies.states }),
+          // Explicitly exclude metrics (Option B semantics)
+        } : undefined;
+        
+        const nodeRunPolicy = (node as any).runPolicy;
+        const nodeRetryPolicy = (node as any).retryPolicy;
+        
+        // Build config object with all extra fields
+        const config: Record<string, any> = {};
+        
+        if ((node as any).purpose) config.purpose = (node as any).purpose;
+        if ((node as any).importance) config.importance = (node as any).importance;
+        if (!nodeRunPolicy && (node as any).maxRuns) config.maxRuns = (node as any).maxRuns;
+        if (nodeRunPolicy) config.runPolicy = nodeRunPolicy;
+        if (nodeRetryPolicy) config.retryPolicy = nodeRetryPolicy;
+        if ((node as any).requiresStates) config.requiresStates = (node as any).requiresStates;
+        if (cleanedSatisfies) config.satisfies = cleanedSatisfies;
+        if ((node as any).eligibility) config.eligibility = (node as any).eligibility;
+        if ((node as any).allowSupportiveLine) config.allowSupportiveLine = (node as any).allowSupportiveLine;
+        if ((node as any).goalGapTracker) config.goalGapTracker = (node as any).goalGapTracker;
+        if ((node as any).deadlineEnforcement) config.deadlineEnforcement = (node as any).deadlineEnforcement;
+        if ((node as any).priority) config.priority = (node as any).priority;
+        if ((node as any).execution) config.execution = (node as any).execution;
+        if ((node as any).goalLensId) config.goalLensId = (node as any).goalLensId;
+        
+        return {
+          id: node.id,
+          type: node.type,
+          title: node.title,
+          // ALWAYS include requires, produces, config (even if empty)
+          requires: {
+            facts: node.requires && node.requires.length > 0 ? node.requires : []
+          },
+          produces: {
+            facts: node.produces && node.produces.length > 0 ? node.produces : []
+          },
+          config,  // Always include config (even if empty object)
+        };
+      }),
+      edges: [],
     };
     
-    const uiLayout: UiLayout = {
-      nodePositions: {},
-      laneAssignments: {},
+    // Store UI layout in localStorage (backend doesn't want it)
+    const uiLayout = {
+      nodePositions: {} as Record<string, { x: number; y: number }>,
+      laneAssignments: {} as Record<string, string>,
     };
     
-    // Extract UI layout from nodes
     currentFlow.nodes.forEach((node) => {
       if (node.ui) {
         uiLayout.nodePositions[node.id] = { x: node.ui.x, y: node.ui.y };
@@ -241,7 +362,29 @@ export const FlowDataProvider: React.FC<FlowDataProviderProps> = ({
       }
     });
     
-    saveDraft(draftGraph, uiLayout);
+    // Save layout to localStorage (client-side only)
+    if (flowId) {
+      try {
+        localStorage.setItem(`flow-${flowId}-layout`, JSON.stringify(uiLayout));
+      } catch (error) {
+        console.warn('Failed to save layout to localStorage:', error);
+      }
+    }
+    
+    // Debug: Log what we're about to save
+    console.log('🔄 AUTOSAVE TRIGGERED - Draft Graph (correct structure):', {
+      entryNodeIds: draftGraph.entryNodeIds,
+      nodeCount: draftGraph.nodes.length,
+      firstNode: draftGraph.nodes[0],
+      nodeStructureCheck: {
+        hasRequiresFacts: !!draftGraph.nodes[0]?.requires?.facts,
+        hasProducesFacts: !!draftGraph.nodes[0]?.produces?.facts,
+        hasConfig: !!draftGraph.nodes[0]?.config,
+      }
+    });
+    
+    // ❌ DO NOT send uiLayout to backend!
+    saveDraft(draftGraph);
   }, [currentFlow, autosaveEnabled, currentVersion, saveDraft]);
   
   // Expose flow change handler & store industry

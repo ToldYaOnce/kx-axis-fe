@@ -267,3 +267,4 @@ localStorage.setItem('kx-id-token', 'your-jwt-token');
 
 **Reference:** `kx-aws/gateway-auth-strategy.md` for backend auth implementation.
 
+

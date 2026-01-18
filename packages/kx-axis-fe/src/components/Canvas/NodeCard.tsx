@@ -163,10 +163,10 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         cursor: isDraggable ? 'grab' : 'pointer',
         transition: isDragging ? 'none' : 'all 0.2s ease',
         border: isSelected ? '2px solid' : '1px solid',
-        borderColor: isSelected ? NODE_COLORS[node.kind] : 'divider',
+        borderColor: isSelected ? NODE_COLORS[node.type] : 'divider',
         '&:hover': {
           elevation: 4,
-          borderColor: NODE_COLORS[node.kind],
+          borderColor: NODE_COLORS[node.type],
         },
         backgroundColor: 'background.paper',
         opacity: isDragging ? 0.5 : 1,
@@ -199,7 +199,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
             }} 
           />
         )}
-        <Box sx={{ color: NODE_COLORS[node.kind] }}>{NODE_ICONS[node.kind]}</Box>
+        <Box sx={{ color: NODE_COLORS[node.type] }}>{NODE_ICONS[node.type]}</Box>
         <Typography
           variant="caption"
           sx={{
@@ -211,7 +211,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
             flex: 1,
           }}
         >
-          {node.kind.replace('_', ' ')}
+          {node.type.replace('_', ' ')}
         </Typography>
         <IconButton
           size="small"

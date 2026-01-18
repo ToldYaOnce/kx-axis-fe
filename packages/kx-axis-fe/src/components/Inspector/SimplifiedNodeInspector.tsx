@@ -66,6 +66,12 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
     updateNode(nodeId, updates);
   };
 
+  // Helper to get user-friendly display label for node IDs
+  const getNodeDisplayLabel = (nodeId: string): string => {
+    const foundNode = flow.nodes.find((n) => n.id === nodeId);
+    return foundNode?.title || nodeId; // Fallback to ID if node not found
+  };
+
   // Prerequisites management
   const handleAddPrerequisite = (value: string) => {
     const currentRequires = node.requires || [];
@@ -182,9 +188,9 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
         <FormControl fullWidth sx={{ mb: 2 }} size="small">
           <InputLabel>Node Type</InputLabel>
           <Select
-            value={node.kind}
+            value={node.type}
             label="Node Type"
-            onChange={(e) => handleUpdate({ kind: e.target.value as NodeKind })}
+            onChange={(e) => handleUpdate({ type: e.target.value as NodeKind })}
           >
             {NODE_KINDS.map((kind) => (
               <MenuItem key={kind} value={kind}>
@@ -225,6 +231,7 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
           allowCustom={false}
           emptyText="No prerequisites — can run anytime"
           helperText="These determine where the item appears"
+          getDisplayLabel={getNodeDisplayLabel}
         />
       </Box>
 

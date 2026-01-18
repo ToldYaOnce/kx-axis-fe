@@ -1,6 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Box, CssBaseline, ThemeProvider, Drawer, Paper, Typography } from '@mui/material';
-import { DndContext, useSensor, useSensors, PointerSensor, DragEndEvent, DragStartEvent, DragOverlay } from '@dnd-kit/core';
 import { FlowProvider } from '../context/FlowContext';
 import { FlowDataProvider } from '../context/FlowDataContext';
 import { TopBar } from './TopBar';
@@ -28,7 +27,6 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
   // Use provided theme or default
   const activeTheme = theme || defaultLightTheme;
   const [simulateOpen, setSimulateOpen] = useState(false);
-  const [activeItem, setActiveItem] = useState<any>(null);
   const [currentFlow, setCurrentFlow] = useState<ConversationFlow | null>(() => {
     // Enhance initialConfig with industry from localStorage if available
     if (initialConfig && flowId) {
@@ -44,31 +42,6 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
     return initialConfig || null;
   });
   const canvasRef = useRef<CanvasHandle>(null);
-
-  // DnD sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // Require 8px movement before drag starts
-      },
-    })
-  );
-
-  // Drag start handler - track what's being dragged
-  const handleDragStart = (event: DragStartEvent) => {
-    console.log('🚀 KxAxisComposer handleDragStart called');
-    const isPaletteItem = event.active.data.current?.type === 'palette-item';
-    if (isPaletteItem && event.active.data.current) {
-      setActiveItem(event.active.data.current.item);
-    }
-  };
-
-  // Drag end handler - delegates to Canvas
-  const handleDragEnd = (event: DragEndEvent) => {
-    console.log('🎯 KxAxisComposer handleDragEnd called');
-    canvasRef.current?.handleDragEnd(event);
-    setActiveItem(null);
-  };
 
   const handleSimulate = () => {
     setSimulateOpen(true);
@@ -138,8 +111,7 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
         <TopBar onSimulate={handleSimulate} />
 
         {/* Main Content Area */}
-        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
             {/* Conversation Items Palette (Left) */}
             <Drawer
               variant="permanent"
@@ -153,7 +125,7 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
                   position: 'relative',
                   borderRight: '1px solid',
                   borderColor: 'divider',
-                  overflowY: activeItem ? 'hidden' : 'auto', // Disable scroll during drag
+                  overflowY: 'auto',
                 },
               }}
             >
@@ -166,34 +138,6 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
             {/* Inspector Panel (Right) */}
             <Inspector />
           </Box>
-          
-          {/* Drag Overlay - renders dragged item on top of everything */}
-          <DragOverlay dropAnimation={null}>
-            {activeItem ? (
-              <Paper
-                elevation={8}
-                sx={{
-                  p: 2,
-                  cursor: 'grabbing',
-                  opacity: 0.9,
-                  border: '2px solid',
-                  borderColor: 'primary.main',
-                  backgroundColor: 'background.paper',
-                  minWidth: 280,
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center' }}>
-                    {activeItem.icon}
-                  </Box>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {activeItem.title}
-                  </Typography>
-                </Box>
-              </Paper>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
 
         {/* Simulate Panel (Right Drawer) */}
         <SimulatePanel open={simulateOpen} onClose={() => setSimulateOpen(false)} />

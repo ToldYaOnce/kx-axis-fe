@@ -113,7 +113,8 @@ export const TopBar: React.FC<TopBarProps> = ({ onSimulate }) => {
     const activeFlowId = flowDataContext?.flowId || createdFlowId;
     
     // NEW: Quick Publish - Create flow + draft + publish in one shot
-    if (flowDataContext && !activeFlowId) {
+    // This handles when: (a) flowDataContext exists but flowId is null, OR (b) no flowDataContext at all
+    if (!activeFlowId) {
       try {
         // Import the API client
         const { flowAPI } = await import('../api/flowClient');
@@ -188,91 +189,116 @@ export const TopBar: React.FC<TopBarProps> = ({ onSimulate }) => {
             const nodeRunPolicy = (node as any).runPolicy;
             const nodeRetryPolicy = (node as any).retryPolicy;
             
+            // Build config object with all extra fields
+            const config: Record<string, any> = {};
+            
+            if ((node as any).purpose) config.purpose = (node as any).purpose;
+            if ((node as any).importance) config.importance = (node as any).importance;
+            if (!nodeRunPolicy && (node as any).maxRuns) config.maxRuns = (node as any).maxRuns;
+            if (nodeRunPolicy) config.runPolicy = nodeRunPolicy;
+            if (nodeRetryPolicy) config.retryPolicy = nodeRetryPolicy;
+            if ((node as any).requiresStates) config.requiresStates = (node as any).requiresStates;
+            if (cleanedSatisfies) config.satisfies = cleanedSatisfies;
+            if ((node as any).eligibility) config.eligibility = (node as any).eligibility;
+            if ((node as any).allowSupportiveLine) config.allowSupportiveLine = (node as any).allowSupportiveLine;
+            if ((node as any).goalGapTracker) config.goalGapTracker = (node as any).goalGapTracker;
+            if ((node as any).deadlineEnforcement) config.deadlineEnforcement = (node as any).deadlineEnforcement;
+            if ((node as any).priority) config.priority = (node as any).priority;
+            if ((node as any).execution) config.execution = (node as any).execution;
+            if ((node as any).goalLensId) config.goalLensId = (node as any).goalLensId;
+            
             return {
               id: node.id,
-              kind: node.kind,
+              type: node.type,
               title: node.title,
-              purpose: (node as any).purpose,
-              importance: (node as any).importance,
-              // Only include maxRuns if runPolicy is not present
-              ...(nodeRunPolicy ? {} : { maxRuns: (node as any).maxRuns }),
-              runPolicy: nodeRunPolicy,
-              retryPolicy: nodeRetryPolicy,
-              produces: node.produces,
-              requires: node.requires,
-              requiresStates: (node as any).requiresStates,
-              satisfies: cleanedSatisfies,
-              eligibility: (node as any).eligibility,
-              allowSupportiveLine: (node as any).allowSupportiveLine,
-              goalGapTracker: (node as any).goalGapTracker,
-              deadlineEnforcement: (node as any).deadlineEnforcement,
-              priority: (node as any).priority,
-              execution: (node as any).execution,
-              goalLensId: (node as any).goalLensId,
+              // ALWAYS include requires, produces, config (even if empty)
+              requires: {
+                facts: node.requires && node.requires.length > 0 ? node.requires : []
+              },
+              produces: {
+                facts: node.produces && node.produces.length > 0 ? node.produces : []
+              },
+              config,  // Always include config (even if empty object)
             };
           }),
         };
         
-        // UI Layout (presentation state, separate from canonical flow)
-        const editorState = {
-          uiLayout: {
-            nodePositions: flow.nodes.reduce((acc, node) => {
-              if (node.ui) {
-                acc[node.id] = { x: node.ui.x, y: node.ui.y };
-              }
-              return acc;
-            }, {} as Record<string, { x: number; y: number }>),
-            laneAssignments: flow.nodes.reduce((acc, node) => {
-              if (node.ui) {
-                acc[node.id] = node.ui.lane;
-              }
-              return acc;
-            }, {} as Record<string, string>),
-          },
+        // Store UI layout in localStorage (backend doesn't want it)
+        const uiLayout = {
+          nodePositions: flow.nodes.reduce((acc, node) => {
+            if (node.ui) {
+              acc[node.id] = { x: node.ui.x, y: node.ui.y };
+            }
+            return acc;
+          }, {} as Record<string, { x: number; y: number }>),
+          laneAssignments: flow.nodes.reduce((acc, node) => {
+            if (node.ui) {
+              acc[node.id] = node.ui.lane;
+            }
+            return acc;
+          }, {} as Record<string, string>),
         };
         
-        // SINGLE POST REQUEST WITH EVERYTHING!
         console.log('');
-        console.log('📤 POSTING FULL PAYLOAD (ALL THE FIELDS WE WORKED ON)');
-        console.log('   ✓ name:', flow.name);
-        console.log('   ✓ description:', !!flow.description);
-        console.log('   ✓ primaryGoal (object):', !!draftGraph.primaryGoal);
-        console.log('   ✓ draftGraph.entryNodeIds:', !!draftGraph.entryNodeIds);
-        console.log('   ✓ draftGraph.gateDefinitions:', !!draftGraph.gateDefinitions);
-        console.log('   ✓ draftGraph.factAliases:', !!draftGraph.factAliases);
-        console.log('   ✓ draftGraph.defaults:', !!draftGraph.defaults);
-        console.log('   ✓ draftGraph._semantics:', !!draftGraph._semantics);
-        console.log('   ✓ draftGraph.nodes:', draftGraph.nodes.length, 'nodes');
-        console.log('   ✓ Sample node has runPolicy:', !!(draftGraph.nodes[0] as any)?.runPolicy);
-        console.log('   ✓ Sample node has retryPolicy:', !!(draftGraph.nodes[0] as any)?.retryPolicy);
-        console.log('   ✓ editorState.uiLayout:', !!editorState.uiLayout);
-        console.log('');
-        console.log('   🔍 CHECK NETWORK TAB: Look for POST /agent/flows');
-        console.log('   📦 The request body should contain EVERYTHING');
-        console.log('');
+        console.log('='.repeat(60));
+        console.log('🚀 QUICK PUBLISH: 3-STEP PROCESS');
+        console.log('='.repeat(60));
+        
+        // STEP 1: Create flow WITH draftGraph (all in one request)
+        console.log('📝 STEP 1: Creating flow WITH draftGraph...');
+        
+        // CRITICAL: Extract STRING from draftGraph.primaryGoal.gate
+        const flowPrimaryGoalString = typeof draftGraph.primaryGoal === 'string' 
+          ? draftGraph.primaryGoal 
+          : draftGraph.primaryGoal?.gate || 'BOOKING';
         
         const createPayload = {
           name: flow.name,
-          primaryGoal: draftGraph.primaryGoal,
+          primaryGoal: flowPrimaryGoalString,  // MUST be STRING, not object!
           description: flow.description,
-          draftGraph,
-          editorState,
-          autoPublish: true,  // Validate and publish in one shot
+          industry: flow.industry,
+          draftGraph,  // ✅ INCLUDE draftGraph in the create request!
         };
         
+        console.log('✅ Create request structure:', {
+          'Flow primaryGoal (MUST BE STRING)': createPayload.primaryGoal,
+          'Flow primaryGoal type': typeof createPayload.primaryGoal,
+          'DraftGraph primaryGoal (CAN BE OBJECT)': draftGraph.primaryGoal,
+          'DraftGraph primaryGoal type': typeof draftGraph.primaryGoal,
+          hasDraftGraph: !!createPayload.draftGraph,
+          nodeCount: draftGraph.nodes.length,
+          'First node structure': draftGraph.nodes[0] ? {
+            id: draftGraph.nodes[0].id,
+            type: draftGraph.nodes[0].type,
+            requires: (draftGraph.nodes[0] as any).requires,  // Should be { facts: [...] }
+            produces: (draftGraph.nodes[0] as any).produces,  // Should be { facts: [...] }
+            hasConfig: !!(draftGraph.nodes[0] as any).config,
+            configKeys: Object.keys((draftGraph.nodes[0] as any).config || {}),
+          } : 'no nodes',
+        });
+        
         const createResult = await flowAPI.createFlow(createPayload);
-        console.log('✅ COMPLETE: Flow created, draft saved, validated, and published!');
-        console.log('   - Flow ID:', createResult.flowId);
-        console.log('   - Version ID:', createResult.versionId);
+        console.log('✅ STEP 1 COMPLETE: Flow + Draft created -', createResult.flowId);
+        console.log('   sourceHash:', createResult.sourceHash);
+        
+        // Store createdFlowId and layout
+        setCreatedFlowId(createResult.flowId);
+        localStorage.setItem(`flow-${createResult.flowId}-layout`, JSON.stringify(uiLayout));
+        
+        // STEP 2: Publish (skip save draft since it was included in create)
+        console.log('🚀 STEP 2: Publishing version...');
+        const publishResult = await flowAPI.publishFlow(createResult.flowId, {
+          publishNote,
+          publishedBy: 'system',  // TODO: Replace with actual user
+          sourceDraftHash: createResult.sourceHash,  // Use sourceHash from create response
+        });
+        console.log('✅ STEP 2 COMPLETE: Published as', publishResult.versionId);
         console.log('='.repeat(60));
         console.log('');
         
-        // Store the created flowId so we don't create duplicates on next publish
-        setCreatedFlowId(createResult.flowId);
-        
         setPublishDialogOpen(false);
         setPublishSuccess(true);
-        showToast(`🎉 Flow published! Version: ${createResult.versionId}`, 'success');
+        showToast(`🎉 Flow published! Version: ${publishResult.versionId}`, 'success');
         
         return;
       } catch (error: any) {
@@ -282,8 +308,8 @@ export const TopBar: React.FC<TopBarProps> = ({ onSimulate }) => {
       }
     }
     
-    // If we have a createdFlowId but not in context, use the manual flow with that flowId
-    if (flowDataContext && !flowDataContext.flowId && createdFlowId) {
+    // This section is now obsolete - remove it later
+    if (false && flowDataContext && !flowDataContext.flowId && createdFlowId) {
       try {
         const { flowAPI } = await import('../api/flowClient');
         
@@ -335,7 +361,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onSimulate }) => {
             const nodeRetryPolicy = (node as any).retryPolicy;
             return {
               id: node.id,
-              kind: node.kind,
+              type: node.type,  // Pass through 'type' field
               title: node.title,
               purpose: (node as any).purpose,
               importance: (node as any).importance,
@@ -422,17 +448,139 @@ export const TopBar: React.FC<TopBarProps> = ({ onSimulate }) => {
     }
     
     // Normal publish flow (when flowId exists in context - full hook integration)
-    await publishFlow(publishNote);
-    
-    // Check for success or conflict error
-    if (publishError?.status === 409) {
-      // Show conflict dialog
-      showToast('Draft has been modified. Please reload and try again.', 'warning');
-      return;
+    // CRITICAL: Force a fresh save before publishing to ensure complete payload
+    console.log('🔄 Forcing fresh draft save before publish...', { activeFlowId });
+    try {
+      const { flowAPI } = await import('../api/flowClient');
+      
+      // Build complete draftGraph (same as autosave)
+      const draftGraph = {
+        entryNodeIds: (flow as any).entryNodeIds || [flow.nodes[0]?.id],
+        primaryGoal: (flow as any).primaryGoal || {
+          type: 'GATE',
+          gate: 'BOOKING',
+          description: 'User has booked a consultation',
+        },
+        gateDefinitions: (flow as any).gateDefinitions || {
+          CONTACT: { satisfiedBy: { metricsAny: ['contact_email', 'contact_phone'] } },
+          BOOKING: { satisfiedBy: { metricsAll: ['booking_date', 'booking_type'] } },
+          HANDOFF: { satisfiedBy: { statesAll: ['HANDOFF_COMPLETE'] } },
+        },
+        factAliases: (flow as any).factAliases || {
+          target: 'goal_target',
+          baseline: 'goal_baseline',
+          delta: 'goal_delta',
+          category: 'goal_category',
+          email: 'contact_email',
+          phone: 'contact_phone',
+        },
+        defaults: (flow as any).defaults || {
+          retryPolicy: {
+            maxAttempts: 2,
+            onExhaust: "BROADEN",
+            cooldownTurns: 0,
+            promptVariantStrategy: "ROTATE"
+          }
+        },
+        _semantics: (flow as any)._semantics || {
+          retryPolicy: "RetryPolicy counts attempts to achieve a node's objective across turns."
+        },
+        nodes: flow.nodes.map((node) => {
+          const nodeSatisfies = (node as any).satisfies;
+          const cleanedSatisfies = nodeSatisfies ? {
+            ...(nodeSatisfies.gates && { gates: nodeSatisfies.gates }),
+            ...(nodeSatisfies.states && { states: nodeSatisfies.states }),
+          } : undefined;
+          
+          const nodeRunPolicy = (node as any).runPolicy;
+          const nodeRetryPolicy = (node as any).retryPolicy;
+          
+          // Build config object with all extra fields
+          const config: Record<string, any> = {};
+          
+          if ((node as any).purpose) config.purpose = (node as any).purpose;
+          if ((node as any).importance) config.importance = (node as any).importance;
+          if (!nodeRunPolicy && (node as any).maxRuns) config.maxRuns = (node as any).maxRuns;
+          if (nodeRunPolicy) config.runPolicy = nodeRunPolicy;
+          if (nodeRetryPolicy) config.retryPolicy = nodeRetryPolicy;
+          if ((node as any).requiresStates) config.requiresStates = (node as any).requiresStates;
+          if (cleanedSatisfies) config.satisfies = cleanedSatisfies;
+          if ((node as any).eligibility) config.eligibility = (node as any).eligibility;
+          if ((node as any).allowSupportiveLine) config.allowSupportiveLine = (node as any).allowSupportiveLine;
+          if ((node as any).goalGapTracker) config.goalGapTracker = (node as any).goalGapTracker;
+          if ((node as any).deadlineEnforcement) config.deadlineEnforcement = (node as any).deadlineEnforcement;
+          if ((node as any).priority) config.priority = (node as any).priority;
+          if ((node as any).execution) config.execution = (node as any).execution;
+          if ((node as any).goalLensId) config.goalLensId = (node as any).goalLensId;
+          
+          return {
+            id: node.id,
+            type: node.type,
+            title: node.title,
+            // ALWAYS include requires, produces, config (even if empty)
+            requires: {
+              facts: node.requires && node.requires.length > 0 ? node.requires : []
+            },
+            produces: {
+              facts: node.produces && node.produces.length > 0 ? node.produces : []
+            },
+            config,  // Always include config (even if empty object)
+          };
+        }),
+        edges: [],
+      };
+      
+      // Store UI layout in localStorage (backend doesn't want it)
+      const uiLayout = {
+        nodePositions: flow.nodes.reduce((acc, node) => {
+          if (node.ui) {
+            acc[node.id] = { x: node.ui.x, y: node.ui.y };
+          }
+          return acc;
+        }, {} as Record<string, { x: number; y: number }>),
+        laneAssignments: flow.nodes.reduce((acc, node) => {
+          if (node.ui) {
+            acc[node.id] = node.ui.lane;
+          }
+          return acc;
+        }, {} as Record<string, string>),
+      };
+      
+      if (activeFlowId) {
+        try {
+          localStorage.setItem(`flow-${activeFlowId}-layout`, JSON.stringify(uiLayout));
+        } catch (error) {
+          console.warn('Failed to save layout to localStorage:', error);
+        }
+      }
+      
+      console.log('💾 Saving draft (draftGraph only, no uiLayout)...');
+      const saveResult = await flowAPI.replaceDraft(activeFlowId!, {
+        draftGraph,
+        // ❌ DO NOT send uiLayout!
+      });
+      
+      console.log('✅ Draft saved, now publishing with sourceHash:', saveResult.sourceHash);
+      
+      // Now publish with the fresh sourceHash
+      const publishResult = await flowAPI.publishFlow(activeFlowId!, {
+        publishNote,
+        sourceDraftHash: saveResult.sourceHash,
+      });
+      
+      console.log('✅ Published successfully:', publishResult);
+      
+      setPublishDialogOpen(false);
+      setPublishSuccess(true);
+      showToast('🎉 Conversation flow published successfully!', 'success');
+    } catch (error: any) {
+      console.error('Publish failed:', error);
+      if (error.status === 409) {
+        showToast('Draft has been modified. Please reload and try again.', 'warning');
+      } else {
+        showToast(`Failed to publish: ${error.message || 'Unknown error'}`, 'error');
+      }
     }
-    
-    setPublishDialogOpen(false);
-    setPublishSuccess(true);
   };
 
   const handleNodeClick = (nodeId: string) => {

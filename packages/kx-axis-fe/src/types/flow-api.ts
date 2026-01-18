@@ -50,6 +50,34 @@ export interface Edge {
  * Draft Graph - the working copy of the flow
  */
 export interface DraftGraph {
+  // Execution metadata (added for deterministic controller)
+  entryNodeIds?: string[];
+  primaryGoal?: {
+    type: 'GATE' | 'STATE';
+    gate?: string;
+    state?: string;
+    description?: string;
+  };
+  gateDefinitions?: Record<string, {
+    satisfiedBy: {
+      metricsAll?: string[];
+      metricsAny?: string[];
+      statesAll?: string[];
+    };
+  }>;
+  factAliases?: Record<string, string>;
+  defaults?: {
+    retryPolicy?: {
+      maxAttempts: number;
+      escalateOnFailure?: boolean;
+      onExhaust?: string;
+      cooldownTurns?: number;
+      promptVariantStrategy?: string;
+    };
+  };
+  _semantics?: Record<string, string>;
+  
+  // Core graph structure
   nodes: Node[];
   edges?: Edge[];  // Optional
 }
@@ -208,7 +236,7 @@ export interface FlowListItem {
   name: string;
   description?: string;
   industry?: string;
-  primaryGoal: string | { type: string; gate?: string; state?: string; description?: string };
+  primaryGoal: string;  // Flow-level primaryGoal is always a string (e.g., "BOOKING")
   status: 'DRAFT' | 'PUBLISHED';
   currentDraftId: 'current';
   currentDraftUpdatedAt: string;
@@ -225,10 +253,10 @@ export interface FlowListItem {
  */
 export interface CreateFlowRequest {
   name: string;  // Required
-  primaryGoal: string | { type: string; gate?: string; state?: string; description?: string };  // Required - can be string (legacy) or object
+  primaryGoal: string;  // Required - MUST be a string (e.g., "BOOKING"), NOT an object
   description?: string;  // Optional
   industry?: string;  // Optional - Industry classification (e.g., "Finance", "Healthcare")
-  draftGraph?: DraftGraph;  // Optional - if provided, creates draft immediately
+  draftGraph?: DraftGraph;  // Optional - if provided, creates draft immediately (draftGraph.primaryGoal can be an object)
   editorState?: { uiLayout?: UiLayout };  // Optional - UI presentation state
   autoPublish?: boolean;  // Optional - if true, validate and publish immediately
 }
@@ -305,6 +333,7 @@ export interface ValidateFlowResponse {
  */
 export interface PublishFlowRequest {
   publishNote?: string;
+  publishedBy?: string;  // Optional - user who published
   sourceDraftHash?: string;  // Optional for optimistic concurrency check
 }
 

@@ -2,7 +2,7 @@ import industryConfig from '../config/industryConversationItems.json';
 
 export interface ConversationItem {
   id: string;
-  kind: string;
+  type: string;  // Backend expects 'type', not 'kind'
   title: string;
   description: string;
   icon?: string;

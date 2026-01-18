@@ -177,3 +177,4 @@ For now, the industry is managed in the frontend state and will need to be re-se
 - [ ] Change industry in Overview panel (right sidebar)
 - [ ] Verify palette updates with new industry items
 
+

@@ -259,3 +259,4 @@ When implementing backend support for `industry`:
 - `packages/kx-axis-fe/src/demo/DemoApp.tsx` - Store industry on creation
 - `packages/kx-axis-fe/INDUSTRY_SUPPORT_FIX.md` - This documentation
 
+

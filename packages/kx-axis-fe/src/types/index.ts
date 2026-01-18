@@ -164,15 +164,15 @@ export interface GoalGapTrackerConfig {
  */
 export interface FlowNode {
   id: string;
-  kind: NodeKind;
+  type: NodeKind;  // Backend expects 'type', not 'kind'
   title: string;
   purpose?: string;  // Why this node exists (for operator understanding)
   
-  // Prerequisites (hard gates)
-  requires?: string[];  // Gate IDs: 'CONTACT', 'BOOKING', or other node IDs
+  // Prerequisites (hard gates - frontend uses flat array, backend expects { facts: [...] })
+  requires?: string[];  // Fact names: lowercase with underscores (e.g., 'contact_email', 'booking_date')
   
-  // Produced facts (data revealed after this node completes)
-  produces?: string[];  // Fact keys: 'email', 'phone', 'booking_date', etc.
+  // Produced facts (data revealed after this node completes - frontend uses flat array, backend expects { facts: [...] })
+  produces?: string[];  // Fact names: lowercase with underscores (e.g., 'contact_email', 'booking_date')
   
   // What this node satisfies
   satisfies?: NodeSatisfaction;
@@ -255,6 +255,7 @@ export interface ConversationFlow {
   id: string;
   name: string;
   description?: string;
+  industry?: string;  // Industry classification (e.g., "Finance", "Healthcare")
   
   // Nodes (conversation moments)
   nodes: FlowNode[];

@@ -26,15 +26,17 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { useSimulator } from '../../context/SimulatorContext';
 import { demoScenarios } from '../../fixtures/simulatorFixtures';
 import type { Channel, LeadState, ScenarioContext } from '../../types/simulator';
+import { useToast } from '../../context/ToastContext';
 
 export const ScenarioBar: React.FC = () => {
+  const { showError, showConfirm } = useToast();
   const { currentRun, useMockData, setUseMockData, startSimulation, reset } = useSimulator();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedFlow, setSelectedFlow] = useState('flow-fitness-onboarding');
   const [channel, setChannel] = useState<Channel>('SMS');
   const [leadState, setLeadState] = useState<LeadState>('ANONYMOUS');
   
-  // Toast notification state
+  // Toast notification state (for local toast if needed)
   const [toastOpen, setToastOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastSeverity, setToastSeverity] = useState<'success' | 'error' | 'warning' | 'info'>('info');
@@ -61,8 +63,12 @@ export const ScenarioBar: React.FC = () => {
     }
   };
 
-  const handleReset = () => {
-    if (confirm('Reset simulation? This will clear all progress.')) {
+  const handleReset = async () => {
+    const confirmed = await showConfirm(
+      'Reset simulation? This will clear all progress.',
+      'Confirm Reset'
+    );
+    if (confirmed) {
       reset();
     }
   };

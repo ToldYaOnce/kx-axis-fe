@@ -245,6 +245,22 @@ class FlowAPIClient {
    * IMPORTANT: Sends draftGraph/uiLayout (NOT metadata fields)
    */
   async replaceDraft(flowId: string, request: ReplaceDraftRequest): Promise<ReplaceDraftResponse> {
+    // Debug: Log the actual request being sent
+    const firstNode = request.draftGraph?.nodes?.[0];
+    console.log('📡 API REQUEST - replaceDraft:', {
+      url: `${this.baseURL}/agent/flows?flowId=${flowId}`,
+      method: 'PATCH',
+      nodeCount: request.draftGraph?.nodes?.length,
+      firstNodeStructure: firstNode ? {
+        id: firstNode.id,
+        type: firstNode.type,
+        title: firstNode.title,
+        requiresType: typeof (firstNode as any).requires,
+        producesType: typeof (firstNode as any).produces,
+        hasConfig: 'config' in (firstNode as any),
+      } : 'no nodes',
+    });
+    
     const response = await fetch(`${this.baseURL}/agent/flows?flowId=${flowId}`, {
       method: 'PATCH',
       headers: this.getHeaders(),

@@ -17,7 +17,7 @@ export const NodeInspector: React.FC<NodeInspectorProps> = ({ nodeId }) => {
   if (!node) return null;
 
   // Use specialized inspector for GOAL_GAP_TRACKER
-  if (node.kind === 'GOAL_GAP_TRACKER') {
+  if (node.type === 'GOAL_GAP_TRACKER') {
     return (
       <Box>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 3, pb: 0 }}>

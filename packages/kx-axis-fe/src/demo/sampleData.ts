@@ -77,7 +77,7 @@ export const sampleFlow: ConversationFlow = {
     // BEFORE CONTACT - Can run without any contact info
     {
       id: 'intro-greeting',
-      kind: 'EXPLANATION',
+      type: 'EXPLANATION',
       title: 'Welcome & Introduction',
       purpose: 'Greet the prospect and set expectations for the conversation',
       ui: {
@@ -101,7 +101,7 @@ export const sampleFlow: ConversationFlow = {
     },
     {
       id: 'explain-value',
-      kind: 'EXPLANATION',
+      type: 'EXPLANATION',
       title: 'Explain Our Value',
       purpose: 'Share success stories and build trust before asking for contact',
       ui: {
@@ -122,7 +122,7 @@ export const sampleFlow: ConversationFlow = {
     // CONTACT GATE - This node captures contact and unlocks the next phase
     {
       id: 'capture-contact',
-      kind: 'DATA_CAPTURE',
+      type: 'DATA_CAPTURE',
       title: 'Capture Contact Info',
       purpose: 'Get email/phone to enable booking and follow-up',
       satisfies: ['CONTACT'], // This UNLOCKS the contact gate
@@ -147,7 +147,7 @@ export const sampleFlow: ConversationFlow = {
     // AFTER CONTACT - Requires contact to be captured first
     {
       id: 'capture-current-stats',
-      kind: 'DATA_CAPTURE',
+      type: 'DATA_CAPTURE',
       title: 'Capture Current Stats',
       purpose: 'Collect current weight and body fat percentage',
       requires: ['CONTACT'], // Locked behind contact gate
@@ -168,7 +168,7 @@ export const sampleFlow: ConversationFlow = {
     },
     {
       id: 'capture-goals',
-      kind: 'DATA_CAPTURE',
+      type: 'DATA_CAPTURE',
       title: 'Capture Fitness Goals',
       purpose: 'Understand target weight, body fat, and timeline',
       requires: ['CONTACT'],
@@ -189,7 +189,7 @@ export const sampleFlow: ConversationFlow = {
     },
     {
       id: 'explain-approach',
-      kind: 'EXPLANATION',
+      type: 'EXPLANATION',
       title: 'Explain Training Approach',
       purpose: 'Describe coaching methodology and personalized plan',
       requires: ['CONTACT'],
@@ -209,7 +209,7 @@ export const sampleFlow: ConversationFlow = {
     },
     {
       id: 'book-consultation',
-      kind: 'ACTION_BOOKING',
+      type: 'ACTION_BOOKING',
       title: 'Book Initial Consultation',
       purpose: 'Schedule the first in-depth consultation call',
       requires: ['CONTACT'],
@@ -232,7 +232,7 @@ export const sampleFlow: ConversationFlow = {
     // AFTER BOOKING - Requires both contact AND booking
     {
       id: 'send-promo-code',
-      kind: 'EXPLANATION',
+      type: 'EXPLANATION',
       title: 'Send Promo Code',
       purpose: 'Provide exclusive discount for booked clients',
       requires: ['BOOKING'], // Locked behind booking (which implies contact)
@@ -252,7 +252,7 @@ export const sampleFlow: ConversationFlow = {
     },
     {
       id: 'handoff-to-trainer',
-      kind: 'HANDOFF',
+      type: 'HANDOFF',
       title: 'Handoff to Trainer',
       purpose: 'Transfer to human trainer for personalized planning',
       requires: ['BOOKING'],

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import type {
   ConversationFlow,
   FlowNode,
@@ -39,6 +39,23 @@ export const FlowProvider: React.FC<FlowProviderProps> = ({
 }) => {
   const [flow, setFlow] = useState<ConversationFlow>(initialFlow);
   const [selection, setSelection] = useState<Selection>({ type: 'overview' });
+  const lastSyncedFlowId = useRef<string>(initialFlow.id);
+
+  // Sync flow state when initialFlow changes from external source (e.g., loaded from API)
+  useEffect(() => {
+    // Check if this is a new flow being loaded or initial flow with nodes
+    const isDifferentFlow = initialFlow.id !== lastSyncedFlowId.current;
+    const hasNodes = initialFlow.nodes.length > 0;
+    
+    if (isDifferentFlow && hasNodes) {
+      console.log('🔄 Syncing flow state with loaded flow:', {
+        flowId: initialFlow.id,
+        nodeCount: initialFlow.nodes.length,
+      });
+      setFlow(initialFlow);
+      lastSyncedFlowId.current = initialFlow.id;
+    }
+  }, [initialFlow]);
 
   const notifyChange = useCallback(
     (updatedFlow: ConversationFlow) => {

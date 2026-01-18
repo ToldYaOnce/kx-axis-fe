@@ -177,3 +177,4 @@ hasIndustrySpecificItems('Technology') // true
 - General items are **always** visible regardless of industry
 - "Other" industry = general items only
 
+

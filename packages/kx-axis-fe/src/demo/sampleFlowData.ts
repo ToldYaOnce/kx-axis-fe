@@ -38,7 +38,7 @@ export const fitnessOnboardingFlow: ConversationFlow = {
     
     {
       id: 'welcome',
-      kind: 'EXPLANATION',
+      type: 'EXPLANATION',
       title: 'Welcome & Introduction',
       purpose: 'Greet prospect and explain what we do',
       ui: {
@@ -58,7 +58,7 @@ export const fitnessOnboardingFlow: ConversationFlow = {
     
     {
       id: 'goal-definition',
-      kind: 'GOAL_DEFINITION',
+      type: 'GOAL_DEFINITION',
       title: 'Define Goal',
       purpose: 'Capture which type of goal they want to achieve',
       ui: {
@@ -82,7 +82,7 @@ export const fitnessOnboardingFlow: ConversationFlow = {
     
     {
       id: 'reflective-readiness',
-      kind: 'REFLECTIVE_QUESTION',
+      type: 'REFLECTIVE_QUESTION',
       title: 'Readiness Check',
       purpose: 'Ask them to reflect on their commitment',
       requires: ['goal-definition'],  // Can only run after goal is set
@@ -107,7 +107,7 @@ export const fitnessOnboardingFlow: ConversationFlow = {
     
     {
       id: 'capture-contact',
-      kind: 'BASELINE_CAPTURE',
+      type: 'BASELINE_CAPTURE',
       title: 'Capture Contact Info',
       purpose: 'Get email/phone for booking and follow-up',
       ui: {
@@ -133,7 +133,7 @@ export const fitnessOnboardingFlow: ConversationFlow = {
     
     {
       id: 'baseline-capture-adaptive',
-      kind: 'BASELINE_CAPTURE',
+      type: 'BASELINE_CAPTURE',
       title: 'Adaptive Baseline Capture',
       purpose: 'Capture baseline metrics based on selected goal lens',
       requires: ['CONTACT', 'goal-definition'],
@@ -166,7 +166,7 @@ export const fitnessOnboardingFlow: ConversationFlow = {
     
     {
       id: 'target-capture-adaptive',
-      kind: 'BASELINE_CAPTURE',
+      type: 'BASELINE_CAPTURE',
       title: 'Adaptive Target Capture',
       purpose: 'Capture target metrics based on selected goal lens',
       requires: ['CONTACT', 'baseline-capture-adaptive'],
@@ -195,7 +195,7 @@ export const fitnessOnboardingFlow: ConversationFlow = {
     
     {
       id: 'deadline-capture',
-      kind: 'DEADLINE_CAPTURE',
+      type: 'DEADLINE_CAPTURE',
       title: 'Capture Deadline',
       purpose: 'Get deadline per goal lens policy',
       requires: ['CONTACT', 'target-capture-adaptive'],
@@ -228,7 +228,7 @@ export const fitnessOnboardingFlow: ConversationFlow = {
     
     {
       id: 'explain-approach',
-      kind: 'EXPLANATION',
+      type: 'EXPLANATION',
       title: 'Explain Our Approach',
       purpose: 'Describe coaching methodology based on their goal',
       requires: ['CONTACT', 'deadline-capture'],
@@ -251,7 +251,7 @@ export const fitnessOnboardingFlow: ConversationFlow = {
     
     {
       id: 'book-consultation',
-      kind: 'ACTION_BOOKING',
+      type: 'ACTION_BOOKING',
       title: 'Book Initial Consultation',
       purpose: 'Schedule consultation call',
       requires: ['CONTACT'],
@@ -278,7 +278,7 @@ export const fitnessOnboardingFlow: ConversationFlow = {
     
     {
       id: 'send-promo',
-      kind: 'EXPLANATION',
+      type: 'EXPLANATION',
       title: 'Send Promo Code',
       purpose: 'Provide exclusive discount for booked clients',
       requires: ['BOOKING'],
@@ -298,7 +298,7 @@ export const fitnessOnboardingFlow: ConversationFlow = {
     
     {
       id: 'handoff-trainer',
-      kind: 'HANDOFF',
+      type: 'HANDOFF',
       title: 'Handoff to Trainer',
       purpose: 'Transfer to human trainer for personalized planning',
       requires: ['BOOKING'],

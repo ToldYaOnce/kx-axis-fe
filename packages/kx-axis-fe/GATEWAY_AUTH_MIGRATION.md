@@ -347,3 +347,4 @@ The frontend now supports dual auth modes matching `kx-aws` gateway auth strateg
 
 **Reference:** `kx-aws/gateway-auth-strategy.md` for backend implementation details.
 
+
