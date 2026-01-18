@@ -26,10 +26,45 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import GpsFixedIcon from '@mui/icons-material/GpsFixed';
+import PresentationChartIcon from '@mui/icons-material/BarChart';
+import CodeIcon from '@mui/icons-material/Code';
+import PlugIcon from '@mui/icons-material/Cable';
+import SupportIcon from '@mui/icons-material/SupportAgent';
+import ShieldIcon from '@mui/icons-material/Shield';
+import HealthIcon from '@mui/icons-material/MedicalServices';
+import ClipboardIcon from '@mui/icons-material/Assignment';
+import SchoolIcon from '@mui/icons-material/School';
+import SignupIcon from '@mui/icons-material/HowToReg';
+import ChecklistIcon from '@mui/icons-material/Checklist';
+import MoneyIcon from '@mui/icons-material/AttachMoney';
+import GiftIcon from '@mui/icons-material/CardGiftcard';
+import RulerIcon from '@mui/icons-material/Straighten';
+import ReturnIcon from '@mui/icons-material/Undo';
+import StarIcon from '@mui/icons-material/Star';
+import DocumentIcon from '@mui/icons-material/Description';
+import BlueprintIcon from '@mui/icons-material/Architecture';
+import CalculatorIcon from '@mui/icons-material/Calculate';
+import ClockIcon from '@mui/icons-material/Schedule';
+import PeopleIcon from '@mui/icons-material/People';
+import PaletteIcon from '@mui/icons-material/Palette';
+import HomeIcon from '@mui/icons-material/Home';
+import MapIcon from '@mui/icons-material/Map';
+import FitnessIcon from '@mui/icons-material/FitnessCenter';
+import NutritionIcon from '@mui/icons-material/Restaurant';
+import WarningIcon from '@mui/icons-material/Warning';
+import BedIcon from '@mui/icons-material/Hotel';
+import VipIcon from '@mui/icons-material/WorkspacePremium';
+import GavelIcon from '@mui/icons-material/Gavel';
+import HeartIcon from '@mui/icons-material/Favorite';
+import CardIcon from '@mui/icons-material/CreditCard';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { useFlow } from '../../context/FlowContext';
 import type { FlowNode, NodeKind } from '../../types';
+import { getConversationItemsForIndustry, getGeneralItems, getIndustrySpecificItems } from '../../utils/conversationItems';
 
 interface ConversationItem {
   id: string;
@@ -39,6 +74,7 @@ interface ConversationItem {
   icon: React.ReactElement;
   defaultLane: 'BEFORE_CONTACT' | 'CONTACT_GATE' | 'AFTER_CONTACT' | 'AFTER_BOOKING';
   captures?: string[]; // For INFO_CAPTURE items
+  badge?: string; // Optional badge like "NEW"
 }
 
 const CONVERSATION_ITEMS: ConversationItem[] = [
@@ -168,12 +204,12 @@ const DraggableConversationItem: React.FC<{ item: ConversationItem & { captures?
             <Typography variant="body2" sx={{ fontWeight: 600, color: isUsed ? 'text.disabled' : 'text.primary' }}>
               {item.title}
             </Typography>
-            {item.kind === 'GOAL_GAP_TRACKER' && !isUsed && (
+            {item.badge && !isUsed && (
               <Typography
                 variant="caption"
                 sx={{
-                  backgroundColor: 'primary.light',
-                  color: 'primary.dark',
+                  backgroundColor: 'rgba(100, 116, 139, 0.2)',
+                  color: 'primary.main',
                   px: 0.75,
                   py: 0.25,
                   borderRadius: 0.5,
@@ -181,7 +217,7 @@ const DraggableConversationItem: React.FC<{ item: ConversationItem & { captures?
                   fontWeight: 700,
                 }}
               >
-                NEW
+                {item.badge}
               </Typography>
             )}
             {isUsed && (
@@ -260,14 +296,96 @@ const INFO_CAPTURE_PRESETS: Record<InfoCapturePreset, PresetConfig> = {
 export const ConversationItemsPalette: React.FC = () => {
   const { addNode, flow } = useFlow();
   
+  // Get conversation items based on flow's industry
+  const getItemsForFlow = React.useMemo(() => {
+    const jsonItems = getConversationItemsForIndustry(flow.industry);
+    
+    // Map JSON items to component items with icons
+    return jsonItems.map(item => {
+      // Map icon names to actual icons
+      const iconMap: Record<string, React.ReactElement> = {
+        // General
+        info: <InfoOutlinedIcon />,
+        question: <QuestionAnswerIcon />,
+        trend: <ShowChartIcon />,
+        contact: <ContactMailIcon />,
+        calendar: <CalendarMonthIcon />,
+        tag: <LocalOfferIcon />,
+        handoff: <HandshakeIcon />,
+        // Finance
+        chart: <ShowChartIcon />,
+        account: <AccountBalanceIcon />,
+        target: <GpsFixedIcon />,
+        checkmark: <CheckCircleOutlineIcon />,
+        // Technology
+        presentation: <PresentationChartIcon />,
+        code: <CodeIcon />,
+        plug: <PlugIcon />,
+        support: <SupportIcon />,
+        // Healthcare
+        shield: <ShieldIcon />,
+        health: <HealthIcon />,
+        clipboard: <ClipboardIcon />,
+        // Education
+        school: <SchoolIcon />,
+        signup: <SignupIcon />,
+        checklist: <ChecklistIcon />,
+        money: <MoneyIcon />,
+        // Retail
+        gift: <GiftIcon />,
+        ruler: <RulerIcon />,
+        return: <ReturnIcon />,
+        star: <StarIcon />,
+        // Manufacturing
+        document: <DocumentIcon />,
+        blueprint: <BlueprintIcon />,
+        calculator: <CalculatorIcon />,
+        clock: <ClockIcon />,
+        // Marketing
+        people: <PeopleIcon />,
+        palette: <PaletteIcon />,
+        // Real Estate
+        home: <HomeIcon />,
+        map: <MapIcon />,
+        // Fitness & Wellness
+        fitness: <FitnessIcon />,
+        nutrition: <NutritionIcon />,
+        warning: <WarningIcon />,
+        // Hospitality
+        bed: <BedIcon />,
+        vip: <VipIcon />,
+        // Legal
+        gavel: <GavelIcon />,
+        // Non-profit
+        heart: <HeartIcon />,
+        card: <CardIcon />,
+      };
+      
+      return {
+        id: item.id,
+        kind: item.kind as NodeKind,
+        title: item.title,
+        description: item.description,
+        icon: iconMap[item.icon || 'info'] || <InfoOutlinedIcon />,
+        defaultLane: 'BEFORE_CONTACT' as const,
+        badge: item.badge,
+      };
+    });
+  }, [flow.industry]);
+  
   // State for dynamic conversation items
-  const [conversationItems, setConversationItems] = useState<ConversationItem[]>(CONVERSATION_ITEMS);
+  const [conversationItems, setConversationItems] = useState<ConversationItem[]>(getItemsForFlow);
   
   // State for "+ New item" dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newItemType, setNewItemType] = useState<ConversationItemKind | ''>('');
   const [newItemTitle, setNewItemTitle] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<InfoCapturePreset>('blank');
+
+  // Update conversation items when industry changes
+  React.useEffect(() => {
+    setConversationItems(getItemsForFlow);
+  }, [getItemsForFlow]);
 
   // Track which items are already on the canvas
   const usedItemIds = new Set<string>();

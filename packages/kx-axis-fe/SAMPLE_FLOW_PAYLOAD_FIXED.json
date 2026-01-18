@@ -1,0 +1,271 @@
+{
+  "name": "Sample Conversation Flow",
+  "primaryGoal": {
+    "gate": "BOOKING",
+    "description": "User has booked a consultation"
+  },
+  "description": "A sample flow demonstrating conversation items and requirements",
+  
+  "entryNodeIds": ["welcome-1"],
+  
+  "gates": {
+    "GOAL_SET": {
+      "requiredFacts": ["goal_target", "goal_baseline", "goal_delta", "goal_category"]
+    },
+    "CONTACT": {
+      "requiredFacts": ["contact.email"]
+    },
+    "BOOKING": {
+      "requiredFacts": ["booking.date"]
+    },
+    "HANDOFF": {
+      "requiredFacts": []
+    }
+  },
+  
+  "nodes": [
+    {
+      "id": "welcome-1",
+      "type": "EXPLANATION",
+      "title": "Welcome / Introduction",
+      "requires": {
+        "facts": []
+      },
+      "produces": {
+        "facts": ["WELCOME_SHOWN"]
+      },
+      "config": {
+        "purpose": "Greet the user and set expectations",
+        "importance": "high",
+        "runPolicy": { "maxExecutions": 1 }
+      }
+    },
+    {
+      "id": "reflect-1",
+      "type": "REFLECTIVE_QUESTION",
+      "title": "Reflective Question",
+      "requires": {
+        "facts": []
+      },
+      "produces": {
+        "facts": ["REFLECTION_COMPLETE"]
+      },
+      "config": {
+        "purpose": "Gauge readiness and motivation level",
+        "importance": "normal",
+        "runPolicy": { "maxExecutions": 1 }
+      }
+    },
+    {
+      "id": "goal-gap-1",
+      "type": "GOAL_GAP_TRACKER",
+      "title": "Goal Gap Tracker",
+      "requires": {
+        "facts": []
+      },
+      "produces": {
+        "facts": ["goal_target", "goal_baseline", "goal_delta", "goal_category"]
+      },
+      "config": {
+        "purpose": "Capture target, baseline, compute delta, classify category",
+        "importance": "high",
+        "runPolicy": { "maxExecutions": 1 },
+        "allowSupportiveLine": true,
+        "goalGapTracker": {
+          "targetLabel": "What's the exact outcome you want to achieve?",
+          "baselineLabel": "Where are you at right now with that?",
+          "showExamples": true,
+          "examples": [
+            "run 3 miles in 21 minutes",
+            "bench press 300 lbs",
+            "lose 15 pounds",
+            "do 50 pushups without stopping",
+            "hold plank for 3 minutes"
+          ],
+          "computeMode": "AUTO",
+          "askClarifierIfIncomparable": true,
+          "deadlinePolicyDefault": "EXACT_DATE",
+          "categories": [
+            {
+              "id": "strength-pr",
+              "name": "Strength PR",
+              "deadlinePolicyOverride": "EXACT_DATE"
+            },
+            {
+              "id": "endurance",
+              "name": "Endurance / Pace",
+              "deadlinePolicyOverride": "EXACT_DATE"
+            },
+            {
+              "id": "body-comp",
+              "name": "Body Composition",
+              "deadlinePolicyOverride": "RANGE_OK"
+            },
+            {
+              "id": "consistency",
+              "name": "Consistency / Routine",
+              "deadlinePolicyOverride": "DURATION_OK"
+            },
+            {
+              "id": "mobility",
+              "name": "Mobility / Pain",
+              "deadlinePolicyOverride": "RANGE_OK"
+            },
+            {
+              "id": "other",
+              "name": "Other",
+              "deadlinePolicyOverride": "INHERIT"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "contact-1",
+      "type": "BASELINE_CAPTURE",
+      "title": "Capture Contact Info",
+      "requires": {
+        "gates": ["GOAL_SET"]
+      },
+      "produces": {
+        "facts": ["contact.email", "contact.phone"]
+      },
+      "config": {
+        "purpose": "Get email/phone for follow-up",
+        "importance": "high",
+        "runPolicy": { "maxExecutions": 1 },
+        "eligibility": {
+          "requiresGoalSet": true
+        }
+      }
+    },
+    {
+      "id": "booking-1",
+      "type": "ACTION_BOOKING",
+      "title": "Book Consultation",
+      "requires": {
+        "gates": ["CONTACT"]
+      },
+      "produces": {
+        "facts": ["booking.date", "booking.type"]
+      },
+      "config": {
+        "purpose": "Schedule initial consultation",
+        "importance": "high",
+        "runPolicy": { "maxExecutions": 1 }
+      }
+    },
+    {
+      "id": "promo-1",
+      "type": "EXPLANATION",
+      "title": "Send Welcome Offer",
+      "requires": {
+        "gates": ["BOOKING"]
+      },
+      "produces": {
+        "facts": ["PROMO_SENT"]
+      },
+      "config": {
+        "purpose": "Share promotional offer",
+        "importance": "normal",
+        "runPolicy": { "maxExecutions": 1 },
+        "allowSupportiveLine": true
+      }
+    },
+    {
+      "id": "handoff-1",
+      "type": "HANDOFF",
+      "title": "Connect with Your Trainer",
+      "requires": {
+        "gates": ["BOOKING"]
+      },
+      "produces": {
+        "facts": ["HANDOFF_COMPLETE"]
+      },
+      "config": {
+        "purpose": "Transfer to human trainer for personalized planning",
+        "importance": "high",
+        "runPolicy": { "maxExecutions": 1 }
+      }
+    }
+  ],
+  
+  "edges": [
+    {
+      "id": "edge_0",
+      "source": "welcome-1",
+      "target": "reflect-1",
+      "label": "next"
+    },
+    {
+      "id": "edge_1",
+      "source": "reflect-1",
+      "target": "goal-gap-1",
+      "label": "next"
+    },
+    {
+      "id": "edge_2",
+      "source": "goal-gap-1",
+      "target": "contact-1",
+      "label": "next",
+      "condition": {
+        "type": "fact_exists",
+        "fact": "GOAL_SET"
+      }
+    },
+    {
+      "id": "edge_3",
+      "source": "contact-1",
+      "target": "booking-1",
+      "label": "next",
+      "condition": {
+        "type": "gate_satisfied",
+        "gate": "CONTACT"
+      }
+    },
+    {
+      "id": "edge_4",
+      "source": "booking-1",
+      "target": "promo-1",
+      "label": "next",
+      "condition": {
+        "type": "gate_satisfied",
+        "gate": "BOOKING"
+      }
+    },
+    {
+      "id": "edge_5",
+      "source": "booking-1",
+      "target": "handoff-1",
+      "label": "alternate",
+      "condition": {
+        "type": "gate_satisfied",
+        "gate": "BOOKING"
+      }
+    }
+  ],
+  
+  "editorState": {
+    "uiLayout": {
+      "nodePositions": {
+        "welcome-1": { "x": 100, "y": 50 },
+        "reflect-1": { "x": 100, "y": 180 },
+        "goal-gap-1": { "x": 100, "y": 310 },
+        "contact-1": { "x": 350, "y": 50 },
+        "booking-1": { "x": 600, "y": 50 },
+        "promo-1": { "x": 850, "y": 50 },
+        "handoff-1": { "x": 850, "y": 180 }
+      },
+      "laneAssignments": {
+        "welcome-1": "BEFORE_CONTACT",
+        "reflect-1": "BEFORE_CONTACT",
+        "goal-gap-1": "BEFORE_CONTACT",
+        "contact-1": "CONTACT_GATE",
+        "booking-1": "AFTER_CONTACT",
+        "promo-1": "AFTER_BOOKING",
+        "handoff-1": "AFTER_BOOKING"
+      }
+    }
+  }
+}
+

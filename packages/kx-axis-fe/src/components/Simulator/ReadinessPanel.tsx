@@ -148,11 +148,19 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
         <Accordion defaultExpanded disableGutters elevation={0} sx={{ mb: 2 }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <CheckCircleIcon fontSize="small" sx={{ color: 'success.main' }} />
+              <CheckCircleIcon fontSize="small" sx={{ color: 'secondary.main' }} />
               <Typography variant="body2" sx={{ fontWeight: 600 }}>
                 Known so far
               </Typography>
-              <Chip label={knownFacts.length} size="small" />
+              <Chip 
+                label={knownFacts.length} 
+                size="small" 
+                sx={{ 
+                  backgroundColor: 'rgba(34, 211, 238, 0.15)', 
+                  color: 'secondary.main',
+                  fontWeight: 600,
+                }} 
+              />
             </Box>
           </AccordionSummary>
           <AccordionDetails>
@@ -224,6 +232,15 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
               <Typography variant="body2" sx={{ fontWeight: 600 }}>
                 Unlocks
               </Typography>
+              <Chip 
+                label={readinessDelta.length} 
+                size="small" 
+                sx={{ 
+                  backgroundColor: 'rgba(100, 116, 139, 0.15)', 
+                  color: 'primary.main',
+                  fontWeight: 600,
+                }} 
+              />
             </Box>
           </AccordionSummary>
           <AccordionDetails>

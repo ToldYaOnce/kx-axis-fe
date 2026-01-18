@@ -1,0 +1,495 @@
+{
+  "industries": [
+    "Technology",
+    "Healthcare",
+    "Finance",
+    "Education",
+    "Retail",
+    "Manufacturing",
+    "Marketing & Advertising",
+    "Real Estate",
+    "Fitness & Wellness",
+    "Hospitality",
+    "Construction",
+    "Legal Services",
+    "Consulting",
+    "Non-profit",
+    "Other"
+  ],
+  "generalItems": [
+    {
+      "id": "welcome-intro",
+      "kind": "EXPLANATION",
+      "title": "Welcome / Introduction",
+      "description": "Greet and set expectations",
+      "icon": "info"
+    },
+    {
+      "id": "reflective-question",
+      "kind": "REFLECTIVE_QUESTION",
+      "title": "Reflective Question",
+      "description": "Ask them to reflect on readiness",
+      "icon": "question"
+    },
+    {
+      "id": "goal-gap-tracker",
+      "kind": "GOAL_GAP_TRACKER",
+      "title": "Goal Gap Tracker",
+      "description": "Target → Baseline → Delta → Category",
+      "badge": "NEW",
+      "icon": "trend"
+    },
+    {
+      "id": "contact-capture",
+      "kind": "BASELINE_CAPTURE",
+      "title": "Contact Capture",
+      "description": "Get email/phone for follow-up",
+      "icon": "contact"
+    },
+    {
+      "id": "book-consultation",
+      "kind": "ACTION_BOOKING",
+      "title": "Book Consultation",
+      "description": "Schedule a session or call",
+      "icon": "calendar"
+    },
+    {
+      "id": "send-promo",
+      "kind": "EXPLANATION",
+      "title": "Send Promo",
+      "description": "Share discount or offer",
+      "icon": "tag"
+    },
+    {
+      "id": "handoff",
+      "kind": "HANDOFF",
+      "title": "Handoff",
+      "description": "Transfer to human",
+      "icon": "handoff"
+    }
+  ],
+  "industryItems": {
+    "Technology": [
+      {
+        "id": "demo-request",
+        "kind": "ACTION_BOOKING",
+        "title": "Demo Request",
+        "description": "Schedule product demonstration",
+        "icon": "presentation"
+      },
+      {
+        "id": "technical-requirements",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Technical Requirements",
+        "description": "Capture tech stack, integrations, scale",
+        "icon": "code"
+      },
+      {
+        "id": "integration-needs",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Integration Needs",
+        "description": "Identify required integrations",
+        "icon": "plug"
+      },
+      {
+        "id": "support-tier",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Support Tier Selection",
+        "description": "Choose support level",
+        "icon": "support"
+      }
+    ],
+    "Healthcare": [
+      {
+        "id": "insurance-verification",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Insurance Verification",
+        "description": "Verify insurance coverage",
+        "icon": "shield"
+      },
+      {
+        "id": "symptom-assessment",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Symptom Assessment",
+        "description": "Capture symptoms and severity",
+        "icon": "health"
+      },
+      {
+        "id": "appointment-scheduling",
+        "kind": "ACTION_BOOKING",
+        "title": "Appointment Scheduling",
+        "description": "Book medical appointment",
+        "icon": "calendar"
+      },
+      {
+        "id": "medical-history",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Medical History",
+        "description": "Collect relevant medical history",
+        "icon": "clipboard"
+      }
+    ],
+    "Finance": [
+      {
+        "id": "risk-assessment",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Risk Assessment",
+        "description": "Determine risk tolerance",
+        "icon": "chart"
+      },
+      {
+        "id": "account-type",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Account Type Selection",
+        "description": "Choose account type",
+        "icon": "account"
+      },
+      {
+        "id": "investment-goals",
+        "kind": "GOAL_GAP_TRACKER",
+        "title": "Investment Goals",
+        "description": "Set financial targets",
+        "icon": "target"
+      },
+      {
+        "id": "credit-check",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Credit Check",
+        "description": "Verify creditworthiness",
+        "icon": "checkmark"
+      }
+    ],
+    "Education": [
+      {
+        "id": "program-selection",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Program Selection",
+        "description": "Choose course or degree",
+        "icon": "school"
+      },
+      {
+        "id": "enrollment",
+        "kind": "ACTION_BOOKING",
+        "title": "Enrollment",
+        "description": "Complete enrollment process",
+        "icon": "signup"
+      },
+      {
+        "id": "prerequisites-check",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Prerequisites Check",
+        "description": "Verify required qualifications",
+        "icon": "checklist"
+      },
+      {
+        "id": "financial-aid",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Financial Aid",
+        "description": "Explore funding options",
+        "icon": "money"
+      }
+    ],
+    "Retail": [
+      {
+        "id": "product-recommendation",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Product Recommendation",
+        "description": "Suggest products based on needs",
+        "icon": "gift"
+      },
+      {
+        "id": "size-fit-guide",
+        "kind": "EXPLANATION",
+        "title": "Size/Fit Guide",
+        "description": "Help find the right size",
+        "icon": "ruler"
+      },
+      {
+        "id": "return-policy",
+        "kind": "EXPLANATION",
+        "title": "Return Policy",
+        "description": "Explain return process",
+        "icon": "return"
+      },
+      {
+        "id": "loyalty-program",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Loyalty Program",
+        "description": "Sign up for rewards",
+        "icon": "star"
+      }
+    ],
+    "Manufacturing": [
+      {
+        "id": "quote-request",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Quote Request",
+        "description": "Gather requirements for quote",
+        "icon": "document"
+      },
+      {
+        "id": "specifications",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Specifications",
+        "description": "Define product specifications",
+        "icon": "blueprint"
+      },
+      {
+        "id": "volume-pricing",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Volume Pricing",
+        "description": "Determine order quantity",
+        "icon": "calculator"
+      },
+      {
+        "id": "lead-time",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Lead Time",
+        "description": "Establish timeline expectations",
+        "icon": "clock"
+      }
+    ],
+    "Marketing & Advertising": [
+      {
+        "id": "campaign-goals",
+        "kind": "GOAL_GAP_TRACKER",
+        "title": "Campaign Goals",
+        "description": "Define marketing objectives",
+        "icon": "target"
+      },
+      {
+        "id": "budget-range",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Budget Range",
+        "description": "Establish budget parameters",
+        "icon": "money"
+      },
+      {
+        "id": "target-audience",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Target Audience",
+        "description": "Define audience demographics",
+        "icon": "people"
+      },
+      {
+        "id": "creative-brief",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Creative Brief",
+        "description": "Capture brand and messaging",
+        "icon": "palette"
+      }
+    ],
+    "Real Estate": [
+      {
+        "id": "property-preferences",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Property Preferences",
+        "description": "Define ideal property features",
+        "icon": "home"
+      },
+      {
+        "id": "budget-range-realestate",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Budget Range",
+        "description": "Establish price range",
+        "icon": "money"
+      },
+      {
+        "id": "location-preferences",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Location Preferences",
+        "description": "Identify preferred areas",
+        "icon": "map"
+      },
+      {
+        "id": "viewing-schedule",
+        "kind": "ACTION_BOOKING",
+        "title": "Viewing Schedule",
+        "description": "Book property tours",
+        "icon": "calendar"
+      }
+    ],
+    "Fitness & Wellness": [
+      {
+        "id": "fitness-assessment",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Fitness Assessment",
+        "description": "Evaluate current fitness level",
+        "icon": "fitness"
+      },
+      {
+        "id": "nutrition-preferences",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Nutrition Preferences",
+        "description": "Capture dietary needs and goals",
+        "icon": "nutrition"
+      },
+      {
+        "id": "class-schedule",
+        "kind": "ACTION_BOOKING",
+        "title": "Class Schedule",
+        "description": "Book fitness classes",
+        "icon": "calendar"
+      },
+      {
+        "id": "injury-history",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Injury History",
+        "description": "Document limitations and concerns",
+        "icon": "warning"
+      }
+    ],
+    "Hospitality": [
+      {
+        "id": "reservation",
+        "kind": "ACTION_BOOKING",
+        "title": "Reservation",
+        "description": "Book room or table",
+        "icon": "calendar"
+      },
+      {
+        "id": "room-preferences",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Room Preferences",
+        "description": "Specify room requirements",
+        "icon": "bed"
+      },
+      {
+        "id": "special-requests",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Special Requests",
+        "description": "Capture special needs or occasions",
+        "icon": "star"
+      },
+      {
+        "id": "loyalty-status",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Loyalty Status",
+        "description": "Verify membership tier",
+        "icon": "vip"
+      }
+    ],
+    "Construction": [
+      {
+        "id": "project-scope",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Project Scope",
+        "description": "Define project requirements",
+        "icon": "blueprint"
+      },
+      {
+        "id": "budget-estimate",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Budget Estimate",
+        "description": "Establish budget range",
+        "icon": "money"
+      },
+      {
+        "id": "timeline",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Timeline",
+        "description": "Determine project duration",
+        "icon": "calendar"
+      },
+      {
+        "id": "permit-requirements",
+        "kind": "EXPLANATION",
+        "title": "Permit Requirements",
+        "description": "Explain permitting process",
+        "icon": "document"
+      }
+    ],
+    "Legal Services": [
+      {
+        "id": "case-assessment",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Case Assessment",
+        "description": "Evaluate legal situation",
+        "icon": "gavel"
+      },
+      {
+        "id": "document-review",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Document Review",
+        "description": "Upload and review documents",
+        "icon": "document"
+      },
+      {
+        "id": "consultation-scheduling",
+        "kind": "ACTION_BOOKING",
+        "title": "Consultation Scheduling",
+        "description": "Book legal consultation",
+        "icon": "calendar"
+      },
+      {
+        "id": "fee-structure",
+        "kind": "EXPLANATION",
+        "title": "Fee Structure",
+        "description": "Explain legal fees and costs",
+        "icon": "money"
+      }
+    ],
+    "Consulting": [
+      {
+        "id": "problem-definition",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Problem Definition",
+        "description": "Identify business challenge",
+        "icon": "question"
+      },
+      {
+        "id": "scope-assessment",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Scope Assessment",
+        "description": "Define engagement scope",
+        "icon": "checklist"
+      },
+      {
+        "id": "engagement-type",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Engagement Type",
+        "description": "Choose consulting model",
+        "icon": "handshake"
+      },
+      {
+        "id": "project-timeline-consulting",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Project Timeline",
+        "description": "Establish project duration",
+        "icon": "clock"
+      }
+    ],
+    "Non-profit": [
+      {
+        "id": "donation-intent",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Donation Intent",
+        "description": "Capture giving preferences",
+        "icon": "heart"
+      },
+      {
+        "id": "volunteer-interest",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Volunteer Interest",
+        "description": "Identify volunteer opportunities",
+        "icon": "people"
+      },
+      {
+        "id": "impact-story",
+        "kind": "EXPLANATION",
+        "title": "Impact Story",
+        "description": "Share mission and impact",
+        "icon": "star"
+      },
+      {
+        "id": "membership",
+        "kind": "BASELINE_CAPTURE",
+        "title": "Membership",
+        "description": "Sign up for membership",
+        "icon": "card"
+      }
+    ],
+    "Other": []
+  }
+}
+

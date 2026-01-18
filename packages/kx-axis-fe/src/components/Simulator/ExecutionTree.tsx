@@ -29,6 +29,8 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
 import SettingsIcon from '@mui/icons-material/Settings';
+import PersonIcon from '@mui/icons-material/Person';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 import { useSimulator } from '../../context/SimulatorContext';
 import type { SimulationNode, SimulationBranch, SimulationRun } from '../../types/simulator';
 
@@ -203,13 +205,24 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
 
   const getOutcomeColor = (decision: string) => {
     const colors: Record<string, string> = {
-      STALL: 'warning.main',
-      EXPLAIN: 'info.main',
-      FAST_TRACK: 'secondary.main',
-      HANDOFF: 'error.main',
+      STALL: 'warning.main',        // Purple
+      EXPLAIN: 'info.main',          // Info blue
+      FAST_TRACK: 'secondary.main',  // Cyan
+      HANDOFF: '#ec4899',            // Magenta
       NO_OP: 'text.disabled',
     };
     return colors[decision] || 'text.secondary';
+  };
+  
+  const getOutcomeBgColor = (decision: string) => {
+    const colors: Record<string, string> = {
+      STALL: 'rgba(167, 139, 250, 0.15)',      // Purple glow
+      EXPLAIN: 'rgba(59, 130, 246, 0.15)',     // Blue glow
+      FAST_TRACK: 'rgba(34, 211, 238, 0.15)',  // Cyan glow
+      HANDOFF: 'rgba(236, 72, 153, 0.15)',     // Magenta glow
+      NO_OP: 'transparent',
+    };
+    return colors[decision] || 'transparent';
   };
 
   // Visual indicator: User messages are branch points
@@ -238,23 +251,33 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
         cursor: 'pointer',
         border: '1px solid',
         borderColor: isSelected ? 'primary.main' : 'divider',
-        backgroundColor: isSelected ? 'primary.lighter' : 'background.paper',
+        backgroundColor: isSelected 
+          ? (hasUserMessage ? 'rgba(100, 116, 139, 0.15)' : 'primary.lighter') 
+          : 'background.paper',
         '&:hover': {
-          borderColor: 'primary.main',
-          backgroundColor: isSelected ? 'primary.lighter' : 'action.hover',
+          borderColor: hasUserMessage ? 'secondary.main' : 'primary.main',
+          backgroundColor: isSelected 
+            ? (hasUserMessage ? 'rgba(100, 116, 139, 0.2)' : 'primary.lighter')
+            : (hasUserMessage ? 'rgba(100, 116, 139, 0.1)' : 'action.hover'),
         },
         display: 'flex',
         alignItems: 'center',
         gap: 1,
-        // Stronger visual for user messages (branch anchors)
-        borderLeft: hasUserMessage ? '3px solid' : '1px solid',
-        borderLeftColor: hasUserMessage ? 'primary.main' : 'divider',
+        // Visual distinction: User = blue-slate border, Agent = cyan border, both with same curved style
+        borderLeft: '3px solid',
+        borderLeftColor: hasUserMessage 
+          ? (isSelected ? 'secondary.main' : 'primary.main') 
+          : 'secondary.main', // Cyan for AI
       }}
     >
       {/* Icon: User or Agent */}
-      <Typography sx={{ fontSize: '1.2rem', flexShrink: 0 }}>
-        {hasUserMessage ? '👤' : '📧'}
-      </Typography>
+      <Box sx={{ flexShrink: 0, color: hasUserMessage ? 'primary.main' : 'secondary.main' }}>
+        {hasUserMessage ? (
+          <PersonIcon fontSize="small" />
+        ) : (
+          <SmartToyIcon fontSize="small" />
+        )}
+      </Box>
       
       {/* Message snippet */}
       <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -295,7 +318,7 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
               fontSize: '0.65rem',
               fontWeight: 600,
               color: getOutcomeColor(decision),
-              bgcolor: 'transparent',
+              bgcolor: getOutcomeBgColor(decision),
               border: '1px solid',
               borderColor: getOutcomeColor(decision),
             }}
@@ -310,8 +333,11 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
             sx={{
               height: 20,
               fontSize: '0.6rem',
-              bgcolor: 'success.light',
-              color: 'success.dark',
+              bgcolor: 'rgba(34, 211, 238, 0.15)',
+              color: 'secondary.main',
+              fontWeight: 600,
+              border: '1px solid',
+              borderColor: 'secondary.main',
             }}
           />
         )}
@@ -501,8 +527,8 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
                 height: 20,
                 fontSize: '0.65rem',
                 fontWeight: 600,
-                backgroundColor: 'warning.light',
-                color: 'warning.dark',
+                backgroundColor: 'rgba(167, 139, 250, 0.2)',
+                color: 'warning.main',
                 cursor: 'pointer',
                 '&:hover': {
                   backgroundColor: 'warning.main',
@@ -568,13 +594,21 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
                   variant="caption"
                   sx={{
                     fontSize: '0.7rem',
-                    color: idx === 0 ? 'text.secondary' : 'primary.main',
+                    color: idx === 0 ? 'text.secondary' : 'warning.main',
                     fontWeight: 600,
-                    display: 'block',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
                     mb: 0.5,
+                    backgroundColor: idx === 0 ? 'transparent' : 'rgba(167, 139, 250, 0.1)',
+                    px: idx === 0 ? 0 : 1,
+                    py: idx === 0 ? 0 : 0.5,
+                    borderRadius: idx === 0 ? 0 : 1,
+                    width: 'fit-content',
                   }}
                 >
-                  {isLast ? '└─' : '├─'} {pathLabel}
+                  <span>{isLast ? '└─' : '├─'}</span>
+                  <span>{pathLabel}</span>
                 </Typography>
                 
                 {/* Render child subtree (recursive) */}

@@ -106,7 +106,7 @@ export const GoalGapTrackerInspector: React.FC<GoalGapTrackerInspectorProps> = (
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-        <ShowChartIcon sx={{ fontSize: 28, color: '#E91E63' }} />
+        <ShowChartIcon sx={{ fontSize: 28, color: 'secondary.main' }} />
         <Box>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
             Goal Gap Tracker

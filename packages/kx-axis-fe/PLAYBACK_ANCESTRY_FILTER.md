@@ -254,3 +254,5 @@ if (!selectedNodeId) {
 **Trigger:** `selectedNodeId` changes  
 **Result:** Only selected path visible in playback
 
+
+

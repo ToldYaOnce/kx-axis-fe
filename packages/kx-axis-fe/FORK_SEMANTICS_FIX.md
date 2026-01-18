@@ -367,3 +367,5 @@ The UI no longer suggests you can "edit the agent." It now correctly communicate
 
 **The simulator is now semantically correct.** ✅
 
+
+

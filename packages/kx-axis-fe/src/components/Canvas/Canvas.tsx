@@ -1,11 +1,10 @@
 import React, { useState, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
-import { Box, Typography, Button, Snackbar, Alert } from '@mui/material';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import { Box, Typography, Snackbar, Alert, useTheme, alpha } from '@mui/material';
 import { DragEndEvent, useDroppable } from '@dnd-kit/core';
 import { NodeCard } from './NodeCard';
 import { useFlow } from '../../context/FlowContext';
 import type { FlowNode } from '../../types';
-import { computeDerivedLanes, computeNodeLane } from '../../utils/derivedLanes';
+import { computeDerivedLanes } from '../../utils/derivedLanes';
 
 export interface CanvasHandle {
   handleDragEnd: (event: DragEndEvent) => void;
@@ -29,12 +28,12 @@ const DroppableLane: React.FC<{
     <Box
       ref={setNodeRef}
       sx={{
+        minWidth: 308, // 10% wider than previous 280px
+        maxWidth: 350,
         flex: 1,
         position: 'relative',
-        px: 2,
+        px: 0, // No padding - cards will have their own margins
         py: 2,
-        minWidth: 280,
-        maxWidth: 350, // Narrower lanes (60% of previous 420px ≈ 350px)
         minHeight: '100%', // Ensure lanes extend full height
         backgroundColor: isOver ? 'action.hover' : 'transparent',
         transition: 'background-color 0.2s',
@@ -51,13 +50,23 @@ const DroppableLane: React.FC<{
   );
 };
 
-export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
-  const { flow, selection, setSelection, addNode, updateNode } = useFlow();
+export const Canvas = forwardRef<CanvasHandle, {}>((_, ref) => {
+  const { flow, selection, setSelection, addNode } = useFlow();
+  const theme = useTheme();
   const canvasRef = useRef<HTMLDivElement>(null);
   const [snackbar, setSnackbar] = useState<{ message: string; severity: 'success' | 'warning' | 'error' } | null>(null);
 
   // Compute derived lanes based on prerequisites
   const derivedLanes = computeDerivedLanes(flow.nodes);
+  
+  // Lane colors - elegant, muted, professional
+  // For dark theme: subtle color tints on dark background
+  const laneColors = [
+    alpha(theme.palette.info.main, 0.06),      // Blue-slate tint
+    alpha(theme.palette.secondary.main, 0.06), // Cyan tint
+    alpha(theme.palette.warning.main, 0.06),   // Purple tint
+    alpha(theme.palette.primary.dark, 0.04),   // Dark slate tint
+  ];
 
   const handleNodeClick = (node: FlowNode) => {
     setSelection({ type: 'node', id: node.id });
@@ -69,17 +78,6 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
     }
   };
 
-  const handleAddNode = () => {
-    const newNode: FlowNode = {
-      id: `node-${Date.now()}`,
-      kind: 'EXPLANATION',
-      title: 'New Node',
-      ui: {},
-    };
-    addNode(newNode);
-    setSelection({ type: 'node', id: newNode.id });
-  };
-
   // Handle drag end - add new nodes from palette or recompute lane for existing nodes
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -88,7 +86,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
       // Check if this is a palette item being dropped
       const isPaletteItem = active.data.current?.type === 'palette-item';
       
-      if (isPaletteItem) {
+      if (isPaletteItem && active.data.current) {
         // Handle palette item drop
         const item = active.data.current.item;
         
@@ -110,14 +108,9 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
         return;
       }
 
-      // Handle existing node drag
-      const nodeId = active.id as string;
-      const node = flow.nodes.find((n) => n.id === nodeId);
-
-      if (!node || !over) return;
-
-      // Node auto-snaps to computed lane based on its requirements
-      // Just trigger a re-render by updating the node (keeps same data)
+      // Handle existing node drag (auto-snaps based on requirements)
+      if (!over) return;
+      
       setSnackbar({
         message: 'Node position updated',
         severity: 'success',
@@ -131,8 +124,6 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
     handleDragEnd,
   }), [handleDragEnd]);
 
-  const lanes: EligibilityLane[] = ['BEFORE_CONTACT', 'CONTACT_GATE', 'AFTER_CONTACT', 'AFTER_BOOKING'];
-
   return (
       <Box
         ref={canvasRef}
@@ -140,10 +131,10 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
         sx={{
           flex: 1,
           position: 'relative',
-          backgroundColor: '#FAFAFA',
+          backgroundColor: 'background.default',
           overflow: 'auto',
           backgroundImage: `
-            radial-gradient(circle, #E0E0E0 1px, transparent 1px)
+            radial-gradient(circle, ${alpha('#FFFFFF', 0.08)} 1px, transparent 1px)
           `,
           backgroundSize: '20px 20px',
         }}
@@ -159,8 +150,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
           }}
         >
           {derivedLanes.map((lane, index) => {
-            const isLast = index === derivedLanes.length;
-            const laneColor = ['#E8F5E9', '#FFF9C4', '#E3F2FD', '#F3E5F5'][index % 4];
+            const laneColor = laneColors[index % laneColors.length];
             const stepNumber = ['①', '②', '③', '④', '⑤'][index] || `${index + 1}`;
 
             return (
@@ -175,11 +165,10 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                     p: 1.5,
                     pb: 1,
                     mb: 2,
-                    mx: -2, // Flush with lane edges
+                    mx: 0, // Flush with lane edges (lane has no padding now)
                     backgroundColor: laneColor,
-                    borderTop: '1px solid',
                     borderBottom: '1px solid',
-                    borderColor: 'divider',
+                    borderColor: alpha('#FFFFFF', 0.06),
                     borderRadius: 0,
                   }}
                 >
@@ -189,7 +178,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                       sx={{
                         fontSize: '1.1rem',
                         fontWeight: 600,
-                        color: 'text.secondary',
+                        color: alpha('#FFFFFF', 0.5),
                         lineHeight: 1,
                       }}
                     >
@@ -201,7 +190,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                         textTransform: 'uppercase',
                         fontWeight: 700,
                         letterSpacing: 1,
-                        color: 'text.primary',
+                        color: alpha('#FFFFFF', 0.9),
                         flex: 1,
                       }}
                     >
@@ -211,7 +200,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                   <Typography
                     variant="caption"
                     sx={{
-                      color: 'text.secondary',
+                      color: alpha('#FFFFFF', 0.4),
                       fontSize: '0.65rem',
                     }}
                   >
@@ -220,7 +209,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                 </Box>
 
                 {/* Nodes in this lane */}
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1, px: 2 }}>
                   {lane.nodes.map((node) => (
                     <NodeCard
                       key={node.id}
@@ -262,11 +251,11 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                 zIndex: 5,
                 p: 1.5,
                 mb: 2,
-                mx: -2,
-                backgroundColor: '#FAFAFA',
+                mx: 0, // Flush (lane has no padding now)
+                backgroundColor: alpha('#FFFFFF', 0.02),
                 borderTop: '2px dashed',
                 borderBottom: '2px dashed',
-                borderColor: 'divider',
+                borderColor: alpha('#FFFFFF', 0.1),
                 borderRadius: 0,
               }}
             >
@@ -276,7 +265,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                   textTransform: 'uppercase',
                   fontWeight: 700,
                   letterSpacing: 1,
-                  color: 'text.disabled',
+                  color: alpha('#FFFFFF', 0.3),
                   display: 'block',
                 }}
               >
@@ -291,10 +280,10 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
                 justifyContent: 'center',
                 minHeight: 200,
                 flex: 1,
-                color: 'text.disabled',
+                px: 2, // Match padding with nodes container
               }}
             >
-              <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
+              <Typography variant="body2" sx={{ fontStyle: 'italic', color: alpha('#FFFFFF', 0.3) }}>
                 Drop a node here
               </Typography>
             </Box>
@@ -322,18 +311,18 @@ export const Canvas = forwardRef<CanvasHandle, {}>((props, ref) => {
         )}
 
         {/* Snackbar for feedback */}
-        <Snackbar
-          open={!!snackbar}
-          autoHideDuration={3000}
-          onClose={() => setSnackbar(null)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        >
-          {snackbar && (
+        {snackbar && (
+          <Snackbar
+            open={true}
+            autoHideDuration={3000}
+            onClose={() => setSnackbar(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          >
             <Alert severity={snackbar.severity} onClose={() => setSnackbar(null)}>
               {snackbar.message}
             </Alert>
-          )}
-        </Snackbar>
+          </Snackbar>
+        )}
       </Box>
   );
 });

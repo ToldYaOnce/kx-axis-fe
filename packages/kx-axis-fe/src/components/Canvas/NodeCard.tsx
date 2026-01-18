@@ -36,14 +36,14 @@ const NODE_ICONS: Record<NodeKind, React.ReactElement> = {
 };
 
 const NODE_COLORS: Record<NodeKind, string> = {
-  EXPLANATION: '#50C878',
-  REFLECTIVE_QUESTION: '#F5A623',
-  GOAL_DEFINITION: '#4A90E2',
-  BASELINE_CAPTURE: '#4A90E2',
-  DEADLINE_CAPTURE: '#9B59B6',
-  GOAL_GAP_TRACKER: '#E91E63',
-  ACTION_BOOKING: '#7B68EE',
-  HANDOFF: '#E94B3C',
+  EXPLANATION: '#39D0C9',      // Cyan - fresh, informative
+  REFLECTIVE_QUESTION: '#A78BFA', // Soft purple - thoughtful
+  GOAL_DEFINITION: '#5A6B7D',  // Blue slate - foundational
+  BASELINE_CAPTURE: '#5A6B7D', // Blue slate - data collection
+  DEADLINE_CAPTURE: '#A78BFA', // Soft purple - time-sensitive
+  GOAL_GAP_TRACKER: '#39D0C9', // Cyan - analytical
+  ACTION_BOOKING: '#FF0059',   // Magenta - high-value action
+  HANDOFF: '#FF6699',          // Lighter magenta - transition
 };
 
 // Determine if node is a Data Capture node (shows inline requirements)
@@ -159,6 +159,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         width: '100%',
         minHeight: 120,
         p: 2,
+        boxSizing: 'border-box', // Ensure padding and border are included in width
         cursor: isDraggable ? 'grab' : 'pointer',
         transition: isDragging ? 'none' : 'all 0.2s ease',
         border: isSelected ? '2px solid' : '1px solid',

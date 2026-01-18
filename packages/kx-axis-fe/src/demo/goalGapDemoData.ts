@@ -8,7 +8,57 @@ export const goalGapDemoFlow: ConversationFlow = {
   id: 'demo-conversation-flow',
   name: 'Sample Conversation Flow',
   description: 'A sample flow demonstrating conversation items and requirements',
-  industry: 'General',
+  industry: 'Fitness & Wellness',
+  
+  // ========== EXECUTION METADATA (for deterministic controller) ==========
+  entryNodeIds: ['welcome-1'],
+  
+  primaryGoal: {
+    type: 'GATE',
+    gate: 'BOOKING',
+    description: 'User has booked a consultation',
+  },
+  
+  gateDefinitions: {
+    CONTACT: {
+      satisfiedBy: {
+        metricsAny: ['contact_email', 'contact_phone'], // email OR phone
+      },
+    },
+    BOOKING: {
+      satisfiedBy: {
+        metricsAll: ['booking_date', 'booking_type'], // must have booking date AND type
+      },
+    },
+    HANDOFF: {
+      satisfiedBy: {
+        statesAll: ['HANDOFF_COMPLETE'], // marked complete
+      },
+    },
+  },
+  
+  factAliases: {
+    target: 'goal_target',
+    baseline: 'goal_baseline',
+    delta: 'goal_delta',
+    category: 'goal_category',
+    email: 'contact_email',
+    phone: 'contact_phone',
+  },
+  
+  defaults: {
+    retryPolicy: {
+      maxAttempts: 2,
+      onExhaust: 'BROADEN',
+      cooldownTurns: 0,
+      promptVariantStrategy: 'ROTATE',
+    },
+  },
+  
+  _semantics: {
+    retryPolicy: 'RetryPolicy counts attempts to achieve a node\'s objective across turns. Attempts may re-ask/rephrase the node prompt without re-executing side effects. runPolicy.maxExecutions remains the hard cap for executing the node.',
+  },
+  // ========================================================================
   
   nodes: [
     // 1. Welcome - BEFORE CONTACT
@@ -17,13 +67,14 @@ export const goalGapDemoFlow: ConversationFlow = {
       kind: 'EXPLANATION',
       title: 'Welcome / Introduction',
       purpose: 'Greet the user and set expectations',
+      produces: ['WELCOME_SHOWN'], // completion marker
       ui: {
         x: 100,
         y: 50,
         lane: 'BEFORE_CONTACT',
       },
       importance: 'high',
-      maxRuns: 'once',
+      runPolicy: { maxExecutions: 1 },
     },
 
     // 2. Reflective Question - BEFORE CONTACT
@@ -32,13 +83,14 @@ export const goalGapDemoFlow: ConversationFlow = {
       kind: 'REFLECTIVE_QUESTION',
       title: 'Reflective Question',
       purpose: 'Gauge readiness and motivation level',
+      produces: ['REFLECTION_COMPLETE'], // completion marker
       ui: {
         x: 100,
         y: 180,
         lane: 'BEFORE_CONTACT',
       },
       importance: 'normal',
-      maxRuns: 'once',
+      runPolicy: { maxExecutions: 1 },
     },
 
     // 3. GOAL_GAP_TRACKER - BEFORE CONTACT (the star of the show!)
@@ -102,10 +154,13 @@ export const goalGapDemoFlow: ConversationFlow = {
       },
       satisfies: {
         states: ['GOAL_GAP_CAPTURED'],
-        metrics: ['goal_target', 'goal_baseline', 'goal_delta', 'goal_category'],
       },
       importance: 'high',
-      maxRuns: 'once',
+      runPolicy: { maxExecutions: 1 },
+      retryPolicy: {
+        maxAttempts: 2,
+        onExhaust: 'CLARIFY',
+      },
       allowSupportiveLine: true,
     },
 
@@ -116,6 +171,7 @@ export const goalGapDemoFlow: ConversationFlow = {
       title: 'Capture Contact Info',
       purpose: 'Get email/phone for follow-up',
       produces: ['email', 'phone'],
+      requiresStates: ['GOAL_GAP_CAPTURED'], // explicit eligibility
       ui: {
         x: 100,
         y: 50,
@@ -123,13 +179,16 @@ export const goalGapDemoFlow: ConversationFlow = {
       },
       satisfies: {
         gates: ['CONTACT'],
-        metrics: ['contact_email', 'contact_phone'],
       },
       eligibility: {
         requiresGoalSet: true,  // Only after goal gap is captured
       },
       importance: 'high',
-      maxRuns: 'once',
+      runPolicy: { maxExecutions: 1 },
+      retryPolicy: {
+        maxAttempts: 2,
+        onExhaust: 'BROADEN',
+      },
     },
 
     // 5. Booking - AFTER CONTACT
@@ -147,10 +206,13 @@ export const goalGapDemoFlow: ConversationFlow = {
       requires: ['CONTACT'],
       satisfies: {
         gates: ['BOOKING'],
-        metrics: ['booking_date', 'booking_type'],
       },
       importance: 'high',
-      maxRuns: 'once',
+      runPolicy: { maxExecutions: 1 },
+      retryPolicy: {
+        maxAttempts: 3,
+        onExhaust: 'HANDOFF',
+      },
     },
 
     // 6. Send Promo - AFTER BOOKING
@@ -169,7 +231,7 @@ export const goalGapDemoFlow: ConversationFlow = {
         states: ['PROMO_SENT'],
       },
       importance: 'normal',
-      maxRuns: 'once',
+      runPolicy: { maxExecutions: 1 },
       allowSupportiveLine: true,
     },
 
@@ -190,7 +252,7 @@ export const goalGapDemoFlow: ConversationFlow = {
         states: ['HANDOFF_COMPLETE'],
       },
       importance: 'high',
-      maxRuns: 'once',
+      runPolicy: { maxExecutions: 1 },
     },
   ],
 

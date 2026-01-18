@@ -258,7 +258,7 @@ export const SimulatePanel: React.FC<SimulatePanelProps> = ({ open, onClose }) =
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                   <Box>
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'primary.dark' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'secondary.main' }}>
                       goal.target
                     </Typography>
                     <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.primary' }}>
@@ -266,7 +266,7 @@ export const SimulatePanel: React.FC<SimulatePanelProps> = ({ open, onClose }) =
                     </Typography>
                   </Box>
                   <Box>
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'primary.dark' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'secondary.main' }}>
                       goal.baseline
                     </Typography>
                     <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.primary' }}>
@@ -274,7 +274,7 @@ export const SimulatePanel: React.FC<SimulatePanelProps> = ({ open, onClose }) =
                     </Typography>
                   </Box>
                   <Box>
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'primary.dark' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'secondary.main' }}>
                       goal.delta (computed)
                     </Typography>
                     <Typography
@@ -285,7 +285,7 @@ export const SimulatePanel: React.FC<SimulatePanelProps> = ({ open, onClose }) =
                     </Typography>
                   </Box>
                   <Box>
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'primary.dark' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'secondary.main' }}>
                       goal.deltaCategory (classified)
                     </Typography>
                     <Chip
@@ -296,7 +296,7 @@ export const SimulatePanel: React.FC<SimulatePanelProps> = ({ open, onClose }) =
                     />
                   </Box>
                   <Box>
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'primary.dark' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'secondary.main' }}>
                       goal.deadlinePolicy
                     </Typography>
                     <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.primary' }}>

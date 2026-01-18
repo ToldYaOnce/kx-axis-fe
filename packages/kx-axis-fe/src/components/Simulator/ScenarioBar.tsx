@@ -18,6 +18,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
@@ -31,6 +33,17 @@ export const ScenarioBar: React.FC = () => {
   const [selectedFlow, setSelectedFlow] = useState('flow-fitness-onboarding');
   const [channel, setChannel] = useState<Channel>('SMS');
   const [leadState, setLeadState] = useState<LeadState>('ANONYMOUS');
+  
+  // Toast notification state
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastSeverity, setToastSeverity] = useState<'success' | 'error' | 'warning' | 'info'>('info');
+  
+  const showToast = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setToastMessage(message);
+    setToastSeverity(severity);
+    setToastOpen(true);
+  };
 
   const handleStartSimulation = async () => {
     const scenario: ScenarioContext = {
@@ -44,7 +57,7 @@ export const ScenarioBar: React.FC = () => {
       setDialogOpen(false);
     } catch (error) {
       console.error('Failed to start simulation:', error);
-      alert('Failed to start simulation. Check console for details.');
+      showToast('Failed to start simulation. Check console for details.', 'error');
     }
   };
 
@@ -120,19 +133,33 @@ export const ScenarioBar: React.FC = () => {
       {!currentRun ? (
         <Button
           variant="contained"
-          color="primary"
           startIcon={<PlayArrowIcon />}
           onClick={() => setDialogOpen(true)}
+          sx={{
+            backgroundColor: 'secondary.main',
+            color: '#000000', // Black text on cyan for high contrast
+            fontWeight: 600,
+            '&:hover': {
+              backgroundColor: 'secondary.dark',
+            }
+          }}
         >
           Start Simulation
         </Button>
       ) : (
         <Button
           variant="outlined"
-          color="error"
           startIcon={<RestartAltIcon />}
           onClick={handleReset}
           size="small"
+          sx={{
+            borderColor: '#ec4899',
+            color: '#ec4899',
+            '&:hover': {
+              borderColor: '#ec4899',
+              backgroundColor: 'rgba(236, 72, 153, 0.1)',
+            }
+          }}
         >
           Reset
         </Button>
@@ -199,6 +226,18 @@ export const ScenarioBar: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Toast Notifications */}
+      <Snackbar
+        open={toastOpen}
+        autoHideDuration={6000}
+        onClose={() => setToastOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setToastOpen(false)} severity={toastSeverity} sx={{ width: '100%' }}>
+          {toastMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Box, Typography, Chip, Divider, Paper, TextField } from '@mui/material';
+import { Box, Typography, Chip, Divider, Paper, TextField, MenuItem } from '@mui/material';
 import { useFlow } from '../../context/FlowContext';
+import { INDUSTRIES } from '../../utils/conversationItems';
 
 export const OverviewInspector: React.FC = () => {
   const { flow, updateFlow } = useFlow();
@@ -13,18 +14,22 @@ export const OverviewInspector: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
-      <Typography variant="h6" sx={{ fontWeight: 500, mb: 3 }}>
-        Flow Overview
+      <Typography variant="h6" sx={{ fontWeight: 500, mb: 3, color: 'text.primary' }}>
+        Conversation Flow Overview
       </Typography>
 
-      {/* Editable Flow Name */}
+      {/* Editable Name */}
       <TextField
         label="Flow Name"
         value={flow.name}
         onChange={(e) => updateFlow({ name: e.target.value })}
         fullWidth
         size="small"
-        sx={{ mb: 2 }}
+        sx={{ 
+          mb: 2,
+          '& .MuiInputLabel-root': { color: 'text.secondary' },
+          '& .MuiInputBase-input': { color: 'text.primary' },
+        }}
       />
 
       {/* Editable Flow Description */}
@@ -36,9 +41,37 @@ export const OverviewInspector: React.FC = () => {
         size="small"
         multiline
         rows={2}
-        sx={{ mb: 3 }}
-        helperText="A brief description of what this conversation flow does"
+        sx={{ 
+          mb: 2,
+          '& .MuiInputLabel-root': { color: 'text.secondary' },
+          '& .MuiInputBase-input': { color: 'text.primary' },
+          '& .MuiFormHelperText-root': { color: 'text.disabled' },
+        }}
+        helperText="A brief description of what these decision constraints do"
       />
+
+      {/* Industry Selector */}
+      <TextField
+        select
+        label="Industry"
+        value={flow.industry || 'Other'}
+        onChange={(e) => updateFlow({ industry: e.target.value })}
+        fullWidth
+        size="small"
+        sx={{ 
+          mb: 3,
+          '& .MuiInputLabel-root': { color: 'text.secondary' },
+          '& .MuiInputBase-input': { color: 'text.primary' },
+          '& .MuiFormHelperText-root': { color: 'text.disabled' },
+        }}
+        helperText="Available conversation items will adjust based on industry"
+      >
+        {INDUSTRIES.map((industry) => (
+          <MenuItem key={industry} value={industry}>
+            {industry}
+          </MenuItem>
+        ))}
+      </TextField>
 
       <Divider sx={{ my: 3 }} />
 
@@ -48,7 +81,7 @@ export const OverviewInspector: React.FC = () => {
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Total Nodes
           </Typography>
-          <Typography variant="body1" sx={{ fontWeight: 600 }}>
+          <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
             {flow.nodes.length}
           </Typography>
         </Box>
@@ -56,7 +89,7 @@ export const OverviewInspector: React.FC = () => {
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Data Capture Nodes
           </Typography>
-          <Typography variant="body1" sx={{ fontWeight: 600 }}>
+          <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
             {flow.nodes.filter(n => ['BASELINE_CAPTURE', 'GOAL_DEFINITION', 'DEADLINE_CAPTURE'].includes(n.kind)).length}
           </Typography>
         </Box>
@@ -64,7 +97,7 @@ export const OverviewInspector: React.FC = () => {
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Conversation Nodes
           </Typography>
-          <Typography variant="body1" sx={{ fontWeight: 600 }}>
+          <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
             {flow.nodes.filter(n => ['EXPLANATION', 'REFLECTIVE_QUESTION'].includes(n.kind)).length}
           </Typography>
         </Box>
@@ -73,7 +106,7 @@ export const OverviewInspector: React.FC = () => {
       <Divider sx={{ my: 3 }} />
 
       {/* Node Types */}
-      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: 'text.primary' }}>
         Node Types
       </Typography>
 
@@ -98,7 +131,7 @@ export const OverviewInspector: React.FC = () => {
       {/* Metadata */}
       {flow.metadata && (
         <>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: 'text.primary' }}>
             Metadata
           </Typography>
 

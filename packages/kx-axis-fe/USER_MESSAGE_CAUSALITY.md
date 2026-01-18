@@ -459,3 +459,5 @@ Different AGENT RESPONSE → ??? (makes no sense, agent is deterministic)
 
 This is no longer just a label change - it's a fundamental UX realignment that makes the correct mental model unavoidable.
 
+
+

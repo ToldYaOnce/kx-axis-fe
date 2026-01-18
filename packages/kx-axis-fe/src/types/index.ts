@@ -216,6 +216,14 @@ export interface FlowNode {
   // Max runs (how many times can this node run?)
   maxRuns?: 'once' | 'multiple' | 'unlimited';  // Default: 'multiple'
   
+  // Run policy (structured alternative to maxRuns string)
+  runPolicy?: {
+    maxExecutions: number;  // 1 for once, Infinity for unlimited
+  };
+  
+  // State prerequisites (required states for eligibility)
+  requiresStates?: string[];  // e.g., ['GOAL_GAP_CAPTURED']
+  
   // Cooldown (min turns between runs)
   cooldownTurns?: number;  // Default: 0 (no cooldown)
   
@@ -254,6 +262,23 @@ export interface ConversationFlow {
   // Active goal lenses in this flow
   activeGoalLenses: ActiveGoalLens[];
   
+  // Execution metadata (for deterministic controller)
+  entryNodeIds?: string[];
+  primaryGoal?: {
+    type: 'GATE' | 'STATE';
+    gate?: string;
+    state?: string;
+    description?: string;
+  };
+  gateDefinitions?: Record<string, {
+    satisfiedBy: {
+      metricsAll?: string[];
+      metricsAny?: string[];
+      statesAll?: string[];
+    };
+  }>;
+  factAliases?: Record<string, string>;
+  
   // Metadata
   metadata?: {
     createdAt?: string;
@@ -272,6 +297,16 @@ export interface KxAxisComposerProps {
   onValidate?: () => void;
   onSimulate?: () => void;
   onPublish?: (config: ConversationFlow) => void;
+  
+  // API Integration (optional)
+  flowId?: string | null;  // If provided, enables API integration
+  enableApiIntegration?: boolean;  // If true, uses API for load/save/validate/publish
+  autosaveEnabled?: boolean;  // Default: true
+  autosaveDelay?: number;  // Default: 1000ms
+  
+  // Theme customization
+  theme?: any; // MUI Theme object (using 'any' to avoid importing Theme type here)
+  disableThemeProvider?: boolean; // If true, won't wrap in ThemeProvider (useful when parent already provides theme)
 }
 
 // ========== SELECTION STATE ==========
