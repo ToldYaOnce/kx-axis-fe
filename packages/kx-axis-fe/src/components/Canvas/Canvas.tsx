@@ -53,6 +53,11 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
     }
   });
 
+  // Find primary goal position (for contextual highlighting)
+  const primaryGoalPosition = flow.primaryGoalNodeId 
+    ? gridLayout.get(flow.primaryGoalNodeId)
+    : null;
+
   const handleNodeClick = (node: FlowNode) => {
     setSelection({ type: 'node', id: node.id });
   };
@@ -515,28 +520,34 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
              zIndex: 6, // Above headers (headers are zIndex: 5)
            }}
          >
-          {columns.map(col => (
-            <Box
-              key={`lane-divider-${col}`}
-              sx={{
-                position: 'relative',
-                backgroundColor: 'transparent', // Subtle blue tint for alternating lanes
-                borderRight: col < columns.length - 1 
-                  ? `2px dotted ${alpha(theme.palette.primary.main, 0.25)}`
-                  : 'none',
-                '&::before': col % 2 !== 0 ? {
-                  content: '""',
-                  position: 'absolute',
-                  top: 0,
-                  bottom: 0,
-                  left: -24, // Extend background to the left
-                  right: 0, // Extend background to the right
-                  backgroundColor: alpha(theme.palette.info.main, 0.06),
-                  zIndex: -1,
-                } : {},
-              }}
-            />
-          ))}
+          {columns.map(col => {
+            const isPrimaryGoalLane = primaryGoalPosition?.gridCol === col;
+            
+            return (
+              <Box
+                key={`lane-divider-${col}`}
+                sx={{
+                  position: 'relative',
+                  backgroundColor: 'transparent',
+                  borderRight: col < columns.length - 1 
+                    ? `2px dotted ${alpha(theme.palette.primary.main, 0.25)}`
+                    : 'none',
+                  '&::before': (col % 2 !== 0 || isPrimaryGoalLane) ? {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    bottom: 0,
+                    left: -24, // Extend background to the left
+                    right: 0, // Extend background to the right
+                    backgroundColor: isPrimaryGoalLane 
+                      ? alpha('#FFD700', 0.07) // Gold tint for primary goal lane
+                      : alpha(theme.palette.info.main, 0.06), // Default alternating tint
+                    zIndex: -1,
+                  } : {},
+                }}
+              />
+            );
+          })}
         </Box>
 
         {/* Canvas Framing - Mental Model Anchor */}
@@ -775,6 +786,9 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
               // Sort nodes by column for proper grid placement
               const sortedNodes = [...nodesInRow].sort((a, b) => a.col - b.col);
               
+              // Check if this row contains the primary goal
+              const isPrimaryGoalRow = primaryGoalPosition?.gridRow === rowIndex;
+              
               return (
                 <Box
                   key={`row-${rowIndex}`}
@@ -784,6 +798,22 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
                     gap: `${GRID.GUTTER_X}px`,
                     minHeight: GRID.ROW_HEIGHT,
                     position: 'relative',
+                    // Subtle row highlight for primary goal (optional, weaker signal)
+                    ...(isPrimaryGoalRow && {
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        backgroundColor: alpha('#FFD700', 0.03),
+                        borderTop: `1px solid ${alpha('#FFD700', 0.15)}`,
+                        borderBottom: `1px solid ${alpha('#FFD700', 0.15)}`,
+                        zIndex: -1,
+                        pointerEvents: 'none',
+                      },
+                    }),
                     // Row debug overlay
                     ...(debugMode && {
                       outline: `2px dashed ${alpha(theme.palette.secondary.main, 0.3)}`,
