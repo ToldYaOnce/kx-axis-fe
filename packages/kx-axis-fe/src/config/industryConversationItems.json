@@ -57,7 +57,7 @@
       "id": "cancel-appointment",
       "type": "ACTION_BOOKING",
       "title": "Cancel Appointment",
-      "description": "Cancel or reschedule booking",
+      "description": "Cancel booking, enables rebooking",
       "icon": "calendar"
     },
     {

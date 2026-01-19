@@ -633,27 +633,41 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
               mb: 2,
             }}
           >
-            {/* Continuous Directional Spine */}
+            {/* Continuous Progression Rail - Primary Visual Anchor */}
             <Box
               sx={{
                 position: 'absolute',
-                top: 40,
-                left: 0,
-                right: 0,
-                height: 2,
+                top: 32,
+                left: 32,
+                right: 32,
+                height: 4,
                 background: `linear-gradient(to right, 
-                  ${alpha(theme.palette.primary.main, 0.3)}, 
-                  ${alpha(theme.palette.primary.main, 0.15)})`,
-                zIndex: 1,
+                  ${alpha(theme.palette.info.main, 0.5)}, 
+                  ${alpha(theme.palette.info.main, 0.2)})`,
+                borderRadius: 2,
+                zIndex: 0,
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: -2,
+                  left: 0,
+                  right: 0,
+                  height: 8,
+                  background: `linear-gradient(to right, 
+                    ${alpha(theme.palette.info.main, 0.15)}, 
+                    ${alpha(theme.palette.info.main, 0.05)})`,
+                  filter: 'blur(4px)',
+                  borderRadius: 4,
+                },
                 '&::after': {
                   content: '"→"',
                   position: 'absolute',
-                  right: -8,
+                  right: -20,
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  fontSize: '1.5rem',
-                  fontWeight: 700,
-                  color: alpha(theme.palette.primary.main, 0.4),
+                  fontSize: '1.2rem',
+                  fontWeight: 600,
+                  color: alpha(theme.palette.info.main, 0.3),
                 },
               }}
             />
@@ -672,11 +686,11 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
               }}
             >
             {columns.map(col => {
-              // Progressive intensity for visual progression (0.08 → 0.04)
-              const intensity = 0.08 - (col * 0.01);
-              
               // Simple ordinal number
               const ordinal = col + 1;
+              
+              // Check if this lane contains the primary goal
+              const isPrimaryGoalLane = primaryGoalPosition?.gridCol === col;
               
               return (
                 <Box
@@ -685,52 +699,69 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
                     position: 'relative',
                   }}
                 >
-                  {/* Prominent Lane Ordinal (Column Anchor) */}
                   <Box
                     sx={{
-                      position: 'absolute',
-                      top: 15,
-                      left: 16,
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50%',
-                      backgroundColor: alpha(theme.palette.primary.main, 0.15),
-                      border: `2px solid ${alpha(theme.palette.primary.main, 0.4)}`,
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '1rem',
-                      fontWeight: 700,
-                      color: alpha('#FFFFFF', 0.75),
-                      zIndex: 2,
-                      boxShadow: `0 2px 8px ${alpha('#000000', 0.3)}`,
-                    }}
-                  >
-                    {ordinal}
-                  </Box>
-                  
-                  <Box
-                    sx={{
+                      gap: 1.5,
                       p: 1.5,
                       pb: 1,
-                      pl: 6, // Extra left padding to accommodate the ordinal badge
-                      pr: 2, // Extra right padding for spacing from lane divider
-                      backgroundColor: alpha(theme.palette.info.main, Math.max(intensity + 0.05, 0.08)),
-                      borderRadius: 1,
+                      pr: 2,
+                      backgroundColor: isPrimaryGoalLane
+                        ? alpha('#FFD700', 0.08)
+                        : 'transparent',
+                      borderRadius: '32px 8px 8px 8px', // Round left side to embrace circle
                       border: '1px solid',
-                      borderColor: alpha('#FFFFFF', 0.12),
+                      borderColor: isPrimaryGoalLane
+                        ? alpha('#FFD700', 0.25)
+                        : alpha('#FFFFFF', 0.08),
                       position: 'relative',
-                      mx: 1, // Horizontal margin for breathing room from lane dividers
+                      mx: 1,
+                      boxShadow: isPrimaryGoalLane
+                        ? `0 1px 4px ${alpha('#FFD700', 0.15)}`
+                        : 'none',
                     }}
                   >
+                    {/* Dominant Lane Number - Progression Anchor */}
+                    <Box
+                      sx={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: '50%',
+                        flexShrink: 0,
+                        // Progression uses cool blue/gray, Primary Goal adds warm accent
+                        backgroundColor: isPrimaryGoalLane 
+                          ? `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.9)}, ${alpha('#FFD700', 0.4)})`
+                          : alpha(theme.palette.info.main, 0.9),
+                        border: isPrimaryGoalLane
+                          ? `3px solid ${alpha('#FFD700', 0.9)}`
+                          : `3px solid ${alpha('#FFFFFF', 0.4)}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.45rem',
+                        fontWeight: 800,
+                        color: '#FFFFFF',
+                        boxShadow: isPrimaryGoalLane
+                          ? `0 4px 16px ${alpha('#FFD700', 0.4)}, 0 2px 8px ${alpha('#000000', 0.3)}`
+                          : `0 4px 12px ${alpha(theme.palette.info.main, 0.4)}, 0 2px 6px ${alpha('#000000', 0.25)}`,
+                        background: isPrimaryGoalLane
+                          ? `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.9)}, ${alpha('#FFD700', 0.4)})`
+                          : alpha(theme.palette.info.main, 0.9),
+                      }}
+                    >
+                      {ordinal}
+                    </Box>
+                    
+                    <Box sx={{ flex: 1 }}>
                     <Typography
                       variant="caption"
                       sx={{
                         textTransform: 'uppercase',
-                        fontWeight: 700,
-                        letterSpacing: 1,
-                        color: alpha('#FFFFFF', 0.9),
-                        fontSize: '0.7rem',
+                        fontWeight: 600,
+                        letterSpacing: 0.8,
+                        color: isPrimaryGoalLane ? alpha('#FFD700', 0.9) : alpha('#FFFFFF', 0.5),
+                        fontSize: '0.65rem',
                         display: 'block',
                       }}
                     >
@@ -740,10 +771,11 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
                   <Typography
                     variant="caption"
                     sx={{
-                      color: alpha('#FFFFFF', 0.4),
-                      fontSize: '0.65rem',
+                      color: isPrimaryGoalLane ? alpha('#FFD700', 0.5) : alpha('#FFFFFF', 0.3),
+                      fontSize: '0.6rem',
                       display: 'block',
                       mt: 0.5,
+                      fontWeight: 400,
                     }}
                   >
                     {col === 0 ? 'No prerequisites' : 'Unlocked by previous'}
@@ -762,6 +794,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
                       Col {col}
                     </Typography>
                   )}
+                    </Box>
                   </Box>
                 </Box>
               );

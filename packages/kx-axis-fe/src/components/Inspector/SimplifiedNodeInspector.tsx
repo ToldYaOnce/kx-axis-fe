@@ -264,7 +264,7 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
           />
           {isPrimaryGoal && (
             <Typography variant="caption" sx={{ display: 'block', ml: 4.5, mt: 0.5, color: 'text.secondary' }}>
-              This conversation is optimized for this outcome
+              This outcome is the primary objective of the conversation
             </Typography>
           )}
         </Box>

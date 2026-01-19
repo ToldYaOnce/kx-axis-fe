@@ -517,7 +517,10 @@ export const ConversationItemsPalette: React.FC = () => {
 
     // Add default config for cancel appointment (special case)
     if (item.id === 'cancel-appointment') {
-      newNode.produces = ['appointment_cancelled', 'cancellation_reason'];
+      // Requires an existing booking to cancel
+      newNode.requires = ['booking_date'];
+      // Produces cancellation fact - controller can use this to unset BOOKING goal
+      newNode.produces = ['appointment_cancelled'];
       // Cancel appointment does not satisfy BOOKING gate
     }
     // Add default config for booking (general ACTION_BOOKING nodes)

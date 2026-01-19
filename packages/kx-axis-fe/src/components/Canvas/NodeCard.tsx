@@ -207,19 +207,43 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
           </Box>
         )}
         <Box sx={{ color: NODE_COLORS[node.type] }}>{NODE_ICONS[node.type]}</Box>
-        <Typography
-          variant="caption"
-          sx={{
-            textTransform: 'uppercase',
-            fontSize: '0.7rem',
-            fontWeight: 600,
-            letterSpacing: 0.5,
-            color: 'text.secondary',
-            flex: 1,
-          }}
-        >
-          {node.type.replace('_', ' ')}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              textTransform: 'uppercase',
+              fontSize: '0.7rem',
+              fontWeight: 600,
+              letterSpacing: 0.5,
+              color: 'text.secondary',
+            }}
+          >
+            {node.type.replace('_', ' ')}
+          </Typography>
+          {isPrimaryGoal && (
+            <Chip
+              label="PRIMARY GOAL"
+              size="small"
+              icon={<StarIcon />}
+              sx={{
+                height: 18,
+                fontSize: '0.6rem',
+                fontWeight: 700,
+                backgroundColor: alpha('#FFD700', 0.2),
+                color: '#DAA520',
+                borderColor: '#FFD700',
+                border: '1.5px solid',
+                '& .MuiChip-icon': {
+                  color: '#FFD700',
+                  fontSize: '0.85rem',
+                },
+                '& .MuiChip-label': {
+                  px: 0.75,
+                },
+              }}
+            />
+          )}
+        </Box>
         <Tooltip title={isPrimaryGoal ? "Primary Goal" : "Set as Primary Goal"}>
           <IconButton
             size="small"
@@ -255,38 +279,17 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
       </Box>
 
       {/* Title */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-        <Typography
-          variant="body1"
-          sx={{
-            fontWeight: 500,
-            color: 'text.primary',
-            lineHeight: 1.3,
-          }}
-        >
-          {node.title}
-        </Typography>
-        {isPrimaryGoal && (
-          <Chip
-            label="PRIMARY GOAL"
-            size="small"
-            icon={<StarIcon />}
-            sx={{
-              height: 20,
-              fontSize: '0.65rem',
-              fontWeight: 600,
-              backgroundColor: alpha('#FFD700', 0.15),
-              color: '#B8860B',
-              borderColor: '#FFD700',
-              border: '1px solid',
-              '& .MuiChip-icon': {
-                color: '#FFD700',
-                fontSize: '0.9rem',
-              },
-            }}
-          />
-        )}
-      </Box>
+      <Typography
+        variant="body1"
+        sx={{
+          fontWeight: 500,
+          color: 'text.primary',
+          lineHeight: 1.3,
+          mb: 0.5,
+        }}
+      >
+        {node.title}
+      </Typography>
 
       {/* "Unlocked by" subtitle - shows human-readable prerequisites */}
       {node.requires && node.requires.length > 0 && (
