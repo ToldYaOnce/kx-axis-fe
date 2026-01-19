@@ -135,13 +135,23 @@ const ConversationItemCard: React.FC<{
               <Typography
                 variant="caption"
                 sx={{
-                  backgroundColor: 'rgba(100, 116, 139, 0.2)',
-                  color: 'primary.main',
-                  px: 0.75,
-                  py: 0.25,
-                  borderRadius: 0.5,
-                  fontSize: '0.65rem',
+                  backgroundColor: (theme) => theme.palette.mode === 'dark'
+                    ? 'rgba(66, 165, 245, 0.2)'
+                    : 'rgba(33, 150, 243, 0.15)',
+                  color: (theme) => theme.palette.mode === 'dark'
+                    ? 'rgba(144, 202, 249, 1)'
+                    : 'rgba(13, 71, 161, 1)',
+                  border: '1px solid',
+                  borderColor: (theme) => theme.palette.mode === 'dark'
+                    ? 'rgba(144, 202, 249, 0.4)'
+                    : 'rgba(33, 150, 243, 0.4)',
+                  px: 1,
+                  py: 0.4,
+                  borderRadius: 1,
+                  fontSize: '0.6rem',
                   fontWeight: 700,
+                  letterSpacing: 0.5,
+                  lineHeight: 1,
                 }}
               >
                 {item.badge}
@@ -151,13 +161,23 @@ const ConversationItemCard: React.FC<{
               <Typography
                 variant="caption"
                 sx={{
-                  backgroundColor: 'success.light',
-                  color: 'success.dark',
-                  px: 0.75,
-                  py: 0.25,
-                  borderRadius: 0.5,
-                  fontSize: '0.65rem',
+                  backgroundColor: (theme) => theme.palette.mode === 'dark' 
+                    ? 'rgba(46, 125, 50, 0.25)' 
+                    : 'rgba(46, 125, 50, 0.15)',
+                  color: (theme) => theme.palette.mode === 'dark'
+                    ? 'rgba(129, 199, 132, 1)'
+                    : 'rgba(27, 94, 32, 1)',
+                  border: '1px solid',
+                  borderColor: (theme) => theme.palette.mode === 'dark'
+                    ? 'rgba(129, 199, 132, 0.4)'
+                    : 'rgba(46, 125, 50, 0.4)',
+                  px: 1,
+                  py: 0.4,
+                  borderRadius: 1,
+                  fontSize: '0.6rem',
                   fontWeight: 700,
+                  letterSpacing: 0.5,
+                  lineHeight: 1,
                 }}
               >
                 ADDED

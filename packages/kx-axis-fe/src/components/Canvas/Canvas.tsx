@@ -903,6 +903,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
                           flexDirection: 'column',
                           gap: 1,
                           minHeight: GRID.ROW_HEIGHT,
+                          width: '100%', // Ensure cell fills column width
                           // Add extra padding for last row to ensure drop zones are visible
                           pb: rowIndex === maxRow ? 8 : 0,
                         }}

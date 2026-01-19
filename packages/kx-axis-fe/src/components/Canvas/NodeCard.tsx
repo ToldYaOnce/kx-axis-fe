@@ -148,10 +148,18 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
       display: 'flex', 
       flexDirection: 'column', 
       position: 'relative', 
-      width: '100%', 
+      width: '100%',
+      maxWidth: '100%', // Prevent overflow
       flex: isLastInLane ? 1 : '0 0 auto', // Expand to fill available space if last in lane
     }}>
-      <Box sx={{ display: 'flex', alignItems: 'stretch', position: 'relative', width: '100%', flex: isLastInLane ? 1 : '0 0 auto' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'stretch', 
+        position: 'relative', 
+        width: '100%',
+        maxWidth: '100%', // Prevent overflow
+        flex: isLastInLane ? 1 : '0 0 auto',
+      }}>
       <Paper
         ref={setNodeRef}
         onClick={onClick}
@@ -159,6 +167,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         elevation={isSelected ? 8 : isDragging ? 12 : 1}
         sx={{
           flex: 1,
+          minWidth: 0, // Allow flex shrinking
           minHeight: 220, // Minimum height for consistent node sizing
           display: 'flex',
           flexDirection: 'column',
@@ -386,8 +395,9 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
       <Box
         ref={setRightDropRef}
         sx={{
-          width: 80,
-          ml: 1.5,
+          width: 72,
+          flexShrink: 0, // Don't shrink
+          ml: 1,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
