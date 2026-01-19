@@ -1,19 +1,16 @@
-import React, { useState } from 'react';
-import { Box, Typography, Chip, Paper, IconButton } from '@mui/material';
+import React from 'react';
+import { Box, Typography, Paper, IconButton, alpha } from '@mui/material';
 import DataObjectIcon from '@mui/icons-material/DataObject';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
-import LockOpenIcon from '@mui/icons-material/LockOpen';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import CloseIcon from '@mui/icons-material/Close';
-import ContactMailIcon from '@mui/icons-material/ContactMail';
-import { useDraggable } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import type { FlowNode, NodeKind } from '../../types';
-import { getNodeGateRequirements, getNodeGateSatisfactions } from '../../utils/laneLogic';
 import { useFlow } from '../../context/FlowContext';
 import { ChipListEditor } from '../shared/ChipListEditor';
 
@@ -22,6 +19,7 @@ interface NodeCardProps {
   isSelected: boolean;
   onClick: () => void;
   isDraggable?: boolean;
+  isLastInLane?: boolean; // Whether this is the last node in the lane
 }
 
 const NODE_ICONS: Record<NodeKind, React.ReactElement> = {
@@ -46,12 +44,7 @@ const NODE_COLORS: Record<NodeKind, string> = {
   HANDOFF: '#FF6699',          // Lighter magenta - transition
 };
 
-// Determine if node is a Data Capture node (shows inline requirements)
-const isDataCaptureNode = (kind: NodeKind): boolean => {
-  return ['BASELINE_CAPTURE', 'GOAL_DEFINITION', 'DEADLINE_CAPTURE'].includes(kind);
-};
-
-export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, isDraggable = false }) => {
+export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, isDraggable = false, isLastInLane = false }) => {
   const { updateNode, removeNode, flow } = useFlow();
 
   const handleDelete = (event: React.MouseEvent) => {
@@ -59,22 +52,33 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
     removeNode(node.id);
   };
 
-  // Get GATE requirements and satisfactions (not node IDs)
-  const gateRequirements = getNodeGateRequirements(node);
-  const gateSatisfactions = getNodeGateSatisfactions(node);
-
-  // Calculate which OTHER NODES this node unlocks
-  // (nodes that require gates this node satisfies)
-  const unlockedNodes = flow.nodes.filter((otherNode) => {
-    if (otherNode.id === node.id) return false;
-    const otherRequires = getNodeGateRequirements(otherNode);
-    return gateSatisfactions.some((gate) => otherRequires.includes(gate));
-  });
 
   // Draggable setup
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: node.id,
     disabled: !isDraggable,
+    data: {
+      type: 'node',
+      node,
+    },
+  });
+
+  // Right-side drop zone for dependency extension
+  const { setNodeRef: setRightDropRef, isOver: isRightDropping } = useDroppable({
+    id: `${node.id}-right-drop-zone`,
+    data: {
+      type: 'dependency-extension',
+      targetNode: node,
+    },
+  });
+
+  // Bottom drop zone for parallel placement (same prerequisites)
+  const { setNodeRef: setBottomDropRef, isOver: isBottomDropping } = useDroppable({
+    id: `${node.id}-bottom-drop-zone`,
+    data: {
+      type: 'parallel-placement',
+      targetNode: node,
+    },
   });
 
   const style = transform
@@ -83,22 +87,6 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
       }
     : undefined;
 
-  // Prerequisites management
-  const handleAddPrerequisite = (value: string) => {
-    const currentRequires = node.requires || [];
-    if (!currentRequires.includes(value)) {
-      updateNode(node.id, {
-        requires: [...currentRequires, value],
-      });
-    }
-  };
-
-  const handleRemovePrerequisite = (value: string) => {
-    const currentRequires = node.requires || [];
-    updateNode(node.id, {
-      requires: currentRequires.filter((id) => id !== value),
-    });
-  };
 
   // Produces management
   const handleAddProduced = (value: string) => {
@@ -117,18 +105,6 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
     });
   };
 
-  // Prerequisite suggestions (gates + other nodes)
-  const prerequisiteSuggestions = [
-    { value: 'CONTACT', label: 'Contact', description: 'Email or phone required' },
-    { value: 'BOOKING', label: 'Booking', description: 'Appointment scheduled' },
-    ...flow.nodes
-      .filter((n) => n.id !== node.id)
-      .map((n) => ({
-        value: n.id,
-        label: n.title,
-        description: undefined,
-      })),
-  ];
 
   // Produces suggestions (from other nodes + common facts)
   const commonFacts = ['email', 'phone', 'name', 'booking_date', 'booking_type', 'goal', 'target', 'baseline', 'delta', 'category'];
@@ -151,37 +127,47 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
   ];
 
   return (
-    <Paper
-      ref={setNodeRef}
-      onClick={onClick}
-      elevation={isSelected ? 8 : isDragging ? 12 : 1}
-      sx={{
-        width: '100%',
-        minHeight: 120,
-        p: 2,
-        boxSizing: 'border-box', // Ensure padding and border are included in width
-        cursor: isDraggable ? 'grab' : 'pointer',
-        transition: isDragging ? 'none' : 'all 0.2s ease',
-        border: isSelected ? '2px solid' : '1px solid',
-        borderColor: isSelected ? NODE_COLORS[node.type] : 'divider',
-        '&:hover': {
-          elevation: 4,
-          borderColor: NODE_COLORS[node.type],
-        },
-        backgroundColor: 'background.paper',
-        opacity: isDragging ? 0.5 : 1,
-        userSelect: 'none', // Prevent text selection during drag
-        WebkitUserSelect: 'none',
-        MozUserSelect: 'none',
-        msUserSelect: 'none',
-        '&:active': {
-          cursor: isDraggable ? 'grabbing' : 'pointer',
-        },
-        ...style,
-      }}
-      {...attributes}
-      {...listeners}
-    >
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      position: 'relative', 
+      width: '100%', 
+      flex: isLastInLane ? 1 : '0 0 auto', // Expand to fill available space if last in lane
+    }}>
+      <Box sx={{ display: 'flex', alignItems: 'stretch', position: 'relative', width: '100%', flex: isLastInLane ? 1 : '0 0 auto' }}>
+      <Paper
+        ref={setNodeRef}
+        onClick={onClick}
+        elevation={isSelected ? 8 : isDragging ? 12 : 1}
+        sx={{
+          flex: 1,
+          minHeight: 220, // Minimum height for consistent node sizing
+          display: 'flex',
+          flexDirection: 'column',
+          p: 2,
+          boxSizing: 'border-box',
+          cursor: isDraggable ? 'grab' : 'pointer',
+          transition: isDragging ? 'none' : 'all 0.2s ease',
+          border: isSelected ? '2px solid' : '1px solid',
+          borderColor: isSelected ? NODE_COLORS[node.type] : 'divider',
+          '&:hover': {
+            elevation: 4,
+            borderColor: NODE_COLORS[node.type],
+          },
+          backgroundColor: 'background.paper',
+          opacity: isDragging ? 0.5 : 1,
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          MozUserSelect: 'none',
+          msUserSelect: 'none',
+          '&:active': {
+            cursor: isDraggable ? 'grabbing' : 'pointer',
+          },
+          ...style,
+        }}
+        {...attributes}
+        {...listeners}
+      >
       {/* Header with icon and drag handle */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
         {isDraggable && (
@@ -216,6 +202,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         <IconButton
           size="small"
           onClick={handleDelete}
+          onPointerDown={(e) => e.stopPropagation()} // Prevent drag from interfering
           sx={{
             p: 0.5,
             color: 'text.secondary',
@@ -234,7 +221,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         variant="body1"
         sx={{
           fontWeight: 500,
-          mb: 2,
+          mb: 0.5,
           color: 'text.primary',
           lineHeight: 1.3,
         }}
@@ -242,20 +229,29 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         {node.title}
       </Typography>
 
-      {/* "Must know before" section - editable prerequisites */}
-      <ChipListEditor
-        label="Must know before"
-        values={node.requires || []}
-        onAdd={handleAddPrerequisite}
-        onRemove={handleRemovePrerequisite}
-        placeholder="Add prerequisite"
-        suggestions={prerequisiteSuggestions}
-        allowCustom={false}
-        emptyText="— None —"
-        compact
-      />
+      {/* "Unlocked by" subtitle - shows human-readable prerequisites */}
+      {node.requires && node.requires.length > 0 && (
+        <Typography
+          variant="caption"
+          sx={{
+            display: 'block',
+            fontSize: '0.65rem',
+            color: 'text.disabled',
+            mb: 1.5,
+          }}
+        >
+          Unlocked by: {node.requires.map((req, idx) => {
+            // Find the node that produces this requirement
+            const producer = flow.nodes.find(n => 
+              (n.produces && n.produces.includes(req)) || n.id === req
+            );
+            const displayName = producer ? producer.title : req;
+            return idx === 0 ? displayName : `, ${displayName}`;
+          }).join('')}
+        </Typography>
+      )}
 
-      {/* "After this, we know" section - editable produces */}
+      {/* "After this, we know" section - what facts this capability produces */}
       <ChipListEditor
         label="After this, we know"
         values={node.produces || []}
@@ -268,36 +264,199 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         compact
       />
 
-      {/* "Unlocks" section - visually subordinate */}
-      {unlockedNodes.length > 0 && (
-        <Box sx={{ mt: 1 }}>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {unlockedNodes.map((unlockedNode) => (
-              <Chip
-                key={`unlocks-${unlockedNode.id}`}
-                icon={<LockOpenIcon sx={{ fontSize: '0.7rem' }} />}
-                label={`unlocks ${unlockedNode.title}`}
-                size="small"
-                sx={{
-                  height: 18,
-                  fontSize: '0.6rem',
-                  fontWeight: 400,
-                  backgroundColor: 'transparent',
-                  border: '1px solid',
-                  borderColor: 'success.light',
-                  color: 'text.disabled',
-                  '& .MuiChip-icon': {
+      {/* "Unlocks" section - what capabilities this enables */}
+      {(() => {
+        // Find nodes that depend on this node's produced facts
+        const unlockedNodes = flow.nodes.filter(otherNode => {
+          if (otherNode.id === node.id) return false;
+          if (!otherNode.requires) return false;
+          
+          // Check if any of this node's produces are in the other node's requires
+          const thisProduces = node.produces || [];
+          return otherNode.requires.some(req => 
+            thisProduces.includes(req) || req === node.id
+          );
+        });
+
+        if (unlockedNodes.length === 0) return null;
+
+        return (
+          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: '0.65rem',
+                fontWeight: 600,
+                color: 'text.secondary',
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                display: 'block',
+                mb: 0.75,
+              }}
+            >
+              Unlocks
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+              {unlockedNodes.map(unlockedNode => (
+                <Typography
+                  key={unlockedNode.id}
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.65rem',
                     color: 'success.light',
-                    fontSize: '0.7rem',
-                  },
-                }}
-              />
-            ))}
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                  }}
+                >
+                  → {unlockedNode.title}
+                </Typography>
+              ))}
+            </Box>
           </Box>
-        </Box>
-      )}
+        );
+      })()}
 
     </Paper>
+
+      {/* Right-side drop zone for dependency extension */}
+      <Box
+        ref={setRightDropRef}
+        sx={{
+          width: 80,
+          ml: 1.5,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '2px dashed',
+          borderColor: isRightDropping ? NODE_COLORS[node.type] : alpha('#FFFFFF', 0.15),
+          borderRadius: 1,
+          backgroundColor: isRightDropping ? alpha(NODE_COLORS[node.type], 0.15) : alpha('#FFFFFF', 0.02),
+          transition: 'all 0.2s',
+          position: 'relative',
+          zIndex: 2, // Ensure right zone is above bottom zone
+          pointerEvents: 'auto', // Ensure it captures pointer events
+          gap: 0.5,
+          '&:hover': {
+            borderColor: alpha(NODE_COLORS[node.type], 0.4),
+            backgroundColor: alpha(NODE_COLORS[node.type], 0.08),
+          },
+        }}
+      >
+        {isRightDropping ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+            <Typography
+              sx={{
+                fontSize: '1.8rem',
+                color: NODE_COLORS[node.type],
+                fontWeight: 'bold',
+                lineHeight: 1,
+              }}
+            >
+              →
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: '0.65rem',
+                color: NODE_COLORS[node.type],
+                textAlign: 'center',
+                fontWeight: 600,
+              }}
+            >
+              Extend
+            </Typography>
+          </Box>
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5, px: 1 }}>
+            <Typography
+              sx={{
+                fontSize: '1.2rem',
+                color: 'text.disabled',
+                lineHeight: 1,
+              }}
+            >
+              +
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: '0.6rem',
+                color: 'text.disabled',
+                textAlign: 'center',
+                lineHeight: 1.2,
+              }}
+            >
+              Drop to add dependency
+            </Typography>
+          </Box>
+        )}
+      </Box>
+      </Box>
+
+      {/* Bottom drop zone for parallel placement (same prerequisites) */}
+      <Box
+        ref={setBottomDropRef}
+        sx={{
+          width: '100%',
+          mt: 1,
+          mb: 1, // Consistent spacing for all nodes
+          height: 60, // Fixed height for all drop zones
+          flex: '0 0 auto', // Never expand - always fixed size
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '2px dashed',
+          borderColor: isBottomDropping ? NODE_COLORS[node.type] : alpha('#FFFFFF', 0.12),
+          borderRadius: 1,
+          backgroundColor: isBottomDropping ? alpha(NODE_COLORS[node.type], 0.12) : 'transparent',
+          transition: 'all 0.2s',
+          position: 'relative',
+          zIndex: 1, // Lower than right zone
+          '&:hover': {
+            borderColor: alpha(NODE_COLORS[node.type], 0.3),
+            backgroundColor: alpha(NODE_COLORS[node.type], 0.05),
+          },
+        }}
+      >
+        {isBottomDropping ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography
+              sx={{
+                fontSize: '1.5rem',
+                color: NODE_COLORS[node.type],
+                fontWeight: 'bold',
+                lineHeight: 1,
+              }}
+            >
+              ↓
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: '0.65rem',
+                color: NODE_COLORS[node.type],
+                fontWeight: 600,
+              }}
+            >
+              Add Parallel Item
+            </Typography>
+          </Box>
+        ) : (
+          <Typography
+            variant="caption"
+            sx={{
+              fontSize: '0.6rem',
+              color: 'text.disabled',
+              textAlign: 'center',
+            }}
+          >
+            Drop to add another available item
+          </Typography>
+        )}
+      </Box>
+    </Box>
   );
 };
 

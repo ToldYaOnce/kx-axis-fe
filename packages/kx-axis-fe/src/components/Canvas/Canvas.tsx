@@ -1,72 +1,53 @@
-import React, { useState, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
-import { Box, Typography, Snackbar, Alert, useTheme, alpha } from '@mui/material';
+import React, { useState, useCallback, useImperativeHandle, forwardRef } from 'react';
+import { Box, Typography, Snackbar, Alert, useTheme, alpha, IconButton, Tooltip } from '@mui/material';
 import { DragEndEvent, useDroppable } from '@dnd-kit/core';
+import GridOnIcon from '@mui/icons-material/GridOn';
 import { NodeCard } from './NodeCard';
 import { useFlow } from '../../context/FlowContext';
 import type { FlowNode } from '../../types';
-import { computeDerivedLanes } from '../../utils/derivedLanes';
+import { computeGridLayout } from '../../utils/gridLayout';
+import { GRID } from '../../utils/gridSystem';
 
 export interface CanvasHandle {
   handleDragEnd: (event: DragEndEvent) => void;
 }
 
-// Droppable Lane Component
-const DroppableLane: React.FC<{ 
-  laneIndex: number;
-  children: React.ReactNode;
-  isLast: boolean;
-  isElastic?: boolean;
-}> = ({ laneIndex, children, isLast, isElastic }) => {
-  const { setNodeRef, isOver } = useDroppable({
-    id: `lane-${laneIndex}`,
+interface CanvasProps {}
+
+export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
+  const { flow, selection, setSelection, addNode, updateNode } = useFlow();
+  const theme = useTheme();
+  const [snackbar, setSnackbar] = useState<{ message: string; severity: 'success' | 'warning' | 'error' } | null>(null);
+  const [debugMode, setDebugMode] = useState(false);
+
+  // Make entire canvas a drop zone
+  const { setNodeRef: setCanvasDropRef, isOver: isCanvasOver } = useDroppable({
+    id: 'canvas-drop-zone',
     data: {
-      laneIndex,
+      type: 'canvas',
     },
   });
 
-  return (
-    <Box
-      ref={setNodeRef}
-      sx={{
-        minWidth: 308, // 10% wider than previous 280px
-        maxWidth: 350,
-        flex: 1,
-        position: 'relative',
-        px: 0, // No padding - cards will have their own margins
-        py: 2,
-        minHeight: '100%', // Ensure lanes extend full height
-        backgroundColor: isOver ? 'action.hover' : 'transparent',
-        transition: 'background-color 0.2s',
-        // Elastic lane always gets dashed border, regular lanes get solid unless last
-        borderRight: isElastic ? '2px dashed' : (!isLast ? '1px solid' : 'none'),
-        borderColor: 'divider',
-        opacity: isElastic ? 0.6 : 1,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      {children}
-    </Box>
-  );
-};
-
-export const Canvas = forwardRef<CanvasHandle, {}>((_, ref) => {
-  const { flow, selection, setSelection, addNode } = useFlow();
-  const theme = useTheme();
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const [snackbar, setSnackbar] = useState<{ message: string; severity: 'success' | 'warning' | 'error' } | null>(null);
-
-  // Compute derived lanes based on prerequisites
-  const derivedLanes = computeDerivedLanes(flow.nodes);
+  // Compute grid layout for all nodes
+  const gridLayout = computeGridLayout(flow.nodes);
   
-  // Lane colors - elegant, muted, professional
-  // For dark theme: subtle color tints on dark background
-  const laneColors = [
-    alpha(theme.palette.info.main, 0.06),      // Blue-slate tint
-    alpha(theme.palette.secondary.main, 0.06), // Cyan tint
-    alpha(theme.palette.warning.main, 0.06),   // Purple tint
-    alpha(theme.palette.primary.dark, 0.04),   // Dark slate tint
-  ];
+  // Determine how many columns we need
+  const maxCol = Math.max(...Array.from(gridLayout.values()).map(p => p.gridCol), -1);
+  const columns = maxCol >= 0 ? Array.from({ length: maxCol + 1 }, (_, i) => i) : [];
+  
+  // Group nodes by row
+  const maxRow = Math.max(...Array.from(gridLayout.values()).map(p => p.gridRow), 0);
+  const rows = Array.from({ length: maxRow + 1 }, (_, i) => i);
+  
+  const nodesByRow = new Map<number, Array<{ node: FlowNode; col: number }>>();
+  rows.forEach(row => nodesByRow.set(row, []));
+  
+  flow.nodes.forEach(node => {
+    const pos = gridLayout.get(node.id);
+    if (pos) {
+      nodesByRow.get(pos.gridRow)!.push({ node, col: pos.gridCol });
+    }
+  });
 
   const handleNodeClick = (node: FlowNode) => {
     setSelection({ type: 'node', id: node.id });
@@ -78,16 +59,159 @@ export const Canvas = forwardRef<CanvasHandle, {}>((_, ref) => {
     }
   };
 
-  // Handle drag end - add new nodes from palette or recompute lane for existing nodes
+  // Handle drag end - add new nodes from palette or add dependencies
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
 
-      // Check if this is a palette item being dropped
+      // Check if dropped on a node's right-side drop zone (dependency extension)
+      if (over && over.data.current?.type === 'dependency-extension') {
+        const targetNode = over.data.current?.targetNode as FlowNode;
+        
+        // CASE 1: Palette item dropped on a node's drop zone
+        if (active.data.current?.type === 'palette-item') {
+          const item = active.data.current?.item;
+          
+          // Get the createNodeFromItem function from window (set by palette)
+          const createNodeFromItem = (window as any).__createNodeFromItem;
+          
+          if (createNodeFromItem && item && targetNode) {
+            const newNode = createNodeFromItem(item);
+            
+            // Get facts produced by target node
+            const targetProduces = targetNode.produces || [];
+            
+            // Add target's produced facts as requirements (only if target produces facts)
+            const additionalRequires = targetProduces.length > 0 ? targetProduces : [];
+            
+            // Merge with any default requires
+            const currentRequires = newNode.requires || [];
+            const updatedRequires = [...currentRequires];
+            
+            additionalRequires.forEach(req => {
+              if (!updatedRequires.includes(req)) {
+                updatedRequires.push(req);
+              }
+            });
+            
+            newNode.requires = updatedRequires;
+            
+            // Node will auto-position based on grid layout
+            addNode(newNode);
+            setSelection({ type: 'node', id: newNode.id });
+            
+            setSnackbar({
+              message: `Added "${newNode.title}" with dependency on "${targetNode.title}"`,
+              severity: 'success',
+            });
+          }
+          return;
+        }
+        
+        // CASE 2: Existing node dropped on another node's drop zone
+        const draggedNode = active.data.current?.node as FlowNode;
+        
+        if (draggedNode && targetNode && draggedNode.id !== targetNode.id) {
+          // Add target node's produced facts as prerequisites
+          const currentRequires = draggedNode.requires || [];
+          
+          // Get facts produced by target node
+          const targetProduces = targetNode.produces || [];
+          
+          // Add all produced facts as requirements (only if target produces facts)
+          const newRequirements = targetProduces.length > 0 ? targetProduces : [];
+          
+          const updatedRequires = [...currentRequires];
+          let added = false;
+          
+          newRequirements.forEach(req => {
+            if (!updatedRequires.includes(req)) {
+              updatedRequires.push(req);
+              added = true;
+            }
+          });
+          
+          if (added) {
+            // Update the node with new requirements - this will trigger re-computation
+            updateNode(draggedNode.id, {
+              requires: updatedRequires,
+            });
+            
+            setSnackbar({
+              message: `"${draggedNode.title}" now requires "${targetNode.title}"`,
+              severity: 'success',
+            });
+          }
+        }
+        return;
+      }
+
+      // Check if dropped on a node's bottom drop zone (parallel placement)
+      if (over && over.data.current?.type === 'parallel-placement') {
+        const targetNode = over.data.current?.targetNode as FlowNode;
+        
+        // CASE 1: Palette item dropped on bottom zone
+        if (active.data.current?.type === 'palette-item') {
+          const item = active.data.current?.item;
+          
+          // Get the createNodeFromItem function from window (set by palette)
+          const createNodeFromItem = (window as any).__createNodeFromItem;
+          
+          if (createNodeFromItem && item && targetNode) {
+            const newNode = createNodeFromItem(item);
+            
+            // Inherit the SAME prerequisites as target node (no new dependencies)
+            const targetRequires = targetNode.requires || [];
+            
+            // Merge with any default requires
+            const currentRequires = newNode.requires || [];
+            const updatedRequires = [...currentRequires];
+            
+            targetRequires.forEach(req => {
+              if (!updatedRequires.includes(req)) {
+                updatedRequires.push(req);
+              }
+            });
+            
+            newNode.requires = updatedRequires;
+            
+            // Node will auto-position at the same depth as target (parallel)
+            addNode(newNode);
+            setSelection({ type: 'node', id: newNode.id });
+            
+            setSnackbar({
+              message: `Added "${newNode.title}" as parallel item (same eligibility as "${targetNode.title}")`,
+              severity: 'success',
+            });
+          }
+          return;
+        }
+        
+        // CASE 2: Existing node dropped on bottom zone
+        const draggedNode = active.data.current?.node as FlowNode;
+        
+        if (draggedNode && targetNode && draggedNode.id !== targetNode.id) {
+          // Make dragged node have SAME prerequisites as target (parallel placement)
+          const targetRequires = targetNode.requires || [];
+          
+          // Replace dragged node's requirements with target's requirements
+          updateNode(draggedNode.id, {
+            requires: [...targetRequires],
+          });
+          
+          setSnackbar({
+            message: `"${draggedNode.title}" is now parallel with "${targetNode.title}" (same eligibility)`,
+            severity: 'success',
+          });
+        }
+        return;
+      }
+
+      // Check if this is a palette item being dropped on canvas
       const isPaletteItem = active.data.current?.type === 'palette-item';
       
       if (isPaletteItem && active.data.current) {
-        // Handle palette item drop
+        // Handle palette item drop on canvas background
         const item = active.data.current.item;
         
         // Get the createNodeFromItem function from window (set by palette)
@@ -96,7 +220,7 @@ export const Canvas = forwardRef<CanvasHandle, {}>((_, ref) => {
         if (createNodeFromItem) {
           const newNode = createNodeFromItem(item);
           
-          // Node will auto-snap to computed lane on next render
+          // Node will auto-snap to computed grid position
           addNode(newNode);
           setSelection({ type: 'node', id: newNode.id });
           
@@ -112,11 +236,11 @@ export const Canvas = forwardRef<CanvasHandle, {}>((_, ref) => {
       if (!over) return;
       
       setSnackbar({
-        message: 'Node position updated',
+        message: 'Dependency tree updated',
         severity: 'success',
       });
     },
-    [flow.nodes, addNode, setSelection]
+    [flow, addNode, updateNode, setSelection]
   );
 
   // Expose handleDragEnd to parent via ref
@@ -126,64 +250,231 @@ export const Canvas = forwardRef<CanvasHandle, {}>((_, ref) => {
 
   return (
       <Box
-        ref={canvasRef}
+        ref={setCanvasDropRef}
         onClick={handleCanvasClick}
         sx={{
           flex: 1,
           position: 'relative',
-          backgroundColor: 'background.default',
+          backgroundColor: isCanvasOver ? alpha(theme.palette.primary.main, 0.05) : 'background.default',
           overflow: 'auto',
           backgroundImage: `
             radial-gradient(circle, ${alpha('#FFFFFF', 0.08)} 1px, transparent 1px)
           `,
           backgroundSize: '20px 20px',
+          transition: 'background-color 0.2s',
         }}
       >
+         {/* Lane Dividers - Clear Vertical Boundaries */}
+         <Box
+           sx={{
+             position: 'absolute',
+             top: 0,
+             left: 36, // Correct offset for dividers
+             minHeight: 'calc(100vh + 1000px)',
+             display: 'grid',
+             gridTemplateColumns: `repeat(${columns.length}, ${GRID.COL_WIDTH}px)`,
+             gap: `${GRID.GUTTER_X}px`,
+             pointerEvents: 'none',
+             zIndex: 6, // Above headers (headers are zIndex: 5)
+           }}
+         >
+          {columns.map(col => (
+            <Box
+              key={`lane-divider-${col}`}
+              sx={{
+                position: 'relative',
+                backgroundColor: 'transparent', // Subtle blue tint for alternating lanes
+                borderRight: col < columns.length - 1 
+                  ? `2px dotted ${alpha(theme.palette.primary.main, 0.25)}`
+                  : 'none',
+                '&::before': col % 2 !== 0 ? {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  bottom: 0,
+                  left: -24, // Extend background to the left
+                  right: 0, // Extend background to the right
+                  backgroundColor: alpha(theme.palette.info.main, 0.06),
+                  zIndex: -1,
+                } : {},
+              }}
+            />
+          ))}
+        </Box>
 
-        {/* Derived Lanes */}
+        {/* Canvas Framing - Mental Model Anchor */}
         <Box
           sx={{
+            position: 'sticky',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 10,
+            backgroundColor: alpha(theme.palette.background.paper, 0.95),
+            backdropFilter: 'blur(8px)',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            py: 1.5,
+            px: 3,
             display: 'flex',
-            minHeight: 'calc(100vh - 80px)', // Ensure lanes extend full viewport height
-            height: 'auto',
-            pt: 2,
+            justifyContent: 'space-between',
+            alignItems: 'center',
           }}
         >
-          {derivedLanes.map((lane, index) => {
-            const laneColor = laneColors[index % laneColors.length];
-            const stepNumber = ['①', '②', '③', '④', '⑤'][index] || `${index + 1}`;
+          <Box>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                color: 'text.primary',
+                letterSpacing: 0.3,
+                mb: 0.5,
+              }}
+            >
+              As the conversation progresses, more becomes available →
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 3, mt: 0.5 }}>
+              <Typography
+                variant="caption"
+                sx={{
+                  fontSize: '0.65rem',
+                  color: alpha(theme.palette.text.secondary, 0.6),
+                }}
+              >
+                <Box component="span" sx={{ fontWeight: 600 }}>→</Box> Right-drop creates dependencies
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{
+                  fontSize: '0.65rem',
+                  color: alpha(theme.palette.text.secondary, 0.6),
+                }}
+              >
+                <Box component="span" sx={{ fontWeight: 600 }}>↓</Box> Bottom-drop creates parallel items
+              </Typography>
+            </Box>
+          </Box>
+          
+          <Tooltip title="Toggle grid debug overlay">
+            <IconButton
+              size="small"
+              onClick={() => setDebugMode(!debugMode)}
+              sx={{
+                color: debugMode ? 'primary.main' : 'text.secondary',
+              }}
+            >
+              <GridOnIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
 
-            return (
-              <React.Fragment key={lane.index}>
-                <DroppableLane laneIndex={lane.index} isLast={false}>
-                {/* Lane Header */}
+        {/* Grid Canvas - Physical Row Containers */}
+        <Box
+          sx={{
+            position: 'relative',
+            minHeight: 'calc(100vh - 140px)',
+            p: 3,
+            pb: 60, // Extra bottom padding to ensure bottom drop zones are scrollable
+          }}
+        >
+          {/* Column Headers (Sticky) */}
+          <Box
+            sx={{
+              position: 'relative',
+              mb: 2,
+            }}
+          >
+            {/* Continuous Directional Spine */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 40,
+                left: 0,
+                right: 0,
+                height: 2,
+                background: `linear-gradient(to right, 
+                  ${alpha(theme.palette.primary.main, 0.3)}, 
+                  ${alpha(theme.palette.primary.main, 0.15)})`,
+                zIndex: 1,
+                '&::after': {
+                  content: '"→"',
+                  position: 'absolute',
+                  right: -8,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  fontSize: '1.5rem',
+                  fontWeight: 700,
+                  color: alpha(theme.palette.primary.main, 0.4),
+                },
+              }}
+            />
+            
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${columns.length}, ${GRID.COL_WIDTH}px)`,
+                gap: `${GRID.GUTTER_X}px`,
+                position: 'sticky',
+                top: 60,
+                zIndex: 5,
+                backgroundColor: alpha(theme.palette.background.default, 0.95),
+                backdropFilter: 'blur(8px)',
+                pb: 2,
+              }}
+            >
+            {columns.map(col => {
+              // Progressive intensity for visual progression (0.08 → 0.04)
+              const intensity = 0.08 - (col * 0.01);
+              
+              // Simple ordinal number
+              const ordinal = col + 1;
+              
+              return (
                 <Box
+                  key={`header-${col}`}
                   sx={{
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 5,
-                    p: 1.5,
-                    pb: 1,
-                    mb: 2,
-                    mx: 0, // Flush with lane edges (lane has no padding now)
-                    backgroundColor: laneColor,
-                    borderBottom: '1px solid',
-                    borderColor: alpha('#FFFFFF', 0.06),
-                    borderRadius: 0,
+                    position: 'relative',
                   }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontSize: '1.1rem',
-                        fontWeight: 600,
-                        color: alpha('#FFFFFF', 0.5),
-                        lineHeight: 1,
-                      }}
-                    >
-                      {stepNumber}
-                    </Typography>
+                  {/* Prominent Lane Ordinal (Column Anchor) */}
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 15,
+                      left: 16,
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      backgroundColor: alpha(theme.palette.primary.main, 0.15),
+                      border: `2px solid ${alpha(theme.palette.primary.main, 0.4)}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      color: alpha('#FFFFFF', 0.75),
+                      zIndex: 2,
+                      boxShadow: `0 2px 8px ${alpha('#000000', 0.3)}`,
+                    }}
+                  >
+                    {ordinal}
+                  </Box>
+                  
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      pb: 1,
+                      pl: 6, // Extra left padding to accommodate the ordinal badge
+                      pr: 2, // Extra right padding for spacing from lane divider
+                      backgroundColor: alpha(theme.palette.info.main, Math.max(intensity + 0.05, 0.08)),
+                      borderRadius: 1,
+                      border: '1px solid',
+                      borderColor: alpha('#FFFFFF', 0.12),
+                      position: 'relative',
+                      mx: 1, // Horizontal margin for breathing room from lane dividers
+                    }}
+                  >
                     <Typography
                       variant="caption"
                       sx={{
@@ -191,103 +482,153 @@ export const Canvas = forwardRef<CanvasHandle, {}>((_, ref) => {
                         fontWeight: 700,
                         letterSpacing: 1,
                         color: alpha('#FFFFFF', 0.9),
-                        flex: 1,
+                        fontSize: '0.7rem',
+                        display: 'block',
                       }}
                     >
-                      {lane.label}
+                      {col === 0 ? 'Initially Available' : 'Next'}
                     </Typography>
-                  </Box>
+                  
                   <Typography
                     variant="caption"
                     sx={{
                       color: alpha('#FFFFFF', 0.4),
                       fontSize: '0.65rem',
+                      display: 'block',
+                      mt: 0.5,
                     }}
                   >
-                    {lane.description}
+                    {col === 0 ? 'No prerequisites' : 'Unlocked by previous'}
                   </Typography>
-                </Box>
-
-                {/* Nodes in this lane */}
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1, px: 2 }}>
-                  {lane.nodes.map((node) => (
-                    <NodeCard
-                      key={node.id}
-                      node={node}
-                      isSelected={selection.type === 'node' && selection.id === node.id}
-                      onClick={() => handleNodeClick(node)}
-                      isDraggable={true}
-                    />
-                  ))}
-
-                  {lane.nodes.length === 0 && (
-                    <Box
+                  {debugMode && (
+                    <Typography
+                      variant="caption"
                       sx={{
-                        textAlign: 'center',
-                        py: 4,
-                        color: 'text.disabled',
+                        display: 'block',
+                        mt: 0.5,
+                        fontSize: '0.6rem',
+                        color: 'primary.main',
+                        fontWeight: 600,
                       }}
                     >
-                      <Typography variant="caption">No nodes in this lane</Typography>
-                    </Box>
+                      Col {col}
+                    </Typography>
                   )}
+                  </Box>
                 </Box>
-                </DroppableLane>
-              </React.Fragment>
-            );
-          })}
-          
-          {/* Elastic "Drop to place" lane */}
-          <DroppableLane 
-            key="elastic" 
-            laneIndex={derivedLanes.length} 
-            isLast={true} 
-            isElastic={true}
+              );
+            })}
+            </Box>
+          </Box>
+
+          {/* Physical Row Containers */}
+          <Box
+            sx={{
+              position: 'relative',
+              zIndex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: `${GRID.GUTTER_Y}px`,
+            }}
           >
-            <Box
-              sx={{
-                position: 'sticky',
-                top: 0,
-                zIndex: 5,
-                p: 1.5,
-                mb: 2,
-                mx: 0, // Flush (lane has no padding now)
-                backgroundColor: alpha('#FFFFFF', 0.02),
-                borderTop: '2px dashed',
-                borderBottom: '2px dashed',
-                borderColor: alpha('#FFFFFF', 0.1),
-                borderRadius: 0,
-              }}
-            >
-              <Typography
-                variant="caption"
-                sx={{
-                  textTransform: 'uppercase',
-                  fontWeight: 700,
-                  letterSpacing: 1,
-                  color: alpha('#FFFFFF', 0.3),
-                  display: 'block',
-                }}
-              >
-                Drop to place
-              </Typography>
-            </Box>
-            
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: 200,
-                flex: 1,
-                px: 2, // Match padding with nodes container
-              }}
-            >
-              <Typography variant="body2" sx={{ fontStyle: 'italic', color: alpha('#FFFFFF', 0.3) }}>
-                Drop a node here
-              </Typography>
-            </Box>
-          </DroppableLane>
+            {rows.map(rowIndex => {
+              const nodesInRow = nodesByRow.get(rowIndex) || [];
+              if (nodesInRow.length === 0) return null;
+              
+              // Sort nodes by column for proper grid placement
+              const sortedNodes = [...nodesInRow].sort((a, b) => a.col - b.col);
+              
+              return (
+                <Box
+                  key={`row-${rowIndex}`}
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${columns.length}, ${GRID.COL_WIDTH}px)`,
+                    gap: `${GRID.GUTTER_X}px`,
+                    minHeight: GRID.ROW_HEIGHT,
+                    position: 'relative',
+                    // Row debug overlay
+                    ...(debugMode && {
+                      outline: `2px dashed ${alpha(theme.palette.secondary.main, 0.3)}`,
+                      outlineOffset: '-2px',
+                    }),
+                  }}
+                >
+                  {/* Debug row label */}
+                  {debugMode && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        position: 'absolute',
+                        top: -20,
+                        left: 0,
+                        fontSize: '0.65rem',
+                        color: 'secondary.main',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Row {rowIndex}
+                    </Typography>
+                  )}
+                  
+                  {/* Create cells for all columns */}
+                  {columns.map(colIndex => {
+                    // Find all nodes in this cell (col, row)
+                    const nodesInCell = sortedNodes.filter(n => n.col === colIndex);
+                    
+                    if (nodesInCell.length === 0) {
+                      // Empty cell
+                      return (
+                        <Box
+                          key={`cell-${rowIndex}-${colIndex}`}
+                          sx={{
+                            gridColumn: colIndex + 1,
+                            minHeight: GRID.ROW_HEIGHT,
+                            // Debug empty cell
+                            ...(debugMode && {
+                              border: `1px dotted ${alpha(theme.palette.primary.main, 0.2)}`,
+                            }),
+                          }}
+                        />
+                      );
+                    }
+                    
+                    // Cell with nodes (stack vertically if multiple)
+                    return (
+                      <Box
+                        key={`cell-${rowIndex}-${colIndex}`}
+                        sx={{
+                          gridColumn: colIndex + 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 1,
+                          minHeight: GRID.ROW_HEIGHT,
+                          // Add extra padding for last row to ensure drop zones are visible
+                          pb: rowIndex === maxRow ? 8 : 0,
+                        }}
+                      >
+                        {nodesInCell.map(({ node }, nodeIndex) => {
+                          // Check if this is the last node in this cell (for expanding bottom drop zone)
+                          const isLastInCell = nodeIndex === nodesInCell.length - 1;
+                          
+                          return (
+                            <NodeCard
+                              key={node.id}
+                              node={node}
+                              isSelected={selection.type === 'node' && selection.id === node.id}
+                              onClick={() => handleNodeClick(node)}
+                              isDraggable={true}
+                              isLastInLane={isLastInCell}
+                            />
+                          );
+                        })}
+                      </Box>
+                    );
+                  })}
+                </Box>
+              );
+            })}
+          </Box>
         </Box>
 
         {/* Empty state */}
@@ -302,10 +643,10 @@ export const Canvas = forwardRef<CanvasHandle, {}>((_, ref) => {
             }}
           >
             <Typography variant="h6" sx={{ color: 'text.secondary', mb: 2 }}>
-              No items yet
+              No capabilities defined
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.disabled', mb: 3 }}>
-              Drag items from the left panel to start building your flow
+              Add conversation capabilities from the palette to define what becomes possible
             </Typography>
           </Box>
         )}

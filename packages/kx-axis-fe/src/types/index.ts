@@ -91,6 +91,10 @@ export interface NodeUI {
   x: number;
   y: number;
   lane: EligibilityLane;
+  
+  // Grid coordinates (deterministic positioning)
+  gridCol?: number;  // Column index (0-based)
+  gridRow?: number;  // Row index (0-based)
 }
 
 /**

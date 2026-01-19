@@ -2,11 +2,6 @@ import React, { useState } from 'react';
 import {
   Box,
   Typography,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
-  ListItemIcon,
   Paper,
   Divider,
   Button,
@@ -16,11 +11,11 @@ import {
   DialogActions,
   TextField,
   MenuItem,
-  IconButton,
-  Tooltip,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
@@ -64,7 +59,7 @@ import HeartIcon from '@mui/icons-material/Favorite';
 import CardIcon from '@mui/icons-material/CreditCard';
 import { useFlow } from '../../context/FlowContext';
 import type { FlowNode, NodeKind } from '../../types';
-import { getConversationItemsForIndustry, getGeneralItems, getIndustrySpecificItems } from '../../utils/conversationItems';
+import { getConversationItemsForIndustry } from '../../utils/conversationItems';
 
 interface ConversationItem {
   id: string;
@@ -77,87 +72,52 @@ interface ConversationItem {
   badge?: string; // Optional badge like "NEW"
 }
 
-const CONVERSATION_ITEMS: ConversationItem[] = [
-  {
-    id: 'welcome',
-    type: 'EXPLANATION',
-    title: 'Welcome / Introduction',
-    description: 'Greet and set expectations',
-    icon: <InfoOutlinedIcon />,
-    defaultLane: 'BEFORE_CONTACT',
-  },
-  {
-    id: 'reflective',
-    type: 'REFLECTIVE_QUESTION',
-    title: 'Reflective Question',
-    description: 'Ask them to reflect on readiness',
-    icon: <QuestionAnswerIcon />,
-    defaultLane: 'BEFORE_CONTACT',
-  },
-  {
-    id: 'goal-gap',
-    type: 'GOAL_GAP_TRACKER',
-    title: 'Goal Gap Tracker',
-    description: 'Target → Baseline → Delta → Category',
-    icon: <ShowChartIcon />,
-    defaultLane: 'BEFORE_CONTACT',
-  },
-  {
-    id: 'contact',
-    type: 'BASELINE_CAPTURE',
-    title: 'Contact Capture',
-    description: 'Get email/phone for follow-up',
-    icon: <ContactMailIcon />,
-    defaultLane: 'CONTACT_GATE',
-  },
-  {
-    id: 'booking',
-    type: 'ACTION_BOOKING',
-    title: 'Book Consultation',
-    description: 'Schedule a session or call',
-    icon: <CalendarMonthIcon />,
-    defaultLane: 'AFTER_CONTACT',
-  },
-  {
-    id: 'promo',
-    type: 'EXPLANATION',
-    title: 'Send Promo',
-    description: 'Share discount or offer',
-    icon: <LocalOfferIcon />,
-    defaultLane: 'AFTER_BOOKING',
-  },
-  {
-    id: 'handoff',
-    type: 'HANDOFF',
-    title: 'Handoff',
-    description: 'Transfer to human',
-    icon: <HandshakeIcon />,
-    defaultLane: 'AFTER_BOOKING',
-  },
-];
-
-// Simple clickable conversation item with "Add" button
+// Draggable conversation capability card
 const ConversationItemCard: React.FC<{ 
   item: ConversationItem & { captures?: string[] }; 
   isUsed: boolean;
-  onAdd: () => void;
-}> = ({ item, isUsed, onAdd }) => {
+}> = ({ item, isUsed }) => {
+  // Make card draggable
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `palette-${item.id}`,
+    disabled: isUsed,
+    data: {
+      type: 'palette-item',
+      item,
+    },
+  });
+
+  const style = transform
+    ? {
+        transform: CSS.Translate.toString(transform),
+      }
+    : undefined;
+
   return (
     <Paper
+      ref={setNodeRef}
       elevation={0}
       sx={{
         mb: 1.5,
         border: '1px solid',
         borderColor: isUsed ? 'divider' : 'divider',
-        transition: 'all 0.2s',
-        opacity: isUsed ? 0.5 : 1,
+        transition: isDragging ? 'none' : 'all 0.2s',
+        opacity: isUsed ? 0.5 : (isDragging ? 0.5 : 1),
         position: 'relative',
         backgroundColor: isUsed ? 'action.disabledBackground' : 'background.paper',
+        cursor: isUsed ? 'default' : 'grab',
         '&:hover': isUsed ? {} : {
           borderColor: 'primary.main',
           bgcolor: 'action.hover',
         },
+        '&:active': {
+          cursor: isUsed ? 'default' : 'grabbing',
+        },
+        userSelect: 'none',
+        ...style,
       }}
+      {...attributes}
+      {...listeners}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', py: 1.5, px: 2, gap: 1.5 }}>
         {/* Icon */}
@@ -216,23 +176,12 @@ const ConversationItemCard: React.FC<{
           )}
         </Box>
 
-        {/* Add Button */}
-        <Tooltip title={isUsed ? "Already added" : "Add to flow"}>
-          <span>
-            <IconButton
-              size="small"
-              onClick={onAdd}
-              disabled={isUsed}
-              color="primary"
-              sx={{
-                opacity: isUsed ? 0 : 1,
-                transition: 'opacity 0.2s',
-              }}
-            >
-              <AddCircleOutlineIcon />
-            </IconButton>
-          </span>
-        </Tooltip>
+        {/* Drag Handle */}
+        {!isUsed && (
+          <Box sx={{ color: 'text.disabled', display: 'flex', alignItems: 'center' }}>
+            <DragIndicatorIcon fontSize="small" />
+          </Box>
+        )}
       </Box>
     </Paper>
   );
@@ -279,7 +228,7 @@ const INFO_CAPTURE_PRESETS: Record<InfoCapturePreset, PresetConfig> = {
 };
 
 export const ConversationItemsPalette: React.FC = () => {
-  const { addNode, flow } = useFlow();
+  const { flow } = useFlow();
   
   // Get conversation items based on flow's industry
   const getItemsForFlow = React.useMemo(() => {
@@ -497,6 +446,8 @@ export const ConversationItemsPalette: React.FC = () => {
       id: `${item.id}-${Date.now()}`,
       type: item.type,
       title: item.title,
+      requires: [], // Initialize with empty array (no prerequisites by default)
+      produces: [], // Initialize with empty array (will be set per node type)
       ui: {
         x: 0,
         y: 0,
@@ -504,6 +455,20 @@ export const ConversationItemsPalette: React.FC = () => {
       },
     };
     
+    // Add default produces for EXPLANATION nodes
+    if (item.type === 'EXPLANATION') {
+      // Generate a fact name based on the node ID (e.g., "welcome_intro_shown")
+      const factName = `${item.id.replace(/-/g, '_')}_shown`;
+      newNode.produces = [factName];
+    }
+
+    // Add default produces for REFLECTIVE_QUESTION nodes
+    if (item.type === 'REFLECTIVE_QUESTION') {
+      // Generate a fact name based on the node ID (e.g., "reflective_question_answered")
+      const factName = `${item.id.replace(/-/g, '_')}_answered`;
+      newNode.produces = [factName];
+    }
+
     // Add captures/produces for INFO_CAPTURE items with presets
     if (item.type === 'BASELINE_CAPTURE' && item.captures && item.captures.length > 0) {
       newNode.satisfies = {
@@ -542,7 +507,7 @@ export const ConversationItemsPalette: React.FC = () => {
     }
 
     // Add default config for contact capture
-    if (item.id === 'contact' && item.type === 'BASELINE_CAPTURE') {
+    if (item.id === 'contact-capture' && item.type === 'BASELINE_CAPTURE') {
       newNode.satisfies = {
         gates: ['CONTACT'],
         metrics: ['contact_email', 'contact_phone'],
@@ -552,7 +517,7 @@ export const ConversationItemsPalette: React.FC = () => {
 
     // Add default config for booking
     if (item.type === 'ACTION_BOOKING') {
-      newNode.requires = ['contact_email'];  // Lowercase fact name, not 'CONTACT'
+      // No default requires - let user add dependencies via drag/drop
       newNode.satisfies = {
         gates: ['BOOKING'],
         metrics: ['booking_date'],
@@ -562,7 +527,7 @@ export const ConversationItemsPalette: React.FC = () => {
 
     // Add default config for handoff
     if (item.type === 'HANDOFF') {
-      newNode.requires = ['booking_date'];  // Lowercase fact name
+      // No default requires - let user add dependencies via drag/drop
       newNode.satisfies = {
         gates: ['HANDOFF'],
         states: ['HANDOFF_COMPLETE'],
@@ -584,19 +549,15 @@ export const ConversationItemsPalette: React.FC = () => {
     };
   }, []);
 
-  // Handler to add an item to the flow
-  const handleAddItem = (item: ConversationItem & { captures?: string[] }) => {
-    const newNode = createNodeFromItem(item);
-    addNode(newNode);
-  };
+  // Note: Items are added via drag-and-drop now, handled by Canvas
 
   return (
     <Box sx={{ height: '100%', overflowY: 'auto', p: 3 }}>
       <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-        Conversation Items
+        Conversation Capabilities
       </Typography>
       <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 2 }}>
-        Click + to add items to your flow
+        Drag capabilities to add them to your requirement tree
       </Typography>
       
       {/* + New item button */}
@@ -627,7 +588,6 @@ export const ConversationItemsPalette: React.FC = () => {
             key={item.id} 
             item={item} 
             isUsed={usedItemIds.has(item.id)}
-            onAdd={() => handleAddItem(item)}
           />
         ))}
       </Box>

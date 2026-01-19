@@ -1,156 +1,145 @@
 import type { FlowNode } from '../types';
+import { computeNodeDepths } from './dependencyDepth';
+
+export interface NodeWithPosition {
+  node: FlowNode;
+  verticalPosition: number; // Vertical position within the lane for alignment
+}
 
 export interface DerivedLane {
   index: number;
   label: string;
   description: string;
-  nodes: FlowNode[];
+  nodes: NodeWithPosition[]; // Changed to include position info
   hasExternalPrereqs: boolean;
 }
 
 /**
- * Extract facts that a node needs before it can run
- */
-function getNodeNeedsBefore(node: FlowNode, allNodes: FlowNode[]): string[] {
-  const needs: string[] = [];
-  
-  // Gates and node dependencies from requires
-  if (node.requires) {
-    node.requires.forEach(req => {
-      // Check if it's a gate (CONTACT, BOOKING, etc.)
-      if (!req.includes('-') && req.length < 20) {
-        needs.push(req.toLowerCase());
-      } else {
-        // It's a node ID - look up what that node produces
-        const requiredNode = allNodes.find(n => n.id === req);
-        if (requiredNode) {
-          // Use node title as the requirement
-          needs.push(requiredNode.title.toLowerCase());
-        }
-      }
-    });
-  }
-  
-  return needs;
-}
-
-/**
- * Extract facts that a node produces
- */
-function getNodeProduces(node: FlowNode): string[] {
-  const produces: string[] = [];
-  
-  // Gates from satisfies
-  if (node.satisfies?.gates) {
-    produces.push(...node.satisfies.gates.map(g => g.toLowerCase()));
-  }
-  
-  // Metrics from satisfies (treat as facts)
-  if (node.satisfies?.metrics) {
-    produces.push(...node.satisfies.metrics);
-  }
-  
-  // The node itself (by title) is a fact that can be required by other nodes
-  produces.push(node.title.toLowerCase());
-  
-  return produces;
-}
-
-/**
- * Compute derived lanes based on node prerequisites
+ * Compute derived lanes based on dependency depth
+ * All nodes at the same depth go in the same lane (vertical column)
  */
 export function computeDerivedLanes(nodes: FlowNode[]): DerivedLane[] {
-  const lanes: DerivedLane[] = [];
-  const placedNodes = new Set<string>();
-  const availableFacts = new Set<string>();
+  if (nodes.length === 0) return [];
   
-  // Track all facts that will eventually be produced
-  const allProducedFacts = new Set<string>();
+  // Compute depth for all nodes
+  const depths = computeNodeDepths(nodes);
+  const maxDepth = Math.max(...Array.from(depths.values()), 0);
+  
+  // Group nodes by depth
+  const nodesByDepth = new Map<number, FlowNode[]>();
+  for (let depth = 0; depth <= maxDepth; depth++) {
+    nodesByDepth.set(depth, []);
+  }
+  
   nodes.forEach(node => {
-    getNodeProduces(node).forEach(fact => allProducedFacts.add(fact));
+    const depth = depths.get(node.id) ?? 0;
+    nodesByDepth.get(depth)!.push(node);
   });
   
-  let laneIndex = 0;
-  let remainingNodes = [...nodes];
+  // Track node positions within each lane for vertical alignment
+  const nodePositions = new Map<string, number>(); // nodeId -> vertical position
   
-  // Keep iterating until all nodes are placed
-  while (remainingNodes.length > 0 && laneIndex < 10) { // safety limit
-    const nodesInThisLane: FlowNode[] = [];
-    const hasExternalPrereqs = false;
+  // Create lanes for each depth
+  const lanes: DerivedLane[] = [];
+  
+  for (let depth = 0; depth <= maxDepth; depth++) {
+    const nodesAtThisDepth = nodesByDepth.get(depth) || [];
+    if (nodesAtThisDepth.length === 0) continue;
     
-    // Find nodes that can be placed in this lane
-    remainingNodes.forEach(node => {
-      const needsBefore = getNodeNeedsBefore(node, nodes);
-      
-      // Lane 0: no prerequisites
-      if (laneIndex === 0 && needsBefore.length === 0) {
-        nodesInThisLane.push(node);
-        return;
-      }
-      
-      // Later lanes: all prerequisites must be available
-      const allPrereqsMet = needsBefore.every(fact => availableFacts.has(fact));
-      if (allPrereqsMet && needsBefore.length > 0) {
-        nodesInThisLane.push(node);
-      }
-    });
+    const laneIndex = lanes.length;
     
-    // If no nodes can be placed, try to place nodes with external prereqs
-    if (nodesInThisLane.length === 0 && remainingNodes.length > 0) {
-      // Place remaining nodes in subsequent lanes based on unfulfilled prereqs
-      const nodeWithLeastUnmetPrereqs = remainingNodes.reduce((best, node) => {
-        const needsBefore = getNodeNeedsBefore(node, nodes);
-        const unmetCount = needsBefore.filter(f => !availableFacts.has(f)).length;
-        const bestUnmetCount = getNodeNeedsBefore(best, nodes).filter(f => !availableFacts.has(f)).length;
-        return unmetCount < bestUnmetCount ? node : best;
+    // Assign vertical positions based on dependencies from previous depth
+    const nodesWithPositions: NodeWithPosition[] = [];
+    
+    if (depth === 0) {
+      // First lane: just stack nodes sequentially
+      nodesAtThisDepth.forEach((node, index) => {
+        nodePositions.set(node.id, index);
+        nodesWithPositions.push({ node, verticalPosition: index });
+      });
+    } else {
+      // Later lanes: align with nodes from previous depth (causal bands)
+      // Group nodes by their PRIMARY unlocking node to create causal bands
+      const causalBands = new Map<string, FlowNode[]>(); // producerId -> unlocked nodes
+      const orphanNodes: FlowNode[] = [];
+      
+      nodesAtThisDepth.forEach(node => {
+        // Find which node from previous depth unlocks this node
+        let primaryUnlocker: FlowNode | null = null;
+        
+        if (node.requires) {
+          for (const req of node.requires) {
+            // Find producing node from previous depth
+            const producer = nodes.find(n => 
+              ((n.produces && n.produces.includes(req)) || n.id === req) &&
+              depths.get(n.id) === depth - 1
+            );
+            if (producer) {
+              primaryUnlocker = producer;
+              break; // Use first found as primary
+            }
+          }
+        }
+        
+        if (primaryUnlocker) {
+          // Add to the causal band of the unlocker
+          if (!causalBands.has(primaryUnlocker.id)) {
+            causalBands.set(primaryUnlocker.id, []);
+          }
+          causalBands.get(primaryUnlocker.id)!.push(node);
+        } else {
+          // No clear unlocker from previous depth
+          orphanNodes.push(node);
+        }
       });
       
-      nodesInThisLane.push(nodeWithLeastUnmetPrereqs);
-    }
-    
-    if (nodesInThisLane.length === 0) break;
-    
-    // Mark these nodes as placed
-    nodesInThisLane.forEach(node => {
-      placedNodes.add(node.id);
-      // Add facts this node produces to available facts
-      getNodeProduces(node).forEach(fact => availableFacts.add(fact));
-    });
-    
-    // Remove placed nodes from remaining
-    remainingNodes = remainingNodes.filter(n => !placedNodes.has(n.id));
-    
-    // Determine lane label
-    let label: string;
-    let description: string;
-    
-    if (laneIndex === 0) {
-      label = 'No prerequisites';
-      description = 'Can run immediately';
-    } else {
-      // Find most common prerequisites in this lane
-      const prereqCounts = new Map<string, number>();
-      nodesInThisLane.forEach(node => {
-        getNodeNeedsBefore(node, nodes).forEach(fact => {
-          prereqCounts.set(fact, (prereqCounts.get(fact) || 0) + 1);
+      // Build the final list with positions
+      // Each causal band starts at the position of its unlocker and expands vertically
+      let nextAvailablePosition = 0;
+      
+      // First, place nodes in causal bands (aligned with their unlockers)
+      const sortedUnlockers = Array.from(causalBands.keys()).sort((a, b) => {
+        const posA = nodePositions.get(a) ?? 0;
+        const posB = nodePositions.get(b) ?? 0;
+        return posA - posB;
+      });
+      
+      sortedUnlockers.forEach(unlockerId => {
+        const unlockerPosition = nodePositions.get(unlockerId) ?? 0;
+        const unlockedNodes = causalBands.get(unlockerId)!;
+        
+        // Ensure we don't overlap with previous bands
+        const bandStartPosition = Math.max(unlockerPosition, nextAvailablePosition);
+        
+        // Place all unlocked nodes in this band
+        unlockedNodes.forEach((node, index) => {
+          const position = bandStartPosition + index;
+          nodePositions.set(node.id, position);
+          nodesWithPositions.push({ node, verticalPosition: position });
+          nextAvailablePosition = Math.max(nextAvailablePosition, position + 1);
         });
       });
       
-      const topPrereqs = Array.from(prereqCounts.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 2)
-        .map(([fact]) => fact);
-      
-      if (topPrereqs.length === 0) {
-        label = `Lane ${laneIndex}`;
-        description = 'External prerequisites';
-      } else if (topPrereqs.length === 1) {
-        label = `Needs: ${topPrereqs[0]}`;
-        description = `Requires ${topPrereqs[0]} to be captured`;
-      } else {
-        label = `Needs: ${topPrereqs.join(', ')}`;
-        description = `Requires multiple facts`;
-      }
+      // Then place orphan nodes at the end
+      orphanNodes.forEach(node => {
+        nodePositions.set(node.id, nextAvailablePosition);
+        nodesWithPositions.push({ node, verticalPosition: nextAvailablePosition });
+        nextAvailablePosition++;
+      });
+    }
+    
+    const nodesInThisLane = nodesWithPositions;
+    
+    // Determine lane label - purely structural, no dependency semantics
+    let label: string;
+    let description: string;
+    
+    if (depth === 0) {
+      label = 'Initially Available';
+      description = 'No prerequisites';
+    } else {
+      label = 'Next';
+      description = 'Unlocked by previous capabilities';
     }
     
     lanes.push({
@@ -158,10 +147,8 @@ export function computeDerivedLanes(nodes: FlowNode[]): DerivedLane[] {
       label,
       description,
       nodes: nodesInThisLane,
-      hasExternalPrereqs,
+      hasExternalPrereqs: false,
     });
-    
-    laneIndex++;
   }
   
   return lanes;
@@ -172,7 +159,7 @@ export function computeDerivedLanes(nodes: FlowNode[]): DerivedLane[] {
  */
 export function computeNodeLane(node: FlowNode, allNodes: FlowNode[]): number {
   const lanes = computeDerivedLanes(allNodes);
-  const lane = lanes.find(l => l.nodes.some(n => n.id === node.id));
+  const lane = lanes.find(l => l.nodes.some(np => np.node.id === node.id));
   return lane?.index ?? lanes.length;
 }
 

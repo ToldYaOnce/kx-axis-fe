@@ -15,12 +15,12 @@ export const OverviewInspector: React.FC = () => {
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Typography variant="h6" sx={{ fontWeight: 500, mb: 3, color: 'text.primary' }}>
-        Conversation Flow Overview
+        Requirement Tree Overview
       </Typography>
 
       {/* Editable Name */}
       <TextField
-        label="Flow Name"
+        label="Capability Name"
         value={flow.name}
         onChange={(e) => updateFlow({ name: e.target.value })}
         fullWidth
@@ -47,7 +47,7 @@ export const OverviewInspector: React.FC = () => {
           '& .MuiInputBase-input': { color: 'text.primary' },
           '& .MuiFormHelperText-root': { color: 'text.disabled' },
         }}
-        helperText="A brief description of what these decision constraints do"
+        helperText="What becomes possible with this requirement tree"
       />
 
       {/* Industry Selector */}
@@ -64,7 +64,7 @@ export const OverviewInspector: React.FC = () => {
           '& .MuiInputBase-input': { color: 'text.primary' },
           '& .MuiFormHelperText-root': { color: 'text.disabled' },
         }}
-        helperText="Available conversation items will adjust based on industry"
+        helperText="Available capabilities will adjust based on industry"
       >
         {INDUSTRIES.map((industry) => (
           <MenuItem key={industry} value={industry}>
@@ -79,7 +79,7 @@ export const OverviewInspector: React.FC = () => {
       <Paper sx={{ p: 2, mb: 3, backgroundColor: 'action.hover' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Total Nodes
+            Total Capabilities
           </Typography>
           <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
             {flow.nodes.length}
@@ -87,7 +87,7 @@ export const OverviewInspector: React.FC = () => {
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Data Capture Nodes
+            Information Capture
           </Typography>
           <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
             {flow.nodes.filter(n => ['BASELINE_CAPTURE', 'GOAL_DEFINITION', 'DEADLINE_CAPTURE'].includes(n.type)).length}
@@ -95,7 +95,7 @@ export const OverviewInspector: React.FC = () => {
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Conversation Nodes
+            Conversation
           </Typography>
           <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
             {flow.nodes.filter(n => ['EXPLANATION', 'REFLECTIVE_QUESTION'].includes(n.type)).length}
@@ -105,9 +105,9 @@ export const OverviewInspector: React.FC = () => {
 
       <Divider sx={{ my: 3 }} />
 
-      {/* Node Types */}
+      {/* Capability Types */}
       <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: 'text.primary' }}>
-        Node Types
+        Capability Types
       </Typography>
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
@@ -121,7 +121,7 @@ export const OverviewInspector: React.FC = () => {
         ))}
         {Object.keys(nodesByKind).length === 0 && (
           <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-            No nodes yet
+            No capabilities yet
           </Typography>
         )}
       </Box>
