@@ -22,7 +22,6 @@ import {
   ToggleButtonGroup,
   ToggleButton,
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PublishIcon from '@mui/icons-material/Publish';
@@ -230,7 +229,11 @@ export const FlowsList: React.FC<FlowsListProps> = ({ onOpenFlow, onCreateNew })
               {filteredFlows.map((flow) => (
                 <TableRow
                   key={flow.flowId}
-                  sx={{ '&:hover': { bgcolor: 'action.hover' } }}
+                  onClick={() => onOpenFlow(flow.flowId)}
+                  sx={{ 
+                    '&:hover': { bgcolor: 'action.hover' },
+                    cursor: 'pointer'
+                  }}
                 >
                   <TableCell>
                     <Typography variant="body1" fontWeight="medium">
@@ -261,20 +264,14 @@ export const FlowsList: React.FC<FlowsListProps> = ({ onOpenFlow, onCreateNew })
                   </TableCell>
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
-                      {/* Open Draft */}
-                      <IconButton
-                        size="small"
-                        onClick={() => onOpenFlow(flow.flowId)}
-                        title="Edit Draft"
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-
                       {/* Open Published (if exists) */}
                       {flow.latestPublishedVersionId && (
                         <IconButton
                           size="small"
-                          onClick={() => onOpenFlow(flow.flowId, flow.latestPublishedVersionId!)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenFlow(flow.flowId, flow.latestPublishedVersionId!);
+                          }}
                           title="View Published Version"
                         >
                           <VisibilityIcon fontSize="small" />
@@ -284,7 +281,10 @@ export const FlowsList: React.FC<FlowsListProps> = ({ onOpenFlow, onCreateNew })
                       {/* Duplicate */}
                       <IconButton
                         size="small"
-                        onClick={() => console.log('Duplicate:', flow.flowId)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          console.log('Duplicate:', flow.flowId);
+                        }}
                         title="Duplicate"
                         disabled
                       >
@@ -295,7 +295,10 @@ export const FlowsList: React.FC<FlowsListProps> = ({ onOpenFlow, onCreateNew })
                       {flow.status === 'DRAFT' ? (
                         <IconButton
                           size="small"
-                          onClick={() => console.log('Publish:', flow.flowId)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            console.log('Publish:', flow.flowId);
+                          }}
                           title="Publish"
                           disabled
                         >
@@ -304,7 +307,10 @@ export const FlowsList: React.FC<FlowsListProps> = ({ onOpenFlow, onCreateNew })
                       ) : (
                         <IconButton
                           size="small"
-                          onClick={() => console.log('Unpublish:', flow.flowId)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            console.log('Unpublish:', flow.flowId);
+                          }}
                           title="Unpublish"
                           disabled
                         >
@@ -315,7 +321,10 @@ export const FlowsList: React.FC<FlowsListProps> = ({ onOpenFlow, onCreateNew })
                       {/* Delete */}
                       <IconButton
                         size="small"
-                        onClick={() => handleDeleteClick(flow)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(flow);
+                        }}
                         title="Delete"
                         color="error"
                       >

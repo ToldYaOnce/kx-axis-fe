@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Box, CssBaseline, ThemeProvider, Drawer, Paper, Typography } from '@mui/material';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, pointerWithin, rectIntersection } from '@dnd-kit/core';
-import { FlowProvider } from '../context/FlowContext';
+import { FlowProvider, useFlow } from '../context/FlowContext';
 import { FlowDataProvider } from '../context/FlowDataContext';
 import { TopBar } from './TopBar';
 import { Canvas, type CanvasHandle } from './Canvas/Canvas';
@@ -10,6 +10,18 @@ import { SimulatePanel } from './Simulate/SimulatePanel';
 import { ConversationItemsPalette } from './ConversationItems/ConversationItemsPalette';
 import type { KxAxisComposerProps, ConversationFlow } from '../types';
 import { defaultLightTheme } from '../theme';
+
+// Conditional Inspector - only shows when node is selected
+const ConditionalInspector: React.FC = () => {
+  const { selection } = useFlow();
+  
+  // Only render Inspector when a node is selected
+  if (selection.type !== 'node' || !selection.id) {
+    return null;
+  }
+  
+  return <Inspector />;
+};
 
 export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
   initialConfig,
@@ -176,8 +188,8 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
               {/* Canvas Area (Center) */}
               <Canvas ref={canvasRef} />
 
-              {/* Inspector Panel (Right) */}
-              <Inspector />
+              {/* Inspector Panel (Right) - only shows when node selected */}
+              <ConditionalInspector />
             </Box>
 
           {/* Simulate Panel (Right Drawer) */}

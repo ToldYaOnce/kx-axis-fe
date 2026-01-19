@@ -19,6 +19,10 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
   const theme = useTheme();
   const [snackbar, setSnackbar] = useState<{ message: string; severity: 'success' | 'warning' | 'error' } | null>(null);
   const [debugMode, setDebugMode] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
+  const [canvasElement, setCanvasElement] = useState<HTMLDivElement | null>(null);
+  const [showPanHint, setShowPanHint] = useState(false);
 
   // Make entire canvas a drop zone
   const { setNodeRef: setCanvasDropRef, isOver: isCanvasOver } = useDroppable({
@@ -54,8 +58,142 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
   };
 
   const handleCanvasClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
+    // Check if click was on canvas background or non-interactive elements
+    const target = e.target as HTMLElement;
+    
+    // Deselect if clicking on:
+    // 1. Canvas itself (e.target === e.currentTarget)
+    // 2. Grid content containers
+    // 3. Lane headers or background elements
+    // But NOT on:
+    // - Node cards (they have their own onClick)
+    // - Drop zones
+    // - Interactive elements
+    
+    const isClickOnBackground = 
+      e.target === e.currentTarget || 
+      target.classList.contains('grid-content') ||
+      target.classList.contains('lane-header') ||
+      !target.closest('[role="button"], button, [data-node-card]');
+    
+    if (isClickOnBackground) {
       setSelection({ type: 'overview' });
+    }
+  };
+
+  // Space + Drag panning
+  const [spacePressed, setSpacePressed] = React.useState(false);
+
+  // Check for overflow and show hint if needed
+  React.useEffect(() => {
+    if (!canvasElement) return;
+
+    const checkOverflow = () => {
+      const hasHorizontalOverflow = canvasElement.scrollWidth > canvasElement.clientWidth;
+
+      // Show hint if:
+      // 1. Canvas overflows
+      // 2. User hasn't panned before
+      const hasPanned = localStorage.getItem('kxaxis-has-panned') === 'true';
+      if (hasHorizontalOverflow && !hasPanned) {
+        setShowPanHint(true);
+      }
+    };
+
+    checkOverflow();
+    
+    // Re-check on resize
+    const resizeObserver = new ResizeObserver(checkOverflow);
+    resizeObserver.observe(canvasElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [canvasElement]);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't activate space-pan if user is typing in an input/textarea
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      // Don't activate if any editable element has focus
+      if (document.activeElement?.tagName === 'INPUT' || 
+          document.activeElement?.tagName === 'TEXTAREA' ||
+          (document.activeElement as HTMLElement)?.isContentEditable) {
+        return;
+      }
+
+      if (e.code === 'Space' && !e.repeat && !isPanning) {
+        e.preventDefault();
+        setSpacePressed(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setSpacePressed(false);
+        setIsPanning(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [isPanning]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (spacePressed && canvasElement) {
+      setIsPanning(true);
+      setPanStart({ 
+        x: e.clientX, 
+        y: e.clientY,
+        scrollLeft: canvasElement.scrollLeft,
+        scrollTop: canvasElement.scrollTop,
+      });
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isPanning && canvasElement && spacePressed) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const dx = e.clientX - panStart.x;
+      const dy = e.clientY - panStart.y;
+      
+      // Pan opposite to mouse movement (drag right = see content on left)
+      canvasElement.scrollLeft = panStart.scrollLeft - dx;
+      canvasElement.scrollTop = panStart.scrollTop - dy;
+
+      // Mark as panned and hide hint on first successful pan
+      if ((Math.abs(dx) > 5 || Math.abs(dy) > 5) && showPanHint) {
+        localStorage.setItem('kxaxis-has-panned', 'true');
+        setShowPanHint(false);
+      }
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (isPanning) {
+      setIsPanning(false);
+    }
+  };
+
+  // Shift + Mouse Wheel for horizontal scroll
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.shiftKey && canvasElement) {
+      e.preventDefault();
+      canvasElement.scrollLeft += e.deltaY;
     }
   };
 
@@ -248,22 +386,121 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
     handleDragEnd,
   }), [handleDragEnd]);
 
+  // Merge refs for droppable and panning
+  const setRefs = React.useCallback((node: HTMLDivElement | null) => {
+    setCanvasElement(node);
+    setCanvasDropRef(node);
+  }, [setCanvasDropRef]);
+
   return (
       <Box
-        ref={setCanvasDropRef}
+        ref={setRefs}
         onClick={handleCanvasClick}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
+        onKeyDown={(e) => {
+          // Prevent spacebar from scrolling the canvas
+          if (e.code === 'Space') {
+            e.preventDefault();
+          }
+        }}
+        tabIndex={0} // Make focusable so it can receive keyboard events
         sx={{
           flex: 1,
           position: 'relative',
           backgroundColor: isCanvasOver ? alpha(theme.palette.primary.main, 0.05) : 'background.default',
-          overflow: 'auto',
+          overflow: 'auto', // Enable native scrollbars
           backgroundImage: `
             radial-gradient(circle, ${alpha('#FFFFFF', 0.08)} 1px, transparent 1px)
           `,
           backgroundSize: '20px 20px',
-          transition: 'background-color 0.2s',
+          transition: 'background-color 0.2s, cursor 0.15s',
+          cursor: isPanning ? 'grabbing' : (spacePressed ? 'grab' : 'default'),
+          userSelect: isPanning ? 'none' : 'auto',
+          '&:focus': {
+            outline: 'none', // Remove focus outline
+          },
         }}
       >
+        {/* Subtle Pan Hint (Discoverability) */}
+        {showPanHint && (
+          <Box
+            sx={{
+              position: 'fixed',
+              top: 240, // Below the top bar
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 1000, // High z-index to stay above everything
+              px: 2,
+              py: 1,
+              borderRadius: 1,
+              backgroundColor: alpha(theme.palette.background.paper, 0.9),
+              backdropFilter: 'blur(8px)',
+              border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+              opacity: 0.7,
+              pointerEvents: 'none', // Don't block clicks
+              animation: 'fadeIn 0.3s ease-out',
+              '@keyframes fadeIn': {
+                from: { opacity: 0, transform: 'translateX(-50%) translateY(-8px)' },
+                to: { opacity: 0.7, transform: 'translateX(-50%) translateY(0)' },
+              },
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: '0.75rem',
+                color: 'text.secondary',
+                fontWeight: 500,
+                letterSpacing: 0.3,
+              }}
+            >
+              Hold <Box component="kbd" sx={{ 
+                px: 0.75, 
+                py: 0.25, 
+                borderRadius: 0.5, 
+                backgroundColor: alpha('#000', 0.1),
+                fontFamily: 'monospace',
+                fontSize: '0.7rem',
+              }}>Space</Box> to Pan
+            </Typography>
+          </Box>
+        )}
+
+        {/* Active Panning Indicator */}
+        {isPanning && (
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: 24,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 100,
+              px: 2,
+              py: 0.75,
+              borderRadius: 2,
+              backgroundColor: alpha(theme.palette.primary.main, 0.9),
+              backdropFilter: 'blur(8px)',
+              boxShadow: `0 4px 12px ${alpha('#000', 0.2)}`,
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: '0.7rem',
+                color: '#fff',
+                fontWeight: 600,
+                letterSpacing: 0.5,
+                textTransform: 'uppercase',
+              }}
+            >
+              Panning
+            </Typography>
+          </Box>
+        )}
          {/* Lane Dividers - Clear Vertical Boundaries */}
          <Box
            sx={{

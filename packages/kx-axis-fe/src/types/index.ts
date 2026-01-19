@@ -267,6 +267,9 @@ export interface ConversationFlow {
   // Active goal lenses in this flow
   activeGoalLenses: ActiveGoalLens[];
   
+  // UI-level primary goal marker (editorial, non-structural)
+  primaryGoalNodeId?: string;
+  
   // Execution metadata (for deterministic controller)
   entryNodeIds?: string[];
   primaryGoal?: {

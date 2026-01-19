@@ -14,12 +14,23 @@ import {
   AccordionDetails,
   FormControlLabel,
   Switch,
+  Chip,
+  alpha,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import StarIcon from '@mui/icons-material/Star';
 import { useFlow } from '../../context/FlowContext';
 import type { FlowNode, NodeKind } from '../../types';
 import { ChipListEditor } from '../shared/ChipListEditor';
+
+// Utility: Convert snake_case to Title Case for display
+const toTitleCase = (str: string): string => {
+  return str
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
 
 interface SimplifiedNodeInspectorProps {
   nodeId: string;
@@ -57,19 +68,33 @@ const LANE_LABELS: Record<string, string> = {
 };
 
 export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = ({ nodeId }) => {
-  const { flow, updateNode, removeNode } = useFlow();
+  const { flow, updateNode, removeNode, setPrimaryGoalNode } = useFlow();
   const node = flow.nodes.find((n) => n.id === nodeId);
 
   if (!node) return null;
+
+  const isPrimaryGoal = flow.primaryGoalNodeId === nodeId;
 
   const handleUpdate = (updates: Partial<FlowNode>) => {
     updateNode(nodeId, updates);
   };
 
-  // Helper to get user-friendly display label for node IDs
-  const getNodeDisplayLabel = (nodeId: string): string => {
-    const foundNode = flow.nodes.find((n) => n.id === nodeId);
-    return foundNode?.title || nodeId; // Fallback to ID if node not found
+  const handleTogglePrimaryGoal = (checked: boolean) => {
+    setPrimaryGoalNode(checked ? nodeId : null);
+  };
+
+  // Helper to get user-friendly display label for node IDs or fact names
+  const getNodeDisplayLabel = (value: string): string => {
+    // Try to find a node with this ID
+    const foundNode = flow.nodes.find((n) => n.id === value);
+    if (foundNode) return foundNode.title;
+    
+    // Try to find a node that produces this fact
+    const producerNode = flow.nodes.find((n) => n.produces && n.produces.includes(value));
+    if (producerNode) return `${toTitleCase(value)} (from ${producerNode.title})`;
+    
+    // Fallback: display as Title Case (it's likely a fact name)
+    return toTitleCase(value);
   };
 
   // Prerequisites management
@@ -211,6 +236,38 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
           size="small"
           helperText="A brief note to help you remember what this does"
         />
+
+        <Box sx={{ mt: 2 }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={isPrimaryGoal}
+                onChange={(e) => handleTogglePrimaryGoal(e.target.checked)}
+                sx={{
+                  '& .MuiSwitch-switchBase.Mui-checked': {
+                    color: '#FFD700',
+                  },
+                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                    backgroundColor: '#FFD700',
+                  },
+                }}
+              />
+            }
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <StarIcon sx={{ fontSize: '1rem', color: isPrimaryGoal ? '#FFD700' : 'text.secondary' }} />
+                <Typography variant="body2" sx={{ fontWeight: isPrimaryGoal ? 600 : 400 }}>
+                  Set as Primary Goal
+                </Typography>
+              </Box>
+            }
+          />
+          {isPrimaryGoal && (
+            <Typography variant="caption" sx={{ display: 'block', ml: 4.5, mt: 0.5, color: 'text.secondary' }}>
+              This conversation is optimized for this outcome
+            </Typography>
+          )}
+        </Box>
       </Box>
 
       <Divider sx={{ my: 2, borderColor: 'divider', opacity: 0.3 }} />
@@ -252,6 +309,7 @@ export const SimplifiedNodeInspector: React.FC<SimplifiedNodeInspectorProps> = (
           placeholder="e.g., email, booking_date"
           suggestions={producesSuggestions}
           allowCustom={true}
+          getDisplayLabel={toTitleCase}
           emptyText="No data captured"
         />
 

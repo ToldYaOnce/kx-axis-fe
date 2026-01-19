@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Paper, IconButton, alpha } from '@mui/material';
+import { Box, Typography, Paper, IconButton, alpha, Tooltip, Chip } from '@mui/material';
 import DataObjectIcon from '@mui/icons-material/DataObject';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
@@ -8,11 +8,21 @@ import HandshakeIcon from '@mui/icons-material/Handshake';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import CloseIcon from '@mui/icons-material/Close';
+import StarIcon from '@mui/icons-material/Star';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import type { FlowNode, NodeKind } from '../../types';
 import { useFlow } from '../../context/FlowContext';
 import { ChipListEditor } from '../shared/ChipListEditor';
+
+// Utility: Convert snake_case to Title Case for display
+const toTitleCase = (str: string): string => {
+  return str
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
 
 interface NodeCardProps {
   node: FlowNode;
@@ -45,11 +55,18 @@ const NODE_COLORS: Record<NodeKind, string> = {
 };
 
 export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, isDraggable = false, isLastInLane = false }) => {
-  const { updateNode, removeNode, flow } = useFlow();
+  const { updateNode, removeNode, flow, setPrimaryGoalNode } = useFlow();
+
+  const isPrimaryGoal = flow.primaryGoalNodeId === node.id;
 
   const handleDelete = (event: React.MouseEvent) => {
     event.stopPropagation();
     removeNode(node.id);
+  };
+
+  const handleTogglePrimaryGoal = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setPrimaryGoalNode(isPrimaryGoal ? null : node.id);
   };
 
 
@@ -138,6 +155,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
       <Paper
         ref={setNodeRef}
         onClick={onClick}
+        data-node-card="true"
         elevation={isSelected ? 8 : isDragging ? 12 : 1}
         sx={{
           flex: 1,
@@ -146,44 +164,47 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
           flexDirection: 'column',
           p: 2,
           boxSizing: 'border-box',
-          cursor: isDraggable ? 'grab' : 'pointer',
+          cursor: 'pointer',
           transition: isDragging ? 'none' : 'all 0.2s ease',
-          border: isSelected ? '2px solid' : '1px solid',
-          borderColor: isSelected ? NODE_COLORS[node.type] : 'divider',
+          border: isSelected ? '2px solid' : isPrimaryGoal ? '2px solid' : '1px solid',
+          borderColor: isSelected ? NODE_COLORS[node.type] : isPrimaryGoal ? '#FFD700' : 'divider',
+          boxShadow: isPrimaryGoal ? `0 0 12px ${alpha('#FFD700', 0.3)}` : undefined,
           '&:hover': {
             elevation: 4,
             borderColor: NODE_COLORS[node.type],
           },
-          backgroundColor: 'background.paper',
+          backgroundColor: isPrimaryGoal ? alpha('#FFD700', 0.03) : 'background.paper',
           opacity: isDragging ? 0.5 : 1,
           userSelect: 'none',
           WebkitUserSelect: 'none',
           MozUserSelect: 'none',
           msUserSelect: 'none',
-          '&:active': {
-            cursor: isDraggable ? 'grabbing' : 'pointer',
-          },
           ...style,
         }}
         {...attributes}
-        {...listeners}
       >
       {/* Header with icon and drag handle */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
         {isDraggable && (
-          <DragIndicatorIcon 
-            sx={{ 
-              fontSize: '1.2rem', 
-              color: 'text.secondary',
-              cursor: 'grab',
-              '&:hover': {
-                color: 'primary.main',
-              },
-              '&:active': {
-                cursor: 'grabbing',
-              },
-            }} 
-          />
+          <Box
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+            sx={{ display: 'flex', alignItems: 'center' }}
+          >
+            <DragIndicatorIcon 
+              sx={{ 
+                fontSize: '1.2rem', 
+                color: 'text.secondary',
+                cursor: 'grab',
+                '&:hover': {
+                  color: 'primary.main',
+                },
+                '&:active': {
+                  cursor: 'grabbing',
+                },
+              }} 
+            />
+          </Box>
         )}
         <Box sx={{ color: NODE_COLORS[node.type] }}>{NODE_ICONS[node.type]}</Box>
         <Typography
@@ -199,6 +220,23 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         >
           {node.type.replace('_', ' ')}
         </Typography>
+        <Tooltip title={isPrimaryGoal ? "Primary Goal" : "Set as Primary Goal"}>
+          <IconButton
+            size="small"
+            onClick={handleTogglePrimaryGoal}
+            onPointerDown={(e) => e.stopPropagation()} // Prevent drag from interfering
+            sx={{
+              p: 0.5,
+              color: isPrimaryGoal ? '#FFD700' : 'text.secondary',
+              '&:hover': {
+                color: isPrimaryGoal ? '#FFA500' : '#FFD700',
+                backgroundColor: alpha('#FFD700', 0.1),
+              },
+            }}
+          >
+            {isPrimaryGoal ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
+          </IconButton>
+        </Tooltip>
         <IconButton
           size="small"
           onClick={handleDelete}
@@ -217,17 +255,38 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
       </Box>
 
       {/* Title */}
-      <Typography
-        variant="body1"
-        sx={{
-          fontWeight: 500,
-          mb: 0.5,
-          color: 'text.primary',
-          lineHeight: 1.3,
-        }}
-      >
-        {node.title}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+        <Typography
+          variant="body1"
+          sx={{
+            fontWeight: 500,
+            color: 'text.primary',
+            lineHeight: 1.3,
+          }}
+        >
+          {node.title}
+        </Typography>
+        {isPrimaryGoal && (
+          <Chip
+            label="PRIMARY GOAL"
+            size="small"
+            icon={<StarIcon />}
+            sx={{
+              height: 20,
+              fontSize: '0.65rem',
+              fontWeight: 600,
+              backgroundColor: alpha('#FFD700', 0.15),
+              color: '#B8860B',
+              borderColor: '#FFD700',
+              border: '1px solid',
+              '& .MuiChip-icon': {
+                color: '#FFD700',
+                fontSize: '0.9rem',
+              },
+            }}
+          />
+        )}
+      </Box>
 
       {/* "Unlocked by" subtitle - shows human-readable prerequisites */}
       {node.requires && node.requires.length > 0 && (
@@ -245,7 +304,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
             const producer = flow.nodes.find(n => 
               (n.produces && n.produces.includes(req)) || n.id === req
             );
-            const displayName = producer ? producer.title : req;
+            const displayName = producer ? producer.title : toTitleCase(req);
             return idx === 0 ? displayName : `, ${displayName}`;
           }).join('')}
         </Typography>
@@ -257,6 +316,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
         values={node.produces || []}
         onAdd={handleAddProduced}
         onRemove={handleRemoveProduced}
+        getDisplayLabel={toTitleCase}
         placeholder="e.g., email, booking_date"
         suggestions={producesSuggestions}
         allowCustom={true}

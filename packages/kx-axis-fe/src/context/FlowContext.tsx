@@ -19,6 +19,7 @@ interface FlowContextValue {
   addGoalLens: (lens: ActiveGoalLens) => void;
   removeGoalLens: (lensId: string) => void;
   setSelection: (selection: Selection) => void;
+  setPrimaryGoalNode: (nodeId: string | null) => void;
   onChange?: (flow: ConversationFlow) => void;
 }
 
@@ -163,6 +164,20 @@ export const FlowProvider: React.FC<FlowProviderProps> = ({
     [notifyChange]
   );
 
+  const setPrimaryGoalNode = useCallback(
+    (nodeId: string | null) => {
+      setFlow((prev) => {
+        const updated = {
+          ...prev,
+          primaryGoalNodeId: nodeId || undefined,
+        };
+        notifyChange(updated);
+        return updated;
+      });
+    },
+    [notifyChange]
+  );
+
   const value: FlowContextValue = {
     flow,
     registry,
@@ -175,6 +190,7 @@ export const FlowProvider: React.FC<FlowProviderProps> = ({
     addGoalLens,
     removeGoalLens,
     setSelection,
+    setPrimaryGoalNode,
     onChange,
   };
 

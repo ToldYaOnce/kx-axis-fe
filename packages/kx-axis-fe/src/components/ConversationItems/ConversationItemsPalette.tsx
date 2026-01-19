@@ -515,8 +515,13 @@ export const ConversationItemsPalette: React.FC = () => {
       newNode.produces = ['contact_email', 'contact_phone'];
     }
 
-    // Add default config for booking
-    if (item.type === 'ACTION_BOOKING') {
+    // Add default config for cancel appointment (special case)
+    if (item.id === 'cancel-appointment') {
+      newNode.produces = ['appointment_cancelled', 'cancellation_reason'];
+      // Cancel appointment does not satisfy BOOKING gate
+    }
+    // Add default config for booking (general ACTION_BOOKING nodes)
+    else if (item.type === 'ACTION_BOOKING') {
       // No default requires - let user add dependencies via drag/drop
       newNode.satisfies = {
         gates: ['BOOKING'],

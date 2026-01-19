@@ -54,6 +54,13 @@
       "icon": "calendar"
     },
     {
+      "id": "cancel-appointment",
+      "type": "ACTION_BOOKING",
+      "title": "Cancel Appointment",
+      "description": "Cancel or reschedule booking",
+      "icon": "calendar"
+    },
+    {
       "id": "send-promo",
       "type": "EXPLANATION",
       "title": "Send Promo",
