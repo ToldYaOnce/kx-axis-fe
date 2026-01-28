@@ -88,6 +88,22 @@ function buildTree(nodes: SimulationNode[]): TreeNode[] {
       const parent = nodeMap.get(node.parentNodeId);
       if (parent) {
         parent.children.push(treeNode);
+        
+        // Debug: Log when adding siblings of same type
+        const siblingsOfSameType = parent.children.filter(c => 
+          (c.userMessage !== undefined) === (treeNode.userMessage !== undefined)
+        );
+        if (siblingsOfSameType.length > 1) {
+          console.log('👥 SIBLINGS DETECTED:', {
+            parentId: node.parentNodeId,
+            parentMessage: (parent.userMessage || parent.agentMessage || '').substring(0, 50),
+            newChildId: node.nodeId,
+            newChildMessage: (node.userMessage || node.agentMessage || '').substring(0, 50),
+            type: node.userMessage ? 'USER' : 'AGENT',
+            totalSiblingsOfType: siblingsOfSameType.length,
+            allSiblingIds: siblingsOfSameType.map(s => s.nodeId),
+          });
+        }
       } else {
         // Orphaned node (parent not found) - treat as root
         console.warn(`Node ${node.nodeId} has parentNodeId ${node.parentNodeId} but parent not found`);
@@ -111,10 +127,32 @@ function buildTree(nodes: SimulationNode[]): TreeNode[] {
 // ========================================
 
 /**
- * Check if a node is a divergence point (has multiple children)
+ * Check if a node is a divergence point (has multiple children OF THE SAME TYPE)
+ * 
+ * A fork only occurs when multiple children of the SAME type exist:
+ * - Multiple USER responses to same AGENT = fork
+ * - Multiple AGENT responses to same USER = fork (rare)
+ * - User → Agent → User → Agent = linear (no fork)
  */
 const isDivergence = (node: TreeNode): boolean => {
-  return node.children.length > 1;
+  // Group children by type
+  const userChildren = node.children.filter(c => c.userMessage !== undefined);
+  const agentChildren = node.children.filter(c => c.agentMessage !== undefined);
+  
+  // Debug logging for fork detection
+  if (userChildren.length > 1 || agentChildren.length > 1) {
+    console.log('🔀 FORK DETECTED at node:', {
+      nodeId: node.nodeId,
+      message: node.userMessage || node.agentMessage,
+      userChildren: userChildren.length,
+      agentChildren: agentChildren.length,
+      userChildrenIds: userChildren.map(c => c.nodeId),
+      agentChildrenIds: agentChildren.map(c => c.nodeId),
+    });
+  }
+  
+  // Divergence exists if multiple children of SAME type exist
+  return userChildren.length > 1 || agentChildren.length > 1;
 };
 
 /**
@@ -245,37 +283,59 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
   return (
     <Paper
       onClick={onSelect}
+      elevation={0}
       sx={{
         p: 1.25,
         mb: 0.75,
         cursor: 'pointer',
-        border: '1px solid',
-        borderColor: isSelected ? 'primary.main' : 'divider',
-        backgroundColor: isSelected 
-          ? (hasUserMessage ? 'rgba(100, 116, 139, 0.15)' : 'primary.lighter') 
-          : 'background.paper',
+        border: isSelected ? '2px solid' : '1px solid',
+        borderColor: isSelected 
+          ? 'secondary.main' 
+          : 'rgba(255, 255, 255, 0.05)',  // Very subtle border
+        backgroundColor: isSelected
+          ? (hasUserMessage 
+              ? 'rgba(37, 99, 235, 0.2)'  // 20% blue tint when selected (user)
+              : 'rgba(51, 65, 85, 0.4)')  // 40% slate tint when selected (agent)
+          : (hasUserMessage 
+              ? 'rgba(37, 99, 235, 0.1)'  // 10% blue tint (user)
+              : 'rgba(51, 65, 85, 0.15)'),  // 15% slate tint (agent)
+        borderRadius: 1,
+        borderLeft: '3px solid',
+        borderLeftColor: hasUserMessage ? 'primary.main' : 'secondary.main',  // Color-coded left accent
+        transition: 'all 0.15s ease',
         '&:hover': {
-          borderColor: hasUserMessage ? 'secondary.main' : 'primary.main',
-          backgroundColor: isSelected 
-            ? (hasUserMessage ? 'rgba(100, 116, 139, 0.2)' : 'primary.lighter')
-            : (hasUserMessage ? 'rgba(100, 116, 139, 0.1)' : 'action.hover'),
+          borderColor: isSelected ? 'secondary.main' : 'rgba(34, 211, 238, 0.3)',
+          backgroundColor: hasUserMessage 
+            ? 'rgba(37, 99, 235, 0.15)'  // Slightly darker blue on hover
+            : 'rgba(51, 65, 85, 0.25)',  // Slightly darker slate on hover
         },
         display: 'flex',
         alignItems: 'center',
         gap: 1,
-        // Visual distinction: User = blue-slate border, Agent = cyan border, both with same curved style
-        borderLeft: '3px solid',
-        borderLeftColor: hasUserMessage 
-          ? (isSelected ? 'secondary.main' : 'primary.main') 
-          : 'secondary.main', // Cyan for AI
       }}
     >
-      {/* Icon: User or Agent */}
-      <Box sx={{ flexShrink: 0, color: hasUserMessage ? 'primary.main' : 'secondary.main' }}>
+      {/* Icon: User or Agent - Color-coded for quick scanning */}
+      <Box sx={{ 
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 28,
+        height: 28,
+        borderRadius: '50%',  // Circle for both user and agent
+        backgroundColor: hasUserMessage 
+          ? 'rgba(37, 99, 235, 0.15)'  // Subtle blue glow for user
+          : 'rgba(34, 211, 238, 0.15)',  // Subtle cyan glow for agent
+        border: '1px solid',
+        borderColor: hasUserMessage 
+          ? 'rgba(37, 99, 235, 0.3)'  // Subtle blue border for user
+          : 'rgba(34, 211, 238, 0.3)',  // Subtle cyan border for agent
+        color: hasUserMessage ? 'primary.main' : 'secondary.main',
+      }}>
         {hasUserMessage ? (
           <PersonIcon fontSize="small" />
         ) : (
-          <SmartToyIcon fontSize="small" />
+          <SmartToyIcon fontSize="small" sx={{ fontSize: '1.1rem' }} />  // Slightly larger robot icon
         )}
       </Box>
       
@@ -285,7 +345,7 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
           variant="body2"
           sx={{ 
             fontWeight: hasUserMessage ? 600 : 400,
-            color: hasUserMessage ? 'text.primary' : 'text.secondary',
+            color: 'text.primary',  // Standard text color for readability
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -363,7 +423,48 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
   const prevSelectedNodeIdRef = useRef<string | null>(null);
 
   // Build tree from parent-child relationships (safe to be conditional as it's not a hook)
-  const treeRoots = currentRun ? buildTree(currentRun.nodes) : [];
+  const treeRoots = useMemo(() => {
+    if (!currentRun) return [];
+    
+    // Debug: Log ALL nodes with their parent relationships
+    console.log('📋 All nodes before tree building:');
+    currentRun.nodes.forEach((node, idx) => {
+      console.log(`  [${idx}] ${node.nodeId}:`, {
+        type: node.userMessage ? 'USER' : 'AGENT',
+        parentNodeId: node.parentNodeId,
+        message: (node.userMessage || node.agentMessage || '').substring(0, 30) + '...',
+      });
+    });
+    
+    const roots = buildTree(currentRun.nodes);
+    
+    // Debug: Log tree structure
+    console.log('🌳 ExecutionTree: Tree structure built:', {
+      rootCount: roots.length,
+      totalNodes: currentRun.nodes.length,
+    });
+    
+    // Log divergence points
+    const logDivergences = (node: TreeNode, depth: number) => {
+      if (node.children.length > 1) {
+        console.log(`  ${'  '.repeat(depth)}🔀 DIVERGENCE at ${node.nodeId}:`, {
+          nodeType: node.userMessage ? 'user' : 'agent',
+          childCount: node.children.length,
+          parentNodeId: node.parentNodeId,
+          children: node.children.map(c => ({
+            nodeId: c.nodeId,
+            parentNodeId: c.parentNodeId,
+            type: c.userMessage ? 'user' : 'agent',
+            message: (c.userMessage || c.agentMessage || '').substring(0, 40) + '...',
+          })),
+        });
+      }
+      node.children.forEach(child => logDivergences(child, depth + 1));
+    };
+    roots.forEach(root => logDivergences(root, 0));
+    
+    return roots;
+  }, [currentRun]);
 
   // Build node index for ancestry lookup (MUST be before early return)
   const nodeIndex = useMemo(() => {
@@ -491,11 +592,27 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
     const hasChildren = node.children.length > 0;
     const isUserMessage = node.userMessage !== undefined && node.userMessage !== null;
 
+    // Debug: Log render decision
+    if (node.children.length > 1) {
+      console.log(`🎨 renderNode decision for ${node.nodeId}:`, {
+        nodeId: node.nodeId,
+        message: (node.userMessage || node.agentMessage || '').substring(0, 40),
+        childrenCount: node.children.length,
+        isDiv,
+        willRenderAsDivergence: isDiv,
+      });
+    }
+
     if (isDiv) {
       // DIVERGENCE NODE - ANY node with multiple paths
       // This happens when alternate replies branch from this point
       const divergeKey: CollapseKey = `diverge:${node.nodeId}`;
       const isCollapsed = collapsed.has(divergeKey);
+      
+      console.log(`✨ RENDERING AS DIVERGENCE: ${node.nodeId}`, {
+        collapsed: isCollapsed,
+        childCount: node.children.length,
+      });
       
       return (
         <Box key={node.nodeId} sx={{ ml: depth * 3 }}>
@@ -621,6 +738,14 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
     } else {
       // REGULAR NODE - check for linear run folding
       
+      // Debug: Log non-divergence render
+      if (node.children.length > 0) {
+        console.log(`📄 RENDERING AS REGULAR NODE: ${node.nodeId}`, {
+          message: (node.userMessage || node.agentMessage || '').substring(0, 40),
+          childrenCount: node.children.length,
+        });
+      }
+      
       // Detect linear run starting from this node
       const linearRun = computeLinearRun(node);
       const isLongLinearRun = linearRun.length > LINEAR_FOLD_THRESHOLD;
@@ -730,9 +855,9 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
                 </Box>
               ))}
               
-              {/* Continue after linear run */}
+              {/* Continue after linear run - if last node is a divergence, render it as such */}
               {linearRun[linearRun.length - 1].children.length > 1 && 
-                linearRun[linearRun.length - 1].children.map(child => renderNode(child, depth))}
+                renderNode(linearRun[linearRun.length - 1], depth)}
             </Box>
           );
         }
@@ -761,9 +886,18 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
   };
 
   return (
-    <Box sx={{ width: '100%', borderRight: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'background.paper' }}>
+    <Box sx={{ 
+      width: '100%',
+      height: '100%',  // ✅ Fill parent height
+      borderRight: '1px solid', 
+      borderColor: 'divider', 
+      display: 'flex', 
+      flexDirection: 'column',
+      minHeight: 0,
+      backgroundColor: 'background.paper' 
+    }}>
       {/* Header */}
-      <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+      <Box sx={{ flexShrink: 0, p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
             Execution Tree
@@ -807,21 +941,28 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
       </Box>
 
       {/* Tree */}
-      <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
-        {/* Main branch label */}
-        <Typography 
-          variant="body2" 
-          sx={{ 
-            fontWeight: 700, 
-            mb: 1.5,
-            color: 'text.primary'
-          }}
-        >
-          Main
-        </Typography>
-        
-        {/* Render tree recursively from roots */}
-        {treeRoots.map(root => renderNode(root, 0))}
+      <Box sx={{ 
+        flex: 1, 
+        minHeight: 0, 
+        overflowY: 'auto',
+        overflowX: 'hidden',
+      }}>
+        <Box sx={{ p: 2, pb: 4 }}>
+          {/* Main branch label */}
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              fontWeight: 700, 
+              mb: 1.5,
+              color: 'text.primary'
+            }}
+          >
+            Main
+          </Typography>
+          
+          {/* Render tree recursively from roots */}
+          {treeRoots.map(root => renderNode(root, 0))}
+        </Box>
       </Box>
     </Box>
   );

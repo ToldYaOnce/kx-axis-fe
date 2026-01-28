@@ -113,6 +113,8 @@ export {
   updateNodeForLane,
 } from './utils/laneLogic';
 
+export { generateUUID } from './utils/uuid';
+
 // Flow API hooks
 export { useFlowData } from './hooks/useFlowData';
 export { useDraftSave } from './hooks/useDraftSave';
@@ -122,6 +124,7 @@ export { useVersions } from './hooks/useVersions';
 
 // Flow API client
 export { flowAPI } from './api/flowClient';
+export { personasAPI, type Persona, type PersonaPersonality } from './api/personasClient';
 
 // ========== EXECUTION MODE ==========
 
@@ -160,4 +163,24 @@ export type {
   ForkSimulationRequest,
   ForkSimulationResponse,
 } from './types/simulator';
+
+// ========== ROUTING ==========
+
+// Route components (for React Router integration)
+export {
+  KxAxisRoutes,
+  FlowsListRoute,
+  FlowDesignerRoute,
+  FlowSimulatorRoute,
+} from './routes';
+
+export type {
+  KxAxisRoutesProps,
+  FlowsListRouteProps,
+  FlowDesignerRouteProps,
+  FlowSimulatorRouteProps,
+} from './routes';
+
+// Standalone components (for custom routing)
+export { FlowsList } from './components/FlowsList/FlowsList';
 

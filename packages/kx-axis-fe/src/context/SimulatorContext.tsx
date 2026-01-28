@@ -1,8 +1,10 @@
 /**
  * Simulator Context - State management for Execution Mode
+ * 
+ * Updated to work with new /agent/simulations API
  */
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type {
   SimulationRun,
   SimulationNode,
@@ -10,24 +12,32 @@ import type {
   ScenarioContext,
   KnownFacts,
 } from '../types/simulator';
-import { simulatorAPI } from '../api/simulatorClient';
+import { simulatorAPI, transformFlowNodesForAPI } from '../api/simulatorClient';
 import { mockSimulatorResponses } from '../fixtures/simulatorFixtures';
+import { generateUUID } from '../utils/uuid';
+import type { ConversationFlow } from '../types';
+import { flowAPI } from '../api/flowClient';
 
 interface SimulatorContextType {
   // Current state
   currentRun: SimulationRun | null;
   activeBranchId: string | null;
   selectedNodeId: string | null;
-  alternateReplyAnchorNodeId: string | null; // CRITICAL: Tracks which user message we're creating an alternate reply from
+  alternateReplyAnchorNodeId: string | null;
   useMockData: boolean;
   
+  // NEW: Real API state
+  simulationId: string | null;  // For real API
+  flow: ConversationFlow | null;  // Current flow being simulated
+  isLoadingFlow: boolean;         // Flow loading state
+  
   // Actions
-  startSimulation: (flowId: string, scenario: ScenarioContext, initialFacts?: Partial<KnownFacts>) => Promise<void>;
-  stepSimulation: (userMessage: string) => Promise<void>;
+  createEmptySimulation: (scenario: ScenarioContext) => Promise<void>;  // NEW: POST /agent/simulations
+  stepSimulation: (userMessage: string) => Promise<void>;               // PATCH /agent/simulations/:id
   forkSimulation: (nodeId: string, branchLabel: string) => Promise<void>;
   selectNode: (nodeId: string) => void;
   selectBranch: (branchId: string) => void;
-  setAlternateReplyAnchor: (nodeId: string | null) => void; // NEW: Enter/exit alternate reply mode
+  setAlternateReplyAnchor: (nodeId: string | null) => void;
   setUseMockData: (useMock: boolean) => void;
   reset: () => void;
   
@@ -51,99 +61,486 @@ export const useSimulator = () => {
 
 interface SimulatorProviderProps {
   children: React.ReactNode;
+  flowId?: string;  // Optional: if provided, loads flow automatically
+  simulationId?: string;  // Optional: if provided, loads existing simulation
+  initialSimulationData?: any;  // Optional: simulation data from POST (avoids GET)
+  initialChannel?: string;  // Optional: channel for new simulation
+  initialLeadState?: string;  // Optional: lead state for new simulation
 }
 
-export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({ children }) => {
+export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({ 
+  children, 
+  flowId, 
+  simulationId: initialSimulationId,
+  initialSimulationData,
+  initialChannel = 'SMS',
+  initialLeadState = 'ANONYMOUS',
+}) => {
+  console.log('🎬 SimulatorProvider initialized with:', {
+    flowId,
+    initialSimulationId,
+    hasInitialSimulationData: !!initialSimulationData,
+    initialSimulationData,
+    initialChannel,
+    initialLeadState,
+  });
+  
   const [currentRun, setCurrentRun] = useState<SimulationRun | null>(null);
   const [activeBranchId, setActiveBranchId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  // Clicking a user message icon selects a divergence anchor.
-  // A branch is created only when a different reply is submitted.
   const [alternateReplyAnchorNodeId, setAlternateReplyAnchorNodeId] = useState<string | null>(null);
-  const [useMockData, setUseMockData] = useState<boolean>(true); // Default to mock for demo
-
-  const startSimulation = useCallback(async (
-    flowId: string,
-    scenario: ScenarioContext,
-    initialFacts?: Partial<KnownFacts>
-  ) => {
-    try {
-      // Clear alternate reply mode when starting new simulation
-      setAlternateReplyAnchorNodeId(null);
-      
-      let response;
-      
-      if (useMockData) {
-        // Use mock data
-        const mockData = mockSimulatorResponses[flowId as keyof typeof mockSimulatorResponses];
-        if (!mockData) {
-          throw new Error(`No mock data for flow: ${flowId}`);
-        }
-        response = mockData.start;
-      } else {
-        // Call real API
-        response = await simulatorAPI.startSimulation({
-          flowId,
-          scenarioContext: scenario,
-          initialFacts,
-        });
-      }
-      
-      setCurrentRun(response.run);
-      setActiveBranchId(response.run.branches[0].branchId);
-      if (response.run.nodes.length > 0) {
-        setSelectedNodeId(response.run.nodes[response.run.nodes.length - 1].nodeId);
-      }
-    } catch (error) {
-      console.error('Failed to start simulation:', error);
-      throw error;
+  const [useMockData, setUseMockData] = useState<boolean>(false); // Use real API by default
+  
+  // NEW: Real API state
+  const [simulationId, setSimulationId] = useState<string | null>(initialSimulationId || null);
+  const [flow, setFlow] = useState<ConversationFlow | null>(null);
+  const [isLoadingFlow, setIsLoadingFlow] = useState<boolean>(false);
+  
+  // Load flow when flowId changes
+  useEffect(() => {
+    if (!flowId) {
+      console.log('⚠️ SimulatorProvider: No flowId provided');
+      return;
     }
-  }, [useMockData]);
+    
+    console.log('🔄 SimulatorProvider: Loading flow:', flowId);
+    
+    const loadFlow = async () => {
+      try {
+        setIsLoadingFlow(true);
+        const response = await flowAPI.getFlow(flowId);
+        
+        console.log('✅ SimulatorProvider: Flow loaded:', response.flow.name);
+        
+        if (!response.draft) {
+          console.error('❌ SimulatorProvider: No draft available for flow:', flowId);
+          return;
+        }
+        
+        console.log('📋 SimulatorProvider: Draft loaded with', response.draft.draftGraph.nodes.length, 'nodes');
+        
+        // Convert to ConversationFlow format
+        const conversationFlow: ConversationFlow = {
+          id: response.flow.flowId,
+          name: response.flow.name,
+          description: response.flow.description,
+          industry: response.flow.industry,
+          nodes: response.draft.draftGraph.nodes.map((node) => ({
+            id: node.id,
+            type: node.type as any,
+            title: node.title,
+            requires: node.requires?.facts || [],
+            produces: node.produces?.facts || [],
+          })),
+          activeGoalLenses: [],
+        };
+        
+        setFlow(conversationFlow);
+        console.log('✅ SimulatorProvider: ConversationFlow ready:', conversationFlow.name);
+      } catch (error) {
+        console.error('❌ SimulatorProvider: Failed to load flow:', error);
+      } finally {
+        setIsLoadingFlow(false);
+      }
+    };
+    
+    loadFlow();
+  }, [flowId]);
+  
+  // Simulation loading is now handled in the main useEffect below
+  // Removing this duplicate loading logic
 
   const stepSimulation = useCallback(async (userMessage: string) => {
-    if (!currentRun || !activeBranchId) {
+    console.log('💬 stepSimulation called with:', { 
+      userMessage, 
+      hasCurrentRun: !!currentRun, 
+      activeBranchId, 
+      simulationId,
+      useMockData
+    });
+    
+    if (!currentRun) {
+      console.error('❌ No active simulation');
       throw new Error('No active simulation');
     }
 
-    const latestNode = currentRun.nodes
-      .filter((n) => n.branchId === activeBranchId)
-      .sort((a, b) => b.turnNumber - a.turnNumber)[0];
+    // Find the last AGENT node in the current conversation path
+    // Walk up from selectedNodeId to find the most recent agent response
+    const findLastAgentInPath = (nodes: SimulationNode[], startNodeId: string | null): SimulationNode | null => {
+      if (!startNodeId) {
+        // No selected node, find the absolute latest agent
+        const allAgents = nodes
+          .filter(n => n.agentMessage !== undefined)
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        return allAgents[0] || null;
+      }
+      
+      // Walk up from selected node to find last agent
+      let current = nodes.find(n => n.nodeId === startNodeId);
+      while (current) {
+        if (current.agentMessage !== undefined) {
+          return current;
+        }
+        // Move to parent
+        if (current.parentNodeId) {
+          current = nodes.find(n => n.nodeId === current!.parentNodeId);
+        } else {
+          break;
+        }
+      }
+      
+      // Fallback: find latest agent overall
+      const allAgents = nodes
+        .filter(n => n.agentMessage !== undefined)
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      return allAgents[0] || null;
+    };
+    
+    const latestAgentNode = findLastAgentInPath(currentRun.nodes, selectedNodeId);
+    
+    // Handle first message - no agent exists yet, use root node
+    if (!latestAgentNode) {
+      const rootNode = currentRun.nodes.find(n => n.parentNodeId === null);
+      if (!rootNode) {
+        console.error('❌ No root node found');
+        throw new Error('No root node found');
+      }
+      
+      console.log('📍 First message - using root node as parent:', {
+        nodeId: rootNode.nodeId,
+        explanation: 'No agent nodes exist yet, this is the first user message'
+      });
+      
+      // For the first message, parent is root
+      const firstMessageParentId = rootNode.nodeId;
+      
+      // Continue with API call using root as parent
+      if (!flow) {
+        console.error('❌ No flow loaded');
+        throw new Error('No flow loaded');
+      }
+      
+      // Handle first message - use root node as parent
+      const apiFlowNodes = transformFlowNodesForAPI(flow.nodes);
+      const patchPayload = {
+        userMessage,
+        parentNodeId: firstMessageParentId,
+        flowNodes: apiFlowNodes,
+      };
+      
+      console.log('📤 PATCH payload (first message):', patchPayload);
+      
+      try {
+        const response = await simulatorAPI.stepSimulation(simulationId!, patchPayload);
+        
+        console.log('📡 PATCH response:', response);
+        console.log('📊 tickSignals from API:', response.tickSignals);
+        
+        const { userNode, agentNode, tickSignals } = response;
+        const turnNumber = 1;
+        
+        // Convert API response to our SimulationNode format
+        const newUserNode: SimulationNode = {
+          nodeId: userNode.nodeId,
+          parentNodeId: userNode.parentNodeId,
+          branchId: null,
+          turnNumber,
+          userMessage: userNode.content,
+          knownFactsBefore: {},
+          controllerOutput: {} as any,
+          executionResult: {} as any,
+          knownFactsAfter: {},
+          timestamp: userNode.timestamp,
+          contractVersion: '1.0.0',
+          designVersionHash: 'pending',
+          status: 'VALID',
+          metadata: {
+            tickSignals,
+            intentDetection: userNode.intentDetection,
+          },
+          intentDetection: userNode.intentDetection,
+        };
+        
+        const newAgentNode: SimulationNode = {
+          nodeId: agentNode.nodeId,
+          parentNodeId: agentNode.parentNodeId,
+          branchId: null,
+          turnNumber: turnNumber + 1,
+          agentMessage: agentNode.content,
+          knownFactsBefore: {},
+          controllerOutput: (agentNode as any).metadata?.controllerOutput || {} as any,
+          executionResult: (agentNode as any).metadata?.executionResult || {} as any,
+          knownFactsAfter: {},
+          timestamp: agentNode.timestamp,
+          contractVersion: '1.0.0',
+          designVersionHash: 'pending',
+          status: 'VALID',
+          metadata: {
+            tickSignals,
+            controllerOutput: (agentNode as any).metadata?.controllerOutput,
+            executionResult: (agentNode as any).metadata?.executionResult,
+            sim: (agentNode as any).sim,
+            knownFactsBefore: response.factsCollected?.before || [],
+            knownFactsAfter: response.factsCollected?.after || [],
+          },
+        };
+        
+        const updatedRun = {
+          ...currentRun,
+          nodes: [...currentRun.nodes, newUserNode, newAgentNode],
+          updatedAt: agentNode.timestamp,
+        };
+        
+        setCurrentRun(updatedRun);
+        setSelectedNodeId(agentNode.nodeId);
+        console.log('✅ First message completed successfully');
+        return;
+      } catch (error) {
+        console.error('❌ Failed to send first message:', error);
+        throw error;
+      }
+    }
+    
+    console.log('📍 Latest agent node in current path:', {
+      nodeId: latestAgentNode.nodeId,
+      message: (latestAgentNode.agentMessage || '').substring(0, 50),
+      timestamp: latestAgentNode.timestamp
+    });
 
     try {
-      let response;
-      
       if (useMockData) {
         // Use mock data - simulate a step
         const mockData = mockSimulatorResponses[currentRun.flowId as keyof typeof mockSimulatorResponses];
         if (mockData && mockData.steps.length > 0) {
-          response = mockData.steps[0];
+          const response = mockData.steps[0];
+          
+          // Add new node to current run
+          const updatedRun = {
+            ...currentRun,
+            nodes: [...currentRun.nodes, response.node],
+            updatedAt: new Date().toISOString(),
+          };
+          
+          setCurrentRun(updatedRun);
+          setSelectedNodeId(response.node.nodeId);
         } else {
           throw new Error('No mock step data available');
         }
       } else {
-        // Call real API
-        response = await simulatorAPI.stepSimulation({
-          runId: currentRun.runId,
-          branchId: activeBranchId,
-          parentNodeId: latestNode.nodeId,
+        // Call real API - PATCH /agent/simulations/:simulationId
+        if (!simulationId) {
+          console.error('❌ No simulation ID available');
+          throw new Error('No simulation ID available');
+        }
+        
+        if (!flow) {
+          console.error('❌ No flow loaded');
+          throw new Error('No flow loaded');
+        }
+        
+        const apiFlowNodes = transformFlowNodesForAPI(flow.nodes);
+        
+        // CRITICAL: When forking (alternateReplyAnchorNodeId is set), we need to use the ANCHOR NODE'S PARENT, not the latest node
+        let parentNodeIdForPatch: string;
+        
+        if (alternateReplyAnchorNodeId) {
+          // User is creating an alternate reply to replace the anchor node
+          // So the new message should have the SAME parent as the anchor node
+          const anchorNode = currentRun.nodes.find(n => n.nodeId === alternateReplyAnchorNodeId);
+          if (!anchorNode) {
+            console.error('❌ Anchor node not found:', alternateReplyAnchorNodeId);
+            throw new Error('Anchor node not found');
+          }
+          parentNodeIdForPatch = anchorNode.parentNodeId!;
+          console.log('🔀 FORKING MODE DETECTED:', {
+            anchorNodeId: alternateReplyAnchorNodeId,
+            anchorMessage: anchorNode.userMessage,
+            anchorParentNodeId: anchorNode.parentNodeId,
+            usingParentNodeId: parentNodeIdForPatch,
+            explanation: 'Alternate reply will have the SAME parent as the anchor node'
+          });
+        } else {
+          // Normal mode: new USER message responds to the latest AGENT node
+          parentNodeIdForPatch = latestAgentNode.nodeId;
+          console.log('➡️ NORMAL MODE:', {
+            latestAgentNodeId: latestAgentNode.nodeId,
+            latestAgentMessage: (latestAgentNode.agentMessage || '').substring(0, 50),
+            usingParentNodeId: parentNodeIdForPatch,
+            explanation: 'New USER message responds to latest AGENT in current path'
+          });
+        }
+        
+        const patchPayload = {
           userMessage,
+          parentNodeId: parentNodeIdForPatch,
+          flowNodes: apiFlowNodes,
+        };
+        
+        console.log('📡 Calling PATCH /agent/simulations/:id with:', {
+          simulationId,
+          userMessage,
+          parentNodeId: parentNodeIdForPatch,
+          flowNodesCount: apiFlowNodes.length,
         });
+        console.log('📦 FULL PATCH PAYLOAD:', JSON.stringify(patchPayload, null, 2));
+        
+        const response = await simulatorAPI.stepSimulation(simulationId, patchPayload);
+        
+        console.log('📡 PATCH response:', response);
+        console.log('📊 tickSignals from API:', response.tickSignals);
+        
+        const { userNode, agentNode, tickSignals } = response;
+        const turnNumber = latestAgentNode.turnNumber + 1;
+        
+        // Convert API response to our SimulationNode format
+        const newUserNode: SimulationNode = {
+          nodeId: userNode.nodeId,
+          parentNodeId: userNode.parentNodeId,
+          branchId: null, // No longer using branchId - rely on parentNodeId
+          turnNumber,
+          userMessage: userNode.content,
+          knownFactsBefore: {},
+          controllerOutput: {
+            intent: { primary: userNode.intentDetection.primaryIntent, confidence: 0.85 },
+            affectScalars: { pain: 0, urgency: 0, vulnerability: 0 },
+            signals: {
+              hesitation: userNode.intentDetection.signals.hesitation > 0.5,
+              objection: userNode.intentDetection.signals.objections.length > 0,
+              confusion: userNode.intentDetection.signals.confusion > 0.5,
+              engagement: tickSignals.engagement,
+            },
+            progress: { madeProgress: true, stallDetected: false, stagnationTurns: 0 },
+            stepSufficiency: false,
+            controlFlags: {
+              canAdvance: true,
+              needsExplanation: false,
+              fastTrackEligible: false,
+              humanTakeoverAllowed: false,
+              allowedBlabberModes: ['ACK'],
+            },
+          },
+          executionResult: {
+            executionDecision: 'ADVANCE',
+            reasoning: 'User message received',
+            executionMetadata: {
+              blabberModeUsed: 'ACK',
+              stepSatisfiedThisTurn: false,
+              newlyKnownFacts: [],
+              readinessDelta: [],
+            },
+          },
+          knownFactsAfter: {},
+          timestamp: userNode.timestamp,
+          contractVersion: '1.0.0',
+          designVersionHash: 'pending',
+          status: 'VALID',
+          // Store tickSignals in metadata for ReadinessPanel
+          metadata: {
+            tickSignals,
+            intentDetection: userNode.intentDetection,
+          },
+        };
+        
+        const newAgentNode: SimulationNode = {
+          nodeId: agentNode.nodeId,
+          parentNodeId: agentNode.parentNodeId,
+          branchId: null, // No longer using branchId - rely on parentNodeId
+          turnNumber: turnNumber + 1,
+          agentMessage: agentNode.content,
+          knownFactsBefore: {},
+          controllerOutput: agentNode.metadata?.controllerOutput || {
+            intent: { primary: 'RESPOND', confidence: agentNode.sim.decision.confidence },
+            affectScalars: { pain: 0, urgency: 0, vulnerability: 0 },
+            signals: { hesitation: false, objection: false, confusion: false, engagement: tickSignals.engagement },
+            progress: { madeProgress: true, stallDetected: false, stagnationTurns: 0 },
+            stepSufficiency: true,
+            controlFlags: {
+              canAdvance: true,
+              needsExplanation: false,
+              fastTrackEligible: false,
+              humanTakeoverAllowed: false,
+              recommendedStep: {
+                stepId: agentNode.sim.selectedNodeId,
+                confidence: agentNode.sim.decision.confidence,
+              },
+              allowedBlabberModes: ['ACK'],
+            },
+          },
+          executionResult: agentNode.metadata?.executionResult || {
+            executionDecision: 'ADVANCE',
+            reasoning: `Selected node: ${agentNode.sim.selectedNodeId} (confidence: ${agentNode.sim.decision.confidence})`,
+            agentMessage: agentNode.content,
+            executionMetadata: {
+              blabberModeUsed: 'ACK',
+              stepSatisfiedThisTurn: true,
+              newlyKnownFacts: response.updatedState.knownFacts,
+              readinessDelta: [],
+            },
+          },
+          knownFactsAfter: {},
+          timestamp: agentNode.timestamp,
+          contractVersion: '1.0.0',
+          designVersionHash: 'pending',
+          status: 'VALID',
+          // Store all metadata from API response including tickSignals, controllerOutput, executionResult, sim
+          metadata: {
+            tickSignals,
+            controllerOutput: agentNode.metadata?.controllerOutput,
+            executionResult: agentNode.metadata?.executionResult,
+            sim: agentNode.sim,
+            knownFactsBefore: response.factsCollected?.before || [],
+            knownFactsAfter: response.factsCollected?.after || [],
+          },
+        };
+        
+        // Add both user and agent nodes to run
+        const updatedRun = {
+          ...currentRun,
+          nodes: [...currentRun.nodes, newUserNode, newAgentNode],
+          updatedAt: agentNode.timestamp,
+        };
+        
+        console.log('✅ Updating run with new nodes:', {
+          totalNodes: updatedRun.nodes.length,
+          newUserNodeId: newUserNode.nodeId,
+          newUserNodeParentId: newUserNode.parentNodeId,
+          newAgentNodeId: newAgentNode.nodeId,
+          newAgentNodeParentId: newAgentNode.parentNodeId,
+        });
+        
+        // DEBUG: Check for fork detection
+        const parentNode = updatedRun.nodes.find(n => n.nodeId === newUserNode.parentNodeId);
+        if (parentNode) {
+          const siblings = updatedRun.nodes.filter(n => n.parentNodeId === parentNode.nodeId);
+          if (siblings.length > 1) {
+            console.log('🔀 FORK DETECTED! Parent node has multiple children:', {
+              parentNodeId: parentNode.nodeId,
+              parentMessage: (parentNode.agentMessage || parentNode.userMessage || '').substring(0, 50),
+              siblingCount: siblings.length,
+              siblings: siblings.map(s => ({
+                nodeId: s.nodeId,
+                type: s.userMessage ? 'USER' : 'AGENT',
+                message: (s.userMessage || s.agentMessage || '').substring(0, 50),
+              })),
+            });
+          }
+        }
+        
+        setCurrentRun(updatedRun);
+        setSelectedNodeId(agentNode.nodeId);
+        
+        console.log('✅ stepSimulation completed successfully');
+        
+        // Log gap detection if present
+        if (agentNode.sim.gapRecommendation) {
+          console.warn('⚠️ Gap detected:', agentNode.sim.gapRecommendation);
+        }
       }
-
-      // Add new node to current run
-      const updatedRun = {
-        ...currentRun,
-        nodes: [...currentRun.nodes, response.node],
-        updatedAt: new Date().toISOString(),
-      };
-      
-      setCurrentRun(updatedRun);
-      setSelectedNodeId(response.node.nodeId);
     } catch (error) {
-      console.error('Failed to step simulation:', error);
+      console.error('❌ stepSimulation failed:', error);
       throw error;
     }
-  }, [currentRun, activeBranchId, useMockData]);
+  }, [currentRun, activeBranchId, useMockData, simulationId, flow, alternateReplyAnchorNodeId]);
 
   const forkSimulation = useCallback(async (nodeId: string, branchLabel: string) => {
     if (!currentRun) {
@@ -157,21 +554,22 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({ children }
       if (useMockData) {
         // Mock fork
         newBranch = {
-          branchId: `branch-${Date.now()}`,
+          branchId: generateUUID(),
           parentBranchId: activeBranchId,
           forkFromNodeId: nodeId,
           label: branchLabel,
           createdAt: new Date().toISOString(),
         };
       } else {
-        // Call real API
-        const response = await simulatorAPI.forkSimulation({
-          runId: currentRun.runId,
+        // Real API doesn't support forking yet - fallback to mock behavior
+        console.warn('🚧 Fork simulation not yet supported by real API - using mock behavior');
+        newBranch = {
+          branchId: generateUUID(),
+          parentBranchId: activeBranchId,
           forkFromNodeId: nodeId,
-          newBranchLabel: branchLabel,
-        });
-        newBranch = response.branch;
-        replayedNodes = response.replayedHistory;
+          label: branchLabel,
+          createdAt: new Date().toISOString(),
+        };
       }
 
       const updatedRun = {
@@ -202,7 +600,9 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({ children }
     setCurrentRun(null);
     setActiveBranchId(null);
     setSelectedNodeId(null);
-    setAlternateReplyAnchorNodeId(null); // Clear alternate reply mode
+    setAlternateReplyAnchorNodeId(null);
+    setSimulationId(null);
+    // Don't clear flow - it persists across simulations
   }, []);
 
   // Computed helpers
@@ -224,10 +624,19 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({ children }
   }, [currentRun]);
 
   const getLatestNode = useCallback((): SimulationNode | null => {
-    if (!currentRun || !activeBranchId) return null;
-    const branchNodes = getNodesForBranch(activeBranchId);
-    return branchNodes[branchNodes.length - 1] || null;
-  }, [currentRun, activeBranchId, getNodesForBranch]);
+    if (!currentRun) return null;
+    
+    // If a node is selected, return that node
+    if (selectedNodeId) {
+      return currentRun.nodes.find(n => n.nodeId === selectedNodeId) || null;
+    }
+    
+    // Otherwise, return the absolute latest node by timestamp
+    const sortedNodes = [...currentRun.nodes].sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+    return sortedNodes[0] || null;
+  }, [currentRun, selectedNodeId]);
 
   const getCurrentFacts = useCallback((): KnownFacts => {
     const latestNode = getLatestNode();
@@ -241,6 +650,287 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({ children }
       setSelectedNodeId(nodeId);
     }
   }, []);
+  
+  // Initialize simulation (either from passed data or by loading from API)
+  useEffect(() => {
+    console.log('🔍 useEffect triggered:', { 
+      initialSimulationId, 
+      hasInitialSimulationData: !!initialSimulationData,
+      hasFlow: !!flow, 
+      hasCurrentRun: !!currentRun,
+      currentRunId: currentRun?.runId
+    });
+    
+    // Skip if no ID, new simulation, or no flow
+    if (!initialSimulationId || initialSimulationId === 'new' || !flow) {
+      console.log('⏭️ Skipping initialization:', {
+        noId: !initialSimulationId,
+        isNew: initialSimulationId === 'new',
+        noFlow: !flow
+      });
+      return;
+    }
+    
+    // Skip if we already loaded this exact simulation
+    if (currentRun && currentRun.runId === initialSimulationId) {
+      console.log('⏭️ Skipping initialization: Already loaded this simulation');
+      return;
+    }
+    
+    // SIMPLIFIED: Don't use initialSimulationData at all - just always load from API
+    // This avoids issues with cached browser state
+    console.log('🔄 Loading simulation from API (ignoring any cached state)');
+    
+    // Go directly to API load (dead code removed)
+    
+    // Otherwise, load from API (for existing simulations opened from list)
+    console.log('🔄 Loading existing simulation from API:', initialSimulationId);
+    
+    const loadExistingSimulation = async () => {
+      try {
+        const response = await simulatorAPI.getSimulation(initialSimulationId);
+        
+        if (!response.simulationId) {
+          throw new Error('Failed to load simulation');
+        }
+        
+        console.log('✅ Simulation loaded from API:', response);
+        console.log('📊 API nodes count:', response.nodes?.length);
+        console.log('📊 API nodes:', response.nodes);
+        
+        // Debug: Check what's in the first agent node from API
+        const firstAgentNode = response.nodes?.find((n: any) => n.type === 'agent');
+        if (firstAgentNode) {
+          console.log('🔍 First agent node from API:', firstAgentNode);
+          console.log('🔍 Agent node metadata:', firstAgentNode.metadata);
+          console.log('🔍 Does it have tickSignals?', firstAgentNode.metadata?.tickSignals);
+        }
+        
+        // Convert API response to SimulationRun format
+        // For now, create an empty run structure - we'll build it from API data
+        const scenario: ScenarioContext = {
+          channel: (response.metadata?.channel || 'SMS') as any,
+          leadState: (response.leadState || 'ANONYMOUS') as any,
+          resumable: false,
+        };
+        
+        const mainBranch: SimulationBranch = {
+          branchId: 'branch-main',
+          parentBranchId: null,
+          forkFromNodeId: null,
+          label: 'Main',
+          createdAt: response.createdAt,
+        };
+        
+        // Get conversation tree nodes from API
+        const apiNodes = response.nodes || [];
+        
+        // Convert API nodes to SimulationNode format
+        const simulationNodes: SimulationNode[] = apiNodes.map((node: any, index: number) => {
+          console.log(`🔄 Converting node ${index}:`, {
+            nodeId: node.nodeId,
+            type: node.type,
+            hasMetadata: !!node.metadata,
+            hasTopLevelTickSignals: !!node.tickSignals,
+            tickSignals: node.tickSignals,
+            metadata: node.metadata,
+            metadataKeys: node.metadata ? Object.keys(node.metadata) : []
+          });
+          
+          return {
+            nodeId: node.nodeId,
+            parentNodeId: node.parentNodeId,
+            branchId: 'branch-main',
+            turnNumber: index,
+            userMessage: node.type === 'user' ? node.content : undefined,
+            agentMessage: node.type === 'agent' ? node.content : undefined,
+            knownFactsBefore: {},
+            controllerOutput: node.metadata?.controllerOutput || {
+              intent: { primary: 'ENGAGE', confidence: 0.9 },
+              affectScalars: { pain: 0, urgency: 0, vulnerability: 0 },
+              signals: { hesitation: false, objection: false, confusion: false, engagement: 7 },
+              progress: { madeProgress: true, stallDetected: false, stagnationTurns: 0 },
+              stepSufficiency: false,
+              controlFlags: {
+                canAdvance: true,
+                needsExplanation: false,
+                fastTrackEligible: false,
+                humanTakeoverAllowed: false,
+                allowedBlabberModes: ['ACK'],
+              },
+            },
+            executionResult: node.metadata?.executionResult || {
+              executionDecision: 'ADVANCE',
+              reasoning: 'Loaded from API',
+              executionMetadata: {
+                blabberModeUsed: 'ACK',
+                stepSatisfiedThisTurn: true,
+                newlyKnownFacts: [],
+                readinessDelta: [],
+              },
+            },
+            knownFactsAfter: {},
+            timestamp: node.timestamp,
+            contractVersion: '1.0.0',
+            designVersionHash: 'pending',
+            status: 'VALID',
+            // Preserve all metadata from API including tickSignals, controllerOutput, executionResult, sim
+            metadata: node.metadata,
+            intentDetection: node.metadata?.intentDetection,
+            // Preserve top-level tickSignals from GET responses (they're duplicated here from user nodes)
+            tickSignals: node.tickSignals,
+            // Preserve timing and progress info from GET responses
+            timing: node.timing,
+            progress: node.progress,
+          };
+        });
+        
+        const run: SimulationRun = {
+          runId: initialSimulationId,
+          flowId: flow.id,
+          flowName: flow.name,
+          scenarioContext: scenario,
+          branches: [mainBranch],
+          nodes: simulationNodes,
+          createdAt: response.createdAt,
+          updatedAt: response.updatedAt,
+        };
+        
+        console.log('📋 Converted simulation nodes:', simulationNodes);
+        console.log('📋 Simulation nodes count:', simulationNodes.length);
+        
+        setSimulationId(initialSimulationId);
+        setCurrentRun(run);
+        setActiveBranchId('branch-main');
+        
+        // Select the last node
+        if (simulationNodes.length > 0) {
+          const lastNodeId = simulationNodes[simulationNodes.length - 1].nodeId;
+          console.log('🎯 Selecting last node:', lastNodeId);
+          setSelectedNodeId(lastNodeId);
+        }
+        
+        console.log('✅ Simulation loaded into context:', { 
+          nodes: simulationNodes.length,
+          simulationId: initialSimulationId,
+          runId: run.runId,
+          flowId: run.flowId
+        });
+      } catch (error) {
+        console.error('❌ Failed to load existing simulation:', error);
+      }
+    };
+    
+    loadExistingSimulation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSimulationId, flow, initialSimulationData]);
+  
+  // NEW: Create empty simulation (POST /agent/simulations)
+  const createEmptySimulation = useCallback(async (scenario: ScenarioContext) => {
+    console.log('🚀 createEmptySimulation called with scenario:', scenario);
+    
+    try {
+      setAlternateReplyAnchorNodeId(null);
+      
+      if (!flow) {
+        console.error('❌ No flow loaded in createEmptySimulation');
+        throw new Error('No flow loaded');
+      }
+      
+      const currentFlowId = flow.id;
+      const currentFlowName = flow.name;
+      
+      console.log('📡 Calling POST /agent/simulations with:', {
+        name: `${currentFlowName} - ${scenario.leadState} User`,
+        flowId: currentFlowId,
+        leadState: scenario.leadState,
+      });
+      
+      // Call POST /agent/simulations to create empty simulation
+      // Note: personaId should be passed from the UI, but for now using a placeholder
+      const createResponse = await simulatorAPI.startSimulation({
+        name: `${currentFlowName} - ${scenario.leadState} User`,
+        flowId: currentFlowId,
+        leadState: scenario.leadState,
+        personaId: 'default-persona', // TODO: Pass from UI
+      });
+      
+      console.log('📡 POST response:', createResponse);
+      
+      const simId = createResponse.simulationId;
+      const rootId = createResponse.rootNodeId;
+      
+      console.log('✅ Empty simulation created:', { simId, rootId });
+      
+      setSimulationId(simId);
+      
+      // Create initial SimulationRun structure with empty root
+      const mainBranch: SimulationBranch = {
+        branchId: 'branch-main',
+        parentBranchId: null,
+        forkFromNodeId: null,
+        label: 'Main',
+        createdAt: createResponse.createdAt,
+      };
+      
+      const rootNode: SimulationNode = {
+        nodeId: rootId,
+        parentNodeId: null,
+        branchId: 'branch-main',
+        turnNumber: 0,
+        knownFactsBefore: {},
+        controllerOutput: {
+          intent: { primary: 'ENGAGE', confidence: 1.0 },
+          affectScalars: { pain: 0, urgency: 0, vulnerability: 0 },
+          signals: { hesitation: false, objection: false, confusion: false, engagement: 0 },
+          progress: { madeProgress: false, stallDetected: false, stagnationTurns: 0 },
+          stepSufficiency: false,
+          controlFlags: {
+            canAdvance: true,
+            needsExplanation: false,
+            fastTrackEligible: false,
+            humanTakeoverAllowed: false,
+            allowedBlabberModes: [],
+          },
+        },
+        executionResult: {
+          executionDecision: 'STALL',
+          reasoning: 'Root node - awaiting user message',
+          executionMetadata: {
+            blabberModeUsed: 'ACK',
+            stepSatisfiedThisTurn: true,
+            newlyKnownFacts: [],
+            readinessDelta: [],
+          },
+        },
+        knownFactsAfter: {},
+        timestamp: createResponse.createdAt,
+        contractVersion: '1.0.0',
+        designVersionHash: 'pending',
+        status: 'VALID',
+      };
+      
+      const run: SimulationRun = {
+        runId: simId,
+        flowId: currentFlowId,
+        flowName: currentFlowName,
+        scenarioContext: scenario,
+        branches: [mainBranch],
+        nodes: [rootNode],
+        createdAt: createResponse.createdAt,
+        updatedAt: createResponse.createdAt,
+      };
+      
+      setCurrentRun(run);
+      setActiveBranchId('branch-main');
+      setSelectedNodeId(rootId);
+      
+      console.log('✅ Empty simulation ready for user input');
+    } catch (error) {
+      console.error('Failed to create empty simulation:', error);
+      throw error;
+    }
+  }, [flow]);
 
   const value: SimulatorContextType = {
     currentRun,
@@ -248,7 +938,10 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({ children }
     selectedNodeId,
     alternateReplyAnchorNodeId,
     useMockData,
-    startSimulation,
+    simulationId,
+    flow,
+    isLoadingFlow,
+    createEmptySimulation,
     stepSimulation,
     forkSimulation,
     selectNode,
@@ -269,4 +962,3 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({ children }
     </SimulatorContext.Provider>
   );
 };
-

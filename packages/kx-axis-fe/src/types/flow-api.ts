@@ -58,6 +58,7 @@ export interface DraftGraph {
     state?: string;
     description?: string;
   };
+  primaryGoalNodeId?: string;  // UI: which node is marked as the primary goal
   gateDefinitions?: Record<string, {
     satisfiedBy: {
       metricsAll?: string[];
@@ -98,6 +99,7 @@ export interface UiLayout {
   nodePositions: Record<string, { x: number; y: number }>;
   laneAssignments: Record<string, string>;  // nodeId => laneId
   lanes?: Lane[];
+  primaryGoalNodeId?: string;  // ID of the node marked as the primary goal
 }
 
 /**

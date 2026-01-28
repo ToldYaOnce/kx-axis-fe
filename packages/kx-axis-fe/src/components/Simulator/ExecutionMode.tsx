@@ -16,7 +16,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Box, IconButton } from '@mui/material';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import { SimulatorProvider, useSimulator } from '../../context/SimulatorContext';
+import { useSimulator } from '../../context/SimulatorContext';
 import { ScenarioBar } from './ScenarioBar';
 import { ExecutionTree } from './ExecutionTree';
 import { Playback } from './Playback';
@@ -28,7 +28,8 @@ const TREE_DEFAULT_NARROW = 280;
 const TREE_DEFAULT_WIDE = 450;
 const BRANCHING_DEPTH_THRESHOLD = 3;
 
-const ExecutionModeContent: React.FC = () => {
+// ExecutionMode now expects SimulatorProvider to be provided by parent (e.g., FlowSimulatorRoute)
+export const ExecutionMode: React.FC = () => {
   const { currentRun } = useSimulator();
   const [treeWidth, setTreeWidth] = useState(TREE_DEFAULT_NARROW);
   const [isResizing, setIsResizing] = useState(false);
@@ -86,31 +87,51 @@ const ExecutionModeContent: React.FC = () => {
 
   return (
     <Box sx={{ 
-      height: '100%',
+      flex: 1,
       display: 'flex', 
       flexDirection: 'column',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      minHeight: 0,
+      maxHeight: '100%',
     }}>
       {/* Top Bar */}
-      <ScenarioBar />
+      <Box sx={{ flexShrink: 0 }}>
+        <ScenarioBar />
+      </Box>
 
       {/* Main Content */}
-      <Box ref={containerRef} sx={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+      <Box ref={containerRef} sx={{ 
+        flex: 1, 
+        display: 'flex', 
+        overflow: 'hidden', 
+        minHeight: 0, 
+        minWidth: 0,
+      }}>
         {/* Left: Execution Tree (resizable) */}
-        <Box sx={{ width: treeWidth, flexShrink: 0, display: 'flex', position: 'relative' }}>
+        <Box sx={{ 
+          width: treeWidth, 
+          height: '100%',  // ✅ Fill parent height
+          flexShrink: 0, 
+          minHeight: 0,
+          position: 'relative',
+        }}>
           <ExecutionTree isCompact={!isBranchingFocus} />
           
-          {/* Drag Handle */}
+          {/* Drag Handle - Absolutely positioned on right edge */}
           <Box
             onMouseDown={handleMouseDown}
             sx={{
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              bottom: 0,
               width: 8,
               cursor: 'ew-resize',
               backgroundColor: 'divider',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              position: 'relative',
+              zIndex: 10,
               '&:hover': {
                 backgroundColor: 'primary.light',
               },
@@ -141,14 +162,6 @@ const ExecutionModeContent: React.FC = () => {
         <ReadinessPanel isCollapsed={isBranchingFocus} />
       </Box>
     </Box>
-  );
-};
-
-export const ExecutionMode: React.FC = () => {
-  return (
-    <SimulatorProvider>
-      <ExecutionModeContent />
-    </SimulatorProvider>
   );
 };
 

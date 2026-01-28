@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useImperativeHandle, forwardRef } from 'react';
-import { Box, Typography, Snackbar, Alert, useTheme, alpha, IconButton, Tooltip } from '@mui/material';
+import { Box, Typography, Snackbar, Alert, useTheme, alpha, IconButton, Tooltip, CircularProgress } from '@mui/material';
 import { DragEndEvent, useDroppable } from '@dnd-kit/core';
 import GridOnIcon from '@mui/icons-material/GridOn';
 import { NodeCard } from './NodeCard';
 import { useFlow } from '../../context/FlowContext';
+import { useOptionalFlowDataContext } from '../../context/FlowDataContext';
 import type { FlowNode } from '../../types';
 import { computeGridLayout } from '../../utils/gridLayout';
 import { GRID } from '../../utils/gridSystem';
@@ -17,6 +18,7 @@ interface CanvasProps {}
 export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
   const { flow, selection, setSelection, addNode, updateNode } = useFlow();
   const theme = useTheme();
+  const flowDataContext = useOptionalFlowDataContext();
   const [snackbar, setSnackbar] = useState<{ message: string; severity: 'success' | 'warning' | 'error' } | null>(null);
   const [debugMode, setDebugMode] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
@@ -430,6 +432,55 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
           },
         }}
       >
+        {/* Loading Overlay - Show when API is fetching data */}
+        {flowDataContext?.isLoading && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 2,
+              backgroundColor: alpha(theme.palette.background.default, 0.95),
+              backdropFilter: 'blur(8px)',
+              zIndex: 9999, // Top of everything
+              pointerEvents: 'all', // Block interactions
+            }}
+          >
+            <CircularProgress
+              size={48}
+              thickness={3.5}
+              sx={{
+                color: theme.palette.primary.main,
+              }}
+            />
+            <Typography
+              variant="body1"
+              sx={{
+                color: 'text.secondary',
+                fontWeight: 500,
+                letterSpacing: 0.3,
+              }}
+            >
+              Loading conversation flow...
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                color: alpha(theme.palette.text.secondary, 0.6),
+                fontSize: '0.75rem',
+              }}
+            >
+              Fetching from API
+            </Typography>
+          </Box>
+        )}
+
         {/* Subtle Pan Hint (Discoverability) */}
         {showPanHint && (
           <Box

@@ -28,7 +28,7 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
   goalLensRegistry,
   onChange,
   onValidate,
-  onSimulate,
+  onSimulations,
   onPublish,
   flowId = null,
   enableApiIntegration = false,
@@ -58,9 +58,9 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draggedItem, setDraggedItem] = useState<any>(null);
 
-  const handleSimulate = () => {
+  const handleSimulations = () => {
     setSimulateOpen(true);
-    onSimulate?.();
+    onSimulations?.();
   };
 
   const handleFlowChange = useCallback((updatedFlow: ConversationFlow) => {
@@ -161,7 +161,7 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
           }}
         >
           {/* Top Bar */}
-          <TopBar onSimulate={handleSimulate} />
+          <TopBar onSimulations={handleSimulations} />
 
           {/* Main Content Area */}
           <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>

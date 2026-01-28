@@ -13,10 +13,10 @@ import { ValidationPanel } from './Flow/ValidationPanel';
 import { VersionsModal } from './Flow/VersionsModal';
 
 interface TopBarProps {
-  onSimulate?: () => void;
+  onSimulations?: () => void;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ onSimulate }) => {
+export const TopBar: React.FC<TopBarProps> = ({ onSimulations }) => {
   const { flow, updateFlow, setSelection } = useFlow();
   const flowDataContext = useOptionalFlowDataContext();
   
@@ -137,6 +137,8 @@ export const TopBar: React.FC<TopBarProps> = ({ onSimulate }) => {
             description: 'User has booked a consultation',
           },
           
+          primaryGoalNodeId: flow.primaryGoalNodeId,  // UI: which node is marked as primary
+          
           gateDefinitions: (flow as any).gateDefinitions || {
             CONTACT: {
               satisfiedBy: {
@@ -237,6 +239,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onSimulate }) => {
             }
             return acc;
           }, {} as Record<string, string>),
+          primaryGoalNodeId: flow.primaryGoalNodeId, // Persist primary goal selection
         };
         
         console.log('');
@@ -461,6 +464,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onSimulate }) => {
           gate: 'BOOKING',
           description: 'User has booked a consultation',
         },
+        primaryGoalNodeId: flow.primaryGoalNodeId,  // UI: which node is marked as primary
         gateDefinitions: (flow as any).gateDefinitions || {
           CONTACT: { satisfiedBy: { metricsAny: ['contact_email', 'contact_phone'] } },
           BOOKING: { satisfiedBy: { metricsAll: ['booking_date', 'booking_type'] } },
@@ -544,6 +548,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onSimulate }) => {
           }
           return acc;
         }, {} as Record<string, string>),
+        primaryGoalNodeId: flow.primaryGoalNodeId, // Persist primary goal selection
       };
       
       if (activeFlowId) {
@@ -682,7 +687,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onSimulate }) => {
       <Button
         variant="outlined"
         startIcon={<PlayArrowIcon />}
-        onClick={onSimulate}
+        onClick={onSimulations}
         sx={{
           textTransform: 'none',
           borderColor: 'divider',
@@ -693,7 +698,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onSimulate }) => {
           },
         }}
       >
-        Simulate
+        Simulations
       </Button>
 
       <Button

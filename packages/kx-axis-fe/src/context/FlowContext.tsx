@@ -47,16 +47,21 @@ export const FlowProvider: React.FC<FlowProviderProps> = ({
     // Check if this is a new flow being loaded or initial flow with nodes
     const isDifferentFlow = initialFlow.id !== lastSyncedFlowId.current;
     const hasNodes = initialFlow.nodes.length > 0;
+    const currentFlowEmpty = flow.nodes.length === 0;
     
-    if (isDifferentFlow && hasNodes) {
+    // Sync if:
+    // 1. It's a different flow ID with nodes, OR
+    // 2. Same flow ID but current is empty and incoming has nodes (API load after placeholder)
+    if ((isDifferentFlow && hasNodes) || (currentFlowEmpty && hasNodes && !isDifferentFlow)) {
       console.log('🔄 Syncing flow state with loaded flow:', {
         flowId: initialFlow.id,
         nodeCount: initialFlow.nodes.length,
+        reason: isDifferentFlow ? 'different flow' : 'API data loaded after placeholder',
       });
       setFlow(initialFlow);
       lastSyncedFlowId.current = initialFlow.id;
     }
-  }, [initialFlow]);
+  }, [initialFlow, flow.nodes.length]);
 
   const notifyChange = useCallback(
     (updatedFlow: ConversationFlow) => {

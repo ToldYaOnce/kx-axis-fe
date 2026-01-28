@@ -143,10 +143,11 @@ export interface ConversationTurn {
 
 export type NodeStatus = 'VALID' | 'DRIFTED' | 'INVALID';
 
+// Flat structure with parent-child relationships (DynamoDB-optimized)
 export interface SimulationNode {
   nodeId: string;
   parentNodeId: string | null;
-  branchId: string;
+  branchId: string | null; // Branch concept deprecated - rely on parentNodeId for tree structure
   turnNumber: number;
   
   // Input
@@ -166,6 +167,52 @@ export interface SimulationNode {
   contractVersion: string;
   designVersionHash: string;
   status: NodeStatus;
+  
+  // API Response Metadata (optional - for real API data)
+  metadata?: {
+    tickSignals?: {
+      pain: number;
+      vulnerability: number;
+      urgency: number;
+      engagement: number;
+      hesitation: number;
+      confusion: number;
+      objections: string[];
+    };
+    intentDetection?: any;
+    controllerOutput?: any;
+    executionResult?: any;
+    sim?: any;
+    knownFactsBefore?: string[];
+    knownFactsAfter?: string[];
+    [key: string]: any;
+  };
+  
+  // Intent Detection (for user nodes)
+  intentDetection?: any;
+  
+  // Top-level fields from GET API responses (duplicated for convenience)
+  tickSignals?: {
+    pain: number;
+    vulnerability: number;
+    urgency: number;
+    engagement: number;
+    hesitation: number;
+    confusion: number;
+    objections: string[];
+  };
+  timing?: {
+    intentDetection: number;
+    stepRecommender: number;
+    controllerProcessing: number;
+    processorLLM: number;
+    total: number;
+  };
+  progress?: {
+    knownSoFar: string[];
+    learnedThisTurn: string[];
+    pendingToLearn: string[];
+  };
 }
 
 export interface SimulationBranch {
@@ -189,28 +236,195 @@ export interface SimulationRun {
 
 // ========== API REQUESTS & RESPONSES ==========
 
+// ========== NEW SIMULATION API (matches SIMULATION_API_INTEGRATION.md) ==========
+
+/**
+ * Flow Node format for API (simplified from full FlowNode type)
+ */
+export interface ApiFlowNode {
+  id: string;
+  title: string;
+  type: string;
+  producesFacts: string[];
+}
+
+/**
+ * POST /agent/simulations - Create simulation
+ */
 export interface StartSimulationRequest {
-  flowId: string;
-  scenarioContext: ScenarioContext;
-  initialFacts?: Partial<KnownFacts>;
+  name: string;              // Simulation name (e.g., "Fitness Test - Anonymous User")
+  flowId: string;            // Flow ID being tested
+  leadState: LeadState;      // ANONYMOUS or KNOWN
+  personaId: string;         // Persona that will respond in the simulation
+  // NO initialMessage - creates empty simulation with root node only
 }
 
 export interface StartSimulationResponse {
-  run: SimulationRun;
+  simulationId: string;
+  rootNodeId: string;      // Root node ID for first PATCH call
+  createdAt: string;
 }
 
+/**
+ * GET /agent/simulations?flowId={flowId}&tenantId={tenantId} - List simulations
+ */
+export interface ListSimulationsRequest {
+  flowId: string;
+  tenantId?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface SimulationSummary {
+  simulationId: string;
+  name: string;
+  flowId: string;
+  createdAt: string;
+  updatedAt: string;
+  status: 'ACTIVE' | 'COMPLETED' | 'ABANDONED';
+  metadata: {
+    channel: Channel;
+    leadState: LeadState;
+    turnCount: number;
+    hasLowConfidence?: boolean;
+    hasGapDetection?: boolean;
+  };
+}
+
+export interface ListSimulationsResponse {
+  success: boolean;
+  data: {
+    simulations: SimulationSummary[];
+    total: number;
+  };
+}
+
+/**
+ * GET /agent/simulations/:simulationId - Get simulation details
+ */
+export interface GetSimulationResponse {
+  // Flat structure - API returns everything at root level
+  flowId: string;
+  simulationId: string;
+  name: string;
+  leadState: string;
+  nodes: any[]; // Full conversation history
+  state: {
+    currentFlowNodeId: string | null;
+    personaId: string;
+    knownFacts: any[];
+  };
+  rootNodeId: string;
+  createdAt: string;
+  updatedAt: string;
+  tenantId: string;
+  PK: string;
+  SK: string;
+  metadata?: {
+    channel?: string;
+    leadState?: string;
+    hasGapDetection?: boolean;
+  };
+}
+
+/**
+ * PATCH /agent/simulations?simulationId=xxx - Continue conversation
+ */
 export interface StepSimulationRequest {
-  runId: string;
-  branchId: string;
-  parentNodeId: string;
   userMessage: string;
+  parentNodeId: string;      // Previous agent node ID
+  flowNodes: ApiFlowNode[];  // Flow configuration
 }
 
 export interface StepSimulationResponse {
-  node: SimulationNode;
-  updatedFacts: KnownFacts;
+  userNode: {
+    nodeId: string;
+    parentNodeId: string;
+    type: 'user';
+    content: string;
+    timestamp: string;
+    intentDetection: {
+      primaryIntent: string;
+      signals: {
+        hesitation: number;
+        objections: string[];
+        confusion: number;
+      };
+    };
+  };
+  agentNode: {
+    nodeId: string;
+    parentNodeId: string;
+    type: 'agent';
+    content: string;
+    timestamp: string;
+    sim: {
+      selectedNodeId: string;
+      decision: {
+        confidence: number;
+        status: 'HIGH' | 'MEDIUM' | 'LOW' | 'CRITICAL';
+        margin: number;
+      };
+      issues: any[];
+      gapRecommendation: GapRecommendation | null;
+    };
+    metadata?: {
+      controllerOutput?: any;
+      executionResult?: any;
+      [key: string]: any;
+    };
+  };
+  updatedState: {
+    knownFacts: string[];
+    currentFlowNodeId: string;
+    personaId: string;
+  };
+  tickSignals: {
+    pain: number;
+    vulnerability: number;
+    urgency: number;
+    engagement: number;
+    hesitation: number;
+    confusion: number;
+    objections: string[];
+  };
+  factsCollected?: {
+    before: string[];
+    after: string[];
+    newFactsThisTurn: string[];
+  };
 }
 
+/**
+ * Gap Detection (when confidence < 0.60)
+ */
+export interface GapRecommendation {
+  kind: 'FLOW_GAP_RECOMMENDATION_V1';
+  shouldSuggest: boolean;
+  trigger: {
+    type: string;
+    why: string;
+  };
+  gap: {
+    gapType: string;
+    capability: string;
+    confidence: number;
+  };
+  proposedNodes: Array<{
+    id: string;
+    title: string;
+    type: string;
+    description: string;
+    requires: { facts: string[] };
+    produces: { facts: string[] };
+    rationale: string;
+  }>;
+}
+
+/**
+ * OLD API INTERFACES (deprecated - for backward compat with mock data)
+ * Keep the old types with different names to avoid conflicts
+ */
 export interface ForkSimulationRequest {
   runId: string;
   forkFromNodeId: string;
@@ -221,6 +435,20 @@ export interface ForkSimulationResponse {
   branch: SimulationBranch;
   replayedHistory: SimulationNode[];
 }
+
+/**
+ * OLD format - used by mock data
+ */
+export interface MockStartResponse {
+  run: SimulationRun;
+}
+
+export interface MockStepResponse {
+  node: SimulationNode;
+  updatedFacts: KnownFacts;
+}
+
+
 
 
 

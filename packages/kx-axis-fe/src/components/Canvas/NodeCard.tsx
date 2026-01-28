@@ -229,29 +229,6 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
           >
             {node.type.replace('_', ' ')}
           </Typography>
-          {isPrimaryGoal && (
-            <Chip
-              label="PRIMARY GOAL"
-              size="small"
-              icon={<StarIcon />}
-              sx={{
-                height: 18,
-                fontSize: '0.6rem',
-                fontWeight: 700,
-                backgroundColor: alpha('#FFD700', 0.2),
-                color: '#DAA520',
-                borderColor: '#FFD700',
-                border: '1.5px solid',
-                '& .MuiChip-icon': {
-                  color: '#FFD700',
-                  fontSize: '0.85rem',
-                },
-                '& .MuiChip-label': {
-                  px: 0.75,
-                },
-              }}
-            />
-          )}
         </Box>
         <Tooltip title={isPrimaryGoal ? "Primary Goal" : "Set as Primary Goal"}>
           <IconButton
@@ -299,6 +276,33 @@ export const NodeCard: React.FC<NodeCardProps> = ({ node, isSelected, onClick, i
       >
         {node.title}
       </Typography>
+
+      {/* Primary Goal Badge - centered under title */}
+      {isPrimaryGoal && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1.5 }}>
+          <Chip
+            label="PRIMARY GOAL"
+            size="small"
+            icon={<StarIcon />}
+            sx={{
+              height: 18,
+              fontSize: '0.6rem',
+              fontWeight: 700,
+              backgroundColor: alpha('#FFD700', 0.2),
+              color: '#DAA520',
+              borderColor: '#FFD700',
+              border: '1.5px solid',
+              '& .MuiChip-icon': {
+                color: '#FFD700',
+                fontSize: '0.85rem',
+              },
+              '& .MuiChip-label': {
+                px: 0.75,
+              },
+            }}
+          />
+        </Box>
+      )}
 
       {/* "Unlocked by" subtitle - shows human-readable prerequisites */}
       {node.requires && node.requires.length > 0 && (

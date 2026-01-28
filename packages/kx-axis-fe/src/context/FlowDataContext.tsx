@@ -188,11 +188,18 @@ export const FlowDataProvider: React.FC<FlowDataProviderProps> = ({
         }
       }
       
+      console.log('🔥 CONVERTING API DATA TO FLOW:', {
+        flowId: flow.flowId,
+        nodeCount: draft.draftGraph.nodes.length,
+        hasUiLayout: !!uiLayout,
+      });
+
       const conversationFlow: ConversationFlow = {
         id: flow.flowId,
         name: flow.name,
         description: flow.description,
         industry,  // Include industry with fallback chain
+        primaryGoalNodeId: draft.draftGraph.primaryGoalNodeId || uiLayout?.primaryGoalNodeId, // Restore primary goal (backend first, fallback to localStorage)
         nodes: draft.draftGraph.nodes.map((node) => {
           // Apply UI layout if available
           const position = uiLayout?.nodePositions?.[node.id];
@@ -227,6 +234,12 @@ export const FlowDataProvider: React.FC<FlowDataProviderProps> = ({
         },
       };
       
+      console.log('🔥 SETTING CURRENT FLOW:', {
+        id: conversationFlow.id,
+        name: conversationFlow.name,
+        nodeCount: conversationFlow.nodes.length,
+      });
+
       setCurrentFlow(conversationFlow);
       
       if (isInitialLoadRef.current) {
@@ -240,6 +253,12 @@ export const FlowDataProvider: React.FC<FlowDataProviderProps> = ({
   useEffect(() => {
     // Skip autosave if disabled, no flow loaded, viewing a version, or on initial load
     if (!autosaveEnabled || !currentFlow || currentVersion) {
+      return;
+    }
+    
+    // Skip autosave if flow has no nodes (placeholder flow before API data loads)
+    if (!currentFlow.nodes || currentFlow.nodes.length === 0) {
+      console.log('⏭️  Skipping autosave - no nodes in flow (placeholder)');
       return;
     }
     
@@ -261,6 +280,8 @@ export const FlowDataProvider: React.FC<FlowDataProviderProps> = ({
         gate: 'BOOKING',
         description: 'User has booked a consultation',
       },
+      
+      primaryGoalNodeId: currentFlow.primaryGoalNodeId,  // UI: which node is marked as primary
       
       gateDefinitions: (currentFlow as any).gateDefinitions || {
         CONTACT: {
@@ -353,6 +374,7 @@ export const FlowDataProvider: React.FC<FlowDataProviderProps> = ({
     const uiLayout = {
       nodePositions: {} as Record<string, { x: number; y: number }>,
       laneAssignments: {} as Record<string, string>,
+      primaryGoalNodeId: currentFlow.primaryGoalNodeId, // Persist primary goal selection
     };
     
     currentFlow.nodes.forEach((node) => {

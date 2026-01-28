@@ -303,7 +303,7 @@ export interface KxAxisComposerProps {
   goalLensRegistry: GoalLensRegistry;
   onChange?: (updatedConfig: ConversationFlow) => void;
   onValidate?: () => void;
-  onSimulate?: () => void;
+  onSimulations?: () => void;
   onPublish?: (config: ConversationFlow) => void;
   
   // API Integration (optional)
