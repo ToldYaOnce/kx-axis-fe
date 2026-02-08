@@ -13,7 +13,7 @@
           "facts": []
         },
         "produces": {
-          "facts": []
+          "facts": ["name"]
         },
         "config": {
           "purpose": "Greet the user and set expectations",
@@ -220,6 +220,8 @@
     }
   }
 }
+
+
 
 
 

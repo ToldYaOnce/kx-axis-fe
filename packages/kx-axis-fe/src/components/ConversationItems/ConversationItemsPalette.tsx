@@ -477,9 +477,14 @@ export const ConversationItemsPalette: React.FC = () => {
     
     // Add default produces for EXPLANATION nodes
     if (item.type === 'EXPLANATION') {
-      // Generate a fact name based on the node ID (e.g., "welcome_intro_shown")
-      const factName = `${item.id.replace(/-/g, '_')}_shown`;
-      newNode.produces = [factName];
+      // Special case: Welcome / Introduction should produce 'name'
+      if (item.id === 'welcome-intro') {
+        newNode.produces = ['name'];
+      } else {
+        // Generate a fact name based on the node ID (e.g., "welcome_intro_shown")
+        const factName = `${item.id.replace(/-/g, '_')}_shown`;
+        newNode.produces = [factName];
+      }
     }
 
     // Add default produces for REFLECTIVE_QUESTION nodes
@@ -494,6 +499,17 @@ export const ConversationItemsPalette: React.FC = () => {
       newNode.satisfies = {
         metrics: item.captures,
       };
+    }
+
+    // Special cases for specific BASELINE_CAPTURE nodes
+    if (item.type === 'BASELINE_CAPTURE') {
+      if (item.id === 'fitness-assessment') {
+        newNode.produces = ['cardio_training', 'weight_training', 'resting_heart_rate', 'current_weight'];
+      } else if (item.id === 'nutrition-preferences') {
+        newNode.produces = ['daily_carbs', 'daily_protein', 'daily_fat', 'protein_sources', 'carb_sources'];
+      } else if (item.id === 'injury-history') {
+        newNode.produces = ['injuries'];
+      }
     }
 
     // Add default config for GOAL_GAP_TRACKER
@@ -540,7 +556,7 @@ export const ConversationItemsPalette: React.FC = () => {
       // Requires an existing booking to cancel
       newNode.requires = ['booking_date'];
       // Produces cancellation fact - controller can use this to unset BOOKING goal
-      newNode.produces = ['appointment_cancelled'];
+      newNode.produces = ['cancellation_reason'];
       // Cancel appointment does not satisfy BOOKING gate
     }
     // Add default config for booking (general ACTION_BOOKING nodes)

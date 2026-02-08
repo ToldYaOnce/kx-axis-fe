@@ -19,6 +19,7 @@ import {
   Chip,
   IconButton,
   Button,
+  Tooltip,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -31,6 +32,10 @@ import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
 import SettingsIcon from '@mui/icons-material/Settings';
 import PersonIcon from '@mui/icons-material/Person';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import PanToolIcon from '@mui/icons-material/PanTool';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import LiveHelpIcon from '@mui/icons-material/LiveHelp';
 import { useSimulator } from '../../context/SimulatorContext';
 import type { SimulationNode, SimulationBranch, SimulationRun } from '../../types/simulator';
 
@@ -51,6 +56,17 @@ const AUTO_COLLAPSE_DEPTH = 2; // Auto-collapse divergences deeper than this
 const LINEAR_FOLD_SHOW_EDGES = 2; // Show first N and last N nodes in fold
 
 type CollapseKey = string; // 'diverge:nodeId' | 'branch:branchId' | 'linear:startNodeId'
+
+// Shared tooltip styling for all tooltips
+const TOOLTIP_STYLES = {
+  tooltip: {
+    sx: {
+      bgcolor: 'rgba(0, 0, 0, 0.85)',
+      color: 'white',
+      fontSize: '0.75rem',
+    },
+  },
+};
 
 // ========================================
 // BUILD TREE FROM PARENT-CHILD RELATIONSHIPS
@@ -220,7 +236,8 @@ interface TreeNodeProps {
 
 const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMode }) => {
   const getStatusIcon = () => {
-    switch (node.status) {
+    const status = node.status || 'VALID';
+    switch (status) {
       case 'VALID':
         return <CheckCircleIcon fontSize="small" sx={{ color: 'success.main' }} />;
       case 'DRIFTED':
@@ -232,6 +249,7 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
 
   const getOutcomeIcon = (decision: string) => {
     const icons: Record<string, string> = {
+      BRIDGE: '🔀',
       STALL: '⏸️',
       EXPLAIN: '💡',
       FAST_TRACK: '🚀',
@@ -243,7 +261,8 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
 
   const getOutcomeColor = (decision: string) => {
     const colors: Record<string, string> = {
-      STALL: 'warning.main',        // Purple
+      BRIDGE: '#8b5cf6',             // Purple (distinct from STALL)
+      STALL: 'warning.main',         // Orange/warning
       EXPLAIN: 'info.main',          // Info blue
       FAST_TRACK: 'secondary.main',  // Cyan
       HANDOFF: '#ec4899',            // Magenta
@@ -254,7 +273,8 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
   
   const getOutcomeBgColor = (decision: string) => {
     const colors: Record<string, string> = {
-      STALL: 'rgba(167, 139, 250, 0.15)',      // Purple glow
+      BRIDGE: 'rgba(139, 92, 246, 0.15)',      // Purple glow
+      STALL: 'rgba(167, 139, 250, 0.15)',      // Light purple glow
       EXPLAIN: 'rgba(59, 130, 246, 0.15)',     // Blue glow
       FAST_TRACK: 'rgba(34, 211, 238, 0.15)',  // Cyan glow
       HANDOFF: 'rgba(236, 72, 153, 0.15)',     // Magenta glow
@@ -265,8 +285,17 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
 
   // Visual indicator: User messages are branch points
   const hasUserMessage = node.userMessage !== undefined && node.userMessage !== null;
-  const decision = node.executionResult.executionDecision;
-  const showOutcome = decision !== 'ADVANCE' || debugMode;
+  const hasAgentMessage = node.agentMessage !== undefined && node.agentMessage !== null;
+  
+  // Get decision from metadata (new API structure) or executionResult (old structure)
+  // For new API: check decision.action (BRIDGE) first, then decision.move (ADVANCE)
+  const decision = node.metadata?.decision?.action ||
+                   node.metadata?.controllerOutput?.decision || 
+                   node.executionResult?.executionDecision || 
+                   'ADVANCE';
+  
+  // Show outcome for agent messages (always) or non-ADVANCE for any node in debug mode
+  const showOutcome = hasAgentMessage || (decision !== 'ADVANCE' && debugMode);
   
   // Prepare message snippet
   let messageSnippet = '';
@@ -358,7 +387,10 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
         {/* Debug mode: show turn number + confidence */}
         {debugMode && (
           <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.65rem' }}>
-            T{node.turnNumber} • {(node.controllerOutput.intent.confidence * 100).toFixed(0)}% confidence
+            {node.turnNumber && `T${node.turnNumber}`}
+            {node.metadata?.controllerOutput?.stepRecommendation?.decision?.confidence && 
+              ` • ${(node.metadata.controllerOutput.stepRecommendation.decision.confidence * 100).toFixed(0)}% confidence`}
+            {!node.turnNumber && !node.metadata?.controllerOutput?.stepRecommendation?.decision?.confidence && 'Debug info'}
           </Typography>
         )}
       </Box>
@@ -366,38 +398,164 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
       {/* Status + Outcome badges */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
         {/* Status icon (always visible if not VALID) */}
-        {node.status !== 'VALID' && getStatusIcon()}
+        {node.status && node.status !== 'VALID' && getStatusIcon()}
         
-        {/* Outcome badge (only if non-ADVANCE or debug mode) */}
-        {showOutcome && decision !== 'ADVANCE' && (
+        {/* Outcome badge for agent messages */}
+        {showOutcome && hasAgentMessage && (() => {
+          // Build rich tooltip content
+          const confidence = node.metadata?.controllerOutput?.stepRecommendation?.decision?.confidence;
+          const reasons = node.metadata?.controllerOutput?.stepRecommendation?.rankedCandidates?.[0]?.reasons || [];
+          
+          // Format decision as title case
+          const formatDecision = (dec: string) => {
+            return dec.charAt(0) + dec.slice(1).toLowerCase();
+          };
+          
+          // Get decision color
+          const getDecisionColor = () => {
+            if (decision === 'ADVANCE') return '#22d3ee';
+            if (decision === 'BRIDGE') return '#8b5cf6';
+            if (decision === 'STAY') return '#f59e0b';
+            if (decision?.toUpperCase().includes('CLARIFY')) return '#ec4899';
+            return '#94a3b8';
+          };
+          
+          const tooltipContent = (
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#fff' }}>
+                  Decision:
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    fontWeight: 700, 
+                    color: getDecisionColor(),
+                    textShadow: `0 0 8px ${getDecisionColor()}`,
+                  }}
+                >
+                  {formatDecision(decision)}
+                </Typography>
+                {confidence && (
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.7rem' }}>
+                    ({(confidence * 100).toFixed(0)}% confident)
+                  </Typography>
+                )}
+              </Box>
+              {reasons.length > 0 && (
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                    Reasons:
+                  </Typography>
+                  {reasons.map((reason, idx) => (
+                    <Typography 
+                      key={idx} 
+                      variant="caption" 
+                      sx={{ 
+                        color: 'rgba(255,255,255,0.9)', 
+                        display: 'block',
+                        fontSize: '0.75rem',
+                        lineHeight: 1.4,
+                        mb: 0.25,
+                      }}
+                    >
+                      • {reason}
+                    </Typography>
+                  ))}
+                </Box>
+              )}
+            </Box>
+          );
+          
+          return (
+            <Tooltip 
+              title={tooltipContent} 
+              placement="right"
+              slotProps={{
+                tooltip: {
+                  sx: {
+                    ...TOOLTIP_STYLES.tooltip.sx,
+                    maxWidth: 300,
+                    bgcolor: 'rgba(0, 0, 0, 0.92)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                    '& .MuiTooltip-arrow': {
+                      color: 'rgba(0, 0, 0, 0.92)',
+                    },
+                  },
+                },
+              }}
+              arrow
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  bgcolor: decision === 'ADVANCE' 
+                    ? 'rgba(34, 211, 238, 0.15)' 
+                    : decision === 'STAY'
+                    ? 'rgba(167, 139, 250, 0.15)'
+                    : decision === 'BRIDGE'
+                    ? 'rgba(139, 92, 246, 0.15)'
+                    : decision?.toUpperCase().includes('CLARIFY')
+                    ? 'rgba(236, 72, 153, 0.15)'
+                    : getOutcomeBgColor(decision),
+                  border: '1px solid',
+                  borderColor: decision === 'ADVANCE' 
+                    ? 'secondary.main' 
+                    : decision === 'STAY'
+                    ? 'warning.main'
+                    : decision === 'BRIDGE'
+                    ? '#8b5cf6'
+                    : decision?.toUpperCase().includes('CLARIFY')
+                    ? '#ec4899'
+                    : getOutcomeColor(decision),
+                  color: decision === 'ADVANCE' 
+                    ? 'secondary.main' 
+                    : decision === 'STAY'
+                    ? 'warning.main'
+                    : decision === 'BRIDGE'
+                    ? '#8b5cf6'
+                    : decision?.toUpperCase().includes('CLARIFY')
+                    ? '#ec4899'
+                    : getOutcomeColor(decision),
+                }}
+              >
+                {decision === 'ADVANCE' ? (
+                  <ArrowForwardIcon sx={{ fontSize: '1rem' }} />
+                ) : decision === 'STAY' ? (
+                  <PanToolIcon sx={{ fontSize: '0.9rem' }} />
+                ) : decision === 'BRIDGE' ? (
+                  <CompareArrowsIcon sx={{ fontSize: '0.9rem' }} />
+                ) : decision?.toUpperCase().includes('CLARIFY') ? (
+                  <LiveHelpIcon sx={{ fontSize: '0.9rem' }} />
+                ) : (
+                  <Typography variant="caption" sx={{ fontSize: '0.6rem', fontWeight: 600 }}>
+                    {getOutcomeIcon(decision)}
+                  </Typography>
+                )}
+              </Box>
+            </Tooltip>
+          );
+        })()}
+        
+        {/* Debug mode: show any decision for non-agent messages */}
+        {debugMode && !hasAgentMessage && showOutcome && (
           <Chip
             label={`${getOutcomeIcon(decision)} ${decision}`}
             size="small"
             sx={{
-              height: 22,
-              fontSize: '0.65rem',
-              fontWeight: 600,
-              color: getOutcomeColor(decision),
-              bgcolor: getOutcomeBgColor(decision),
-              border: '1px solid',
-              borderColor: getOutcomeColor(decision),
-            }}
-          />
-        )}
-        
-        {/* Debug mode: show ADVANCE explicitly */}
-        {debugMode && decision === 'ADVANCE' && (
-          <Chip
-            label="ADVANCE"
-            size="small"
-            sx={{
               height: 20,
               fontSize: '0.6rem',
-              bgcolor: 'rgba(34, 211, 238, 0.15)',
-              color: 'secondary.main',
+              bgcolor: getOutcomeBgColor(decision),
+              color: getOutcomeColor(decision),
               fontWeight: 600,
               border: '1px solid',
-              borderColor: 'secondary.main',
+              borderColor: getOutcomeColor(decision),
             }}
           />
         )}
@@ -427,7 +585,7 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
     if (!currentRun) return [];
     
     // Debug: Log ALL nodes with their parent relationships
-    console.log('📋 All nodes before tree building:');
+    console.log('📋 All nodes before tree building:', currentRun.nodes.length, 'total');
     currentRun.nodes.forEach((node, idx) => {
       console.log(`  [${idx}] ${node.nodeId}:`, {
         type: node.userMessage ? 'USER' : 'AGENT',
@@ -438,28 +596,39 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
     
     const roots = buildTree(currentRun.nodes);
     
-    // Debug: Log tree structure
+    // Debug: Log tree structure with full hierarchy
     console.log('🌳 ExecutionTree: Tree structure built:', {
       rootCount: roots.length,
       totalNodes: currentRun.nodes.length,
     });
     
-    // Log divergence points
-    const logDivergences = (node: TreeNode, depth: number) => {
+    // Log divergence points WITH DETAILS
+    const logDivergences = (node: TreeNode, depth: number, path: string = '') => {
+      const currentPath = path + '/' + node.nodeId.substring(node.nodeId.length - 6);
+      
+      // Check for divergence using the SAME logic as isDivergence()
+      const userChildren = node.children.filter(c => c.userMessage !== undefined);
+      const agentChildren = node.children.filter(c => c.agentMessage !== undefined);
+      const isDiv = userChildren.length > 1 || agentChildren.length > 1;
+      
       if (node.children.length > 1) {
         console.log(`  ${'  '.repeat(depth)}🔀 DIVERGENCE at ${node.nodeId}:`, {
-          nodeType: node.userMessage ? 'user' : 'agent',
-          childCount: node.children.length,
+          path: currentPath,
+          nodeType: node.userMessage ? 'USER' : 'AGENT',
+          totalChildren: node.children.length,
+          userChildren: userChildren.length,
+          agentChildren: agentChildren.length,
+          isDivergence: isDiv,
           parentNodeId: node.parentNodeId,
           children: node.children.map(c => ({
             nodeId: c.nodeId,
-            parentNodeId: c.parentNodeId,
-            type: c.userMessage ? 'user' : 'agent',
+            type: c.userMessage ? 'USER' : 'AGENT',
             message: (c.userMessage || c.agentMessage || '').substring(0, 40) + '...',
           })),
         });
       }
-      node.children.forEach(child => logDivergences(child, depth + 1));
+      
+      node.children.forEach(child => logDivergences(child, depth + 1, currentPath));
     };
     roots.forEach(root => logDivergences(root, 0));
     
@@ -587,19 +756,29 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
    * 
    * CRITICAL: Divergence can happen on ANY node (agent or user) if it has multiple children.
    */
-  const renderNode = (node: TreeNode, depth: number): React.ReactNode => {
+  const renderNode = (node: TreeNode, depth: number, parent: TreeNode | null = null): React.ReactNode => {
     const isDiv = isDivergence(node);
     const hasChildren = node.children.length > 0;
     const isUserMessage = node.userMessage !== undefined && node.userMessage !== null;
 
-    // Debug: Log render decision
-    if (node.children.length > 1) {
-      console.log(`🎨 renderNode decision for ${node.nodeId}:`, {
-        nodeId: node.nodeId,
-        message: (node.userMessage || node.agentMessage || '').substring(0, 40),
-        childrenCount: node.children.length,
-        isDiv,
-        willRenderAsDivergence: isDiv,
+    // Debug: Log render decision for ALL nodes with detailed info
+    if (node.children.length > 0) {
+      const userChildren = node.children.filter(c => c.userMessage !== undefined);
+      const agentChildren = node.children.filter(c => c.agentMessage !== undefined);
+      
+      console.log(`🎨 renderNode for ${node.nodeId.substring(node.nodeId.length - 8)}:`, {
+        nodeType: node.userMessage ? 'USER' : 'AGENT',
+        message: (node.userMessage || node.agentMessage || '').substring(0, 30) + '...',
+        totalChildren: node.children.length,
+        userChildren: userChildren.length,
+        agentChildren: agentChildren.length,
+        isDivergence: isDiv,
+        willRenderAs: isDiv ? 'DIVERGENCE' : 'REGULAR',
+        childrenDetails: node.children.map(c => ({
+          id: c.nodeId.substring(c.nodeId.length - 8),
+          type: c.userMessage ? 'USER' : 'AGENT',
+          msg: (c.userMessage || c.agentMessage || '').substring(0, 25),
+        })),
       });
     }
 
@@ -658,9 +837,10 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
           {isCollapsed ? (
             <Box
               sx={{
-                ml: 4,
+                ml: 2,
+                pl: 2,
+                pr: 1.5,
                 py: 0.75,
-                px: 1.5,
                 backgroundColor: 'action.hover',
                 borderRadius: 1,
                 cursor: 'pointer',
@@ -677,62 +857,145 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
           ) : null}
           
           {/* Render each child path (only if not collapsed) */}
-          {!isCollapsed && node.children.map((child, idx) => {
-            const isLast = idx === node.children.length - 1;
-            
-            // Get label for this path - prefer user message for clarity
-            let pathLabel = '';
-            if (child.userMessage) {
-              const snippet = child.userMessage.length > 25 
-                ? child.userMessage.substring(0, 25) + '...'
-                : child.userMessage;
-              pathLabel = idx === 0 ? `"${snippet}"` : `Alt: "${snippet}"`;
-            } else if (child.agentMessage) {
-              const snippet = child.agentMessage.length > 25
-                ? child.agentMessage.substring(0, 25) + '...'
-                : child.agentMessage;
-              pathLabel = idx === 0 ? `"${snippet}"` : `Alt: "${snippet}"`;
-            } else {
-              pathLabel = idx === 0 ? 'Main path' : `Path ${idx + 1}`;
-            }
-            
-            return (
+          {!isCollapsed && (
+            <Box
+              sx={{
+                ml: 2,
+                position: 'relative',
+              }}
+            >
+              {/* Vertical line container for ALL children */}
               <Box
-                key={child.nodeId}
                 sx={{
-                  ml: 2,
-                  borderLeft: isLast ? 'none' : '2px solid',
-                  borderColor: 'divider',
-                  pl: 1.5,
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: '2px',
+                  bgcolor: 'divider',
                 }}
-              >
-                {/* Path label */}
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontSize: '0.7rem',
-                    color: idx === 0 ? 'text.secondary' : 'warning.main',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    mb: 0.5,
-                    backgroundColor: idx === 0 ? 'transparent' : 'rgba(167, 139, 250, 0.1)',
-                    px: idx === 0 ? 0 : 1,
-                    py: idx === 0 ? 0 : 0.5,
-                    borderRadius: idx === 0 ? 0 : 1,
-                    width: 'fit-content',
-                  }}
-                >
-                  <span>{isLast ? '└─' : '├─'}</span>
-                  <span>{pathLabel}</span>
-                </Typography>
+              />
+              
+              {node.children.map((child, idx) => {
+                const isFirst = idx === 0;
+                const isLast = idx === node.children.length - 1;
+                const branchKey: CollapseKey = `branch:${child.nodeId}`;
+                const isBranchCollapsed = collapsed.has(branchKey);
                 
-                {/* Render child subtree (recursive) */}
-                {renderNode(child, depth + 1)}
-              </Box>
-            );
-          })}
+                // Get label for this path - prefer user message for clarity
+                let pathLabel = '';
+                if (child.userMessage) {
+                  const snippet = child.userMessage.length > 30 
+                    ? child.userMessage.substring(0, 30) + '...'
+                    : child.userMessage;
+                  pathLabel = `"${snippet}"`;
+                } else if (child.agentMessage) {
+                  const snippet = child.agentMessage.length > 30
+                    ? child.agentMessage.substring(0, 30) + '...'
+                    : child.agentMessage;
+                  pathLabel = `"${snippet}"`;
+                } else {
+                  pathLabel = `Path ${idx + 1}`;
+                }
+                
+                return (
+                  <Box
+                    key={child.nodeId}
+                    sx={{
+                      pl: 2,
+                      position: 'relative',
+                      mb: isLast ? 0 : 2,
+                    }}
+                  >
+                    {/* Horizontal connector */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        left: 0,
+                        top: '20px',
+                        width: '16px',
+                        height: '2px',
+                        bgcolor: 'divider',
+                      }}
+                    />
+                    
+                    {/* Path label - all paths get same purple/bold styling with collapse toggle */}
+                    <Box
+                      onClick={() => toggleCollapse(branchKey)}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5,
+                        mb: 0.5,
+                        cursor: 'pointer',
+                        width: 'fit-content',
+                        '&:hover': {
+                          opacity: 0.8,
+                        },
+                      }}
+                    >
+                      <IconButton
+                        size="small"
+                        sx={{ 
+                          p: 0.25, 
+                          color: 'warning.main',
+                        }}
+                      >
+                        {isBranchCollapsed ? <ChevronRightIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                      </IconButton>
+                      
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: '0.7rem',
+                          color: 'warning.main',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                          backgroundColor: 'rgba(167, 139, 250, 0.1)',
+                          px: 1,
+                          py: 0.5,
+                          borderRadius: 1,
+                        }}
+                      >
+                        <CallSplitIcon sx={{ fontSize: '0.9rem', mr: 0.5 }} />
+                        <span>{pathLabel}</span>
+                      </Typography>
+                    </Box>
+                    
+                    {/* Render child subtree (recursive) - render at depth 0 since wrapper provides offset */}
+                    {!isBranchCollapsed && (
+                      <Box>
+                        {renderNode(child, 0, node)}
+                      </Box>
+                    )}
+                    
+                    {/* Collapsed indicator */}
+                    {isBranchCollapsed && (
+                      <Box
+                        sx={{
+                          py: 0.5,
+                          px: 1.5,
+                          backgroundColor: 'action.hover',
+                          borderRadius: 1,
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => toggleCollapse(branchKey)}
+                      >
+                        <Typography variant="caption" color="text.secondary">
+                          {countSubtreeTurns(child)} turn{countSubtreeTurns(child) !== 1 ? 's' : ''} hidden • 
+                          <Typography component="span" variant="caption" sx={{ ml: 0.5, color: 'primary.main', fontWeight: 600 }}>
+                            Expand
+                          </Typography>
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
+            </Box>
+          )}
         </Box>
       );
     } else {
@@ -756,11 +1019,15 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
         const isLinearCollapsed = collapsed.has(linearKey);
         
         if (isLinearCollapsed) {
-          // Render folded: first 2, fold indicator, last 2, then continue after run
-          const firstNodes = linearRun.slice(0, LINEAR_FOLD_SHOW_EDGES);
-          const lastNodes = linearRun.slice(-LINEAR_FOLD_SHOW_EDGES);
-          const hiddenCount = linearRun.length - (LINEAR_FOLD_SHOW_EDGES * 2);
+          // Render folded: first 2, fold indicator, last nodes (excluding divergence), then divergence if any
           const lastNode = linearRun[linearRun.length - 1];
+          const lastNodeIsDivergence = lastNode.children.length > 1;
+          
+          // If last node is divergence, don't include it in the display - render it separately
+          const nodesToDisplay = lastNodeIsDivergence ? linearRun.slice(0, -1) : linearRun;
+          const firstNodes = nodesToDisplay.slice(0, LINEAR_FOLD_SHOW_EDGES);
+          const lastNodes = nodesToDisplay.slice(-LINEAR_FOLD_SHOW_EDGES);
+          const hiddenCount = nodesToDisplay.length - (LINEAR_FOLD_SHOW_EDGES * 2);
           
           return (
             <Box key={node.nodeId}>
@@ -780,24 +1047,26 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
               ))}
               
               {/* Fold indicator */}
-              <Box
-                sx={{
-                  ml: depth * 3 + 3,
-                  py: 0.5,
-                  px: 1.5,
-                  backgroundColor: 'action.hover',
-                  borderRadius: 1,
-                  cursor: 'pointer',
-                  my: 0.5,
-                }}
-                onClick={() => toggleCollapse(linearKey)}
-              >
-                <Typography variant="caption" color="text.secondary">
-                  ⋯ Show {hiddenCount} more…
-                </Typography>
-              </Box>
+              {hiddenCount > 0 && (
+                <Box
+                  sx={{
+                    ml: depth * 3 + 3,
+                    py: 0.5,
+                    px: 1.5,
+                    backgroundColor: 'action.hover',
+                    borderRadius: 1,
+                    cursor: 'pointer',
+                    my: 0.5,
+                  }}
+                  onClick={() => toggleCollapse(linearKey)}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    ⋯ Show {hiddenCount} more…
+                  </Typography>
+                </Box>
+              )}
               
-              {/* Render last N nodes */}
+              {/* Render last N nodes (excluding divergence if any) */}
               {lastNodes.map(n => (
                 <Box key={n.nodeId} sx={{ ml: depth * 3 }}>
                   <TurnCard
@@ -812,16 +1081,22 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
                 </Box>
               ))}
               
-              {/* Continue after linear run (if last node has children that aren't part of the run) */}
-              {lastNode.children.length > 1 && lastNode.children.map(child => renderNode(child, depth))}
+              {/* Render divergence node separately - this will trigger proper divergence rendering */}
+              {lastNodeIsDivergence && renderNode(lastNode, depth, parent)}
             </Box>
           );
         } else {
           // Render unfolded with collapse control
+          const lastNode = linearRun[linearRun.length - 1];
+          const lastNodeIsDivergence = lastNode.children.length > 1;
+          
+          // If last node is divergence, don't include it in the display - render it separately
+          const nodesToDisplay = lastNodeIsDivergence ? linearRun.slice(0, -1) : linearRun;
+          
           return (
             <Box key={node.nodeId}>
-              {/* All nodes in linear run */}
-              {linearRun.map((n, idx) => (
+              {/* All nodes in linear run (excluding divergence if any) */}
+              {nodesToDisplay.map((n, idx) => (
                 <Box key={n.nodeId} sx={{ ml: depth * 3 }}>
                   <TurnCard
                     node={n}
@@ -848,37 +1123,36 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
                           },
                         }}
                       >
-                        ⋯ Fold {linearRun.length} turns
+                        ⋯ Fold {nodesToDisplay.length} turns
                       </Typography>
                     </Box>
                   )}
                 </Box>
               ))}
               
-              {/* Continue after linear run - if last node is a divergence, render it as such */}
-              {linearRun[linearRun.length - 1].children.length > 1 && 
-                renderNode(linearRun[linearRun.length - 1], depth)}
+              {/* Render divergence node separately - this will trigger proper divergence rendering */}
+              {lastNodeIsDivergence && renderNode(lastNode, depth, parent)}
             </Box>
           );
         }
       } else {
-        // REGULAR NODE - render node + children normally
+        // REGULAR NODE - simple line item
+        // No tree connectors needed here since we're either at root or inside a divergence branch
+        
         return (
           <Box key={node.nodeId}>
-            <Box sx={{ ml: depth * 3 }}>
-              <TurnCard
-                node={node}
-                isSelected={node.nodeId === selectedNodeId}
-                onSelect={() => {
-                  selectBranch(node.branchId);
-                  selectNode(node.nodeId);
-                }}
-                debugMode={debugMode}
-              />
-            </Box>
+            <TurnCard
+              node={node}
+              isSelected={node.nodeId === selectedNodeId}
+              onSelect={() => {
+                selectBranch(node.branchId);
+                selectNode(node.nodeId);
+              }}
+              debugMode={debugMode}
+            />
             
-            {/* Render children (if any) */}
-            {hasChildren && node.children.map(child => renderNode(child, depth))}
+            {/* Render children */}
+            {hasChildren && node.children.map(child => renderNode(child, depth, node))}
           </Box>
         );
       }
@@ -905,33 +1179,36 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
           
           {/* Collapse/Expand controls */}
           <Box sx={{ display: 'flex', gap: 0.5 }}>
-            <IconButton
-              size="small"
-              onClick={() => setDebugMode(!debugMode)}
-              title="Toggle debug metadata"
-              sx={{ 
-                p: 0.5,
-                color: debugMode ? 'primary.main' : 'text.secondary'
-              }}
-            >
-              <SettingsIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              onClick={expandAll}
-              title="Expand all"
-              sx={{ p: 0.5 }}
-            >
-              <UnfoldMoreIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              onClick={collapseAll}
-              title="Collapse all"
-              sx={{ p: 0.5 }}
-            >
-              <UnfoldLessIcon fontSize="small" />
-            </IconButton>
+            <Tooltip title="Toggle debug metadata" slotProps={TOOLTIP_STYLES}>
+              <IconButton
+                size="small"
+                onClick={() => setDebugMode(!debugMode)}
+                sx={{ 
+                  p: 0.5,
+                  color: debugMode ? 'primary.main' : 'text.secondary'
+                }}
+              >
+                <SettingsIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Expand all" slotProps={TOOLTIP_STYLES}>
+              <IconButton
+                size="small"
+                onClick={expandAll}
+                sx={{ p: 0.5 }}
+              >
+                <UnfoldMoreIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Collapse all" slotProps={TOOLTIP_STYLES}>
+              <IconButton
+                size="small"
+                onClick={collapseAll}
+                sx={{ p: 0.5 }}
+              >
+                <UnfoldLessIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </Box>
         </Box>
         
@@ -961,7 +1238,7 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
           </Typography>
           
           {/* Render tree recursively from roots */}
-          {treeRoots.map(root => renderNode(root, 0))}
+          {treeRoots.map(root => renderNode(root, 0, null))}
         </Box>
       </Box>
     </Box>

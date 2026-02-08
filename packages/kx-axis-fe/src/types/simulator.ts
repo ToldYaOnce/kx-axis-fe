@@ -279,16 +279,12 @@ export interface SimulationSummary {
   simulationId: string;
   name: string;
   flowId: string;
+  leadState: LeadState;
+  personaId?: string; // Persona used in this simulation
+  rootNodeId: string;
+  nodeCount: number;
   createdAt: string;
   updatedAt: string;
-  status: 'ACTIVE' | 'COMPLETED' | 'ABANDONED';
-  metadata: {
-    channel: Channel;
-    leadState: LeadState;
-    turnCount: number;
-    hasLowConfidence?: boolean;
-    hasGapDetection?: boolean;
-  };
 }
 
 export interface ListSimulationsResponse {

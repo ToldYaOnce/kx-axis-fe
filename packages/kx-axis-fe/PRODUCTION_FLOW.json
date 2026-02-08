@@ -58,7 +58,7 @@
       "kind": "EXPLANATION",
       "title": "Welcome / Introduction",
       "purpose": "Greet the user and set expectations",
-      "produces": ["WELCOME_SHOWN"],
+      "produces": ["name"],
       "ui": { "x": 100, "y": 50, "lane": "BEFORE_CONTACT" },
       "importance": "high",
       "runPolicy": { "maxExecutions": 1 }

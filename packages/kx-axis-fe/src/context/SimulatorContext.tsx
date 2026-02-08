@@ -33,7 +33,7 @@ interface SimulatorContextType {
   
   // Actions
   createEmptySimulation: (scenario: ScenarioContext) => Promise<void>;  // NEW: POST /agent/simulations
-  stepSimulation: (userMessage: string) => Promise<void>;               // PATCH /agent/simulations/:id
+  stepSimulation: (userMessage: string, explicitParentNodeId?: string) => Promise<void>;  // PATCH /agent/simulations/:id
   forkSimulation: (nodeId: string, branchLabel: string) => Promise<void>;
   selectNode: (nodeId: string) => void;
   selectBranch: (branchId: string) => void;
@@ -150,9 +150,10 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
   // Simulation loading is now handled in the main useEffect below
   // Removing this duplicate loading logic
 
-  const stepSimulation = useCallback(async (userMessage: string) => {
+  const stepSimulation = useCallback(async (userMessage: string, explicitParentNodeId?: string) => {
     console.log('💬 stepSimulation called with:', { 
-      userMessage, 
+      userMessage,
+      explicitParentNodeId,
       hasCurrentRun: !!currentRun, 
       activeBranchId, 
       simulationId,
@@ -196,7 +197,30 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
       return allAgents[0] || null;
     };
     
-    const latestAgentNode = findLastAgentInPath(currentRun.nodes, selectedNodeId);
+    console.log('🔍 Finding last agent node:', {
+      selectedNodeId,
+      explicitParentNodeId,
+      alternateReplyAnchorNodeId,
+      totalNodes: currentRun.nodes.length,
+    });
+    
+    // If explicit parent provided, use that directly
+    let latestAgentNode: SimulationNode | null = null;
+    if (explicitParentNodeId) {
+      latestAgentNode = currentRun.nodes.find(n => n.nodeId === explicitParentNodeId) || null;
+      console.log('✅ Using explicit parent node:', {
+        nodeId: latestAgentNode?.nodeId,
+        message: latestAgentNode?.agentMessage?.substring(0, 50),
+      });
+    } else {
+      latestAgentNode = findLastAgentInPath(currentRun.nodes, selectedNodeId);
+      console.log('🎯 Found last agent node via path:', {
+        nodeId: latestAgentNode?.nodeId,
+        message: latestAgentNode?.agentMessage?.substring(0, 50),
+        timestamp: latestAgentNode?.timestamp,
+        isSelectedNode: latestAgentNode?.nodeId === selectedNodeId,
+      });
+    }
     
     // Handle first message - no agent exists yet, use root node
     if (!latestAgentNode) {
@@ -254,11 +278,69 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
           contractVersion: '1.0.0',
           designVersionHash: 'pending',
           status: 'VALID',
+          // Preserve top-level tickSignals (matching GET response structure)
+          tickSignals,
           metadata: {
             tickSignals,
             intentDetection: userNode.intentDetection,
           },
           intentDetection: userNode.intentDetection,
+        };
+        
+        // Build controllerOutput from API response structure (first message)
+        const firstMsgControllerOutput = (agentNode as any).metadata?.controllerOutput || {
+          intent: { 
+            primary: userNode.intentDetection?.primaryIntent || 'provide_information',
+            confidence: (response as any).decision?.confidence || (agentNode as any).sim?.decision?.confidence || 0.85
+          },
+          affectScalars: { 
+            pain: tickSignals.pain / 10, 
+            urgency: tickSignals.urgency / 10, 
+            vulnerability: tickSignals.vulnerability / 10 
+          },
+          signals: { 
+            hesitation: tickSignals.hesitation > 0,
+            objection: tickSignals.objections.length > 0,
+            confusion: tickSignals.confusion > 0,
+            engagement: tickSignals.engagement 
+          },
+          progress: { 
+            madeProgress: ((response as any).factsCollected?.newFactsThisTurn?.length || 0) > 0,
+            stallDetected: (response as any).loopDetection?.isApproachingLoop || false,
+            stagnationTurns: (response as any).loopDetection?.turnsOnCurrentNode || 0 
+          },
+          stepSufficiency: true,
+          controlFlags: {
+            canAdvance: (response as any).decision?.move === 'ADVANCE',
+            needsExplanation: false,
+            fastTrackEligible: (response as any).fastTrackStatus !== null,
+            humanTakeoverAllowed: false,
+            recommendedStep: {
+              stepId: (response as any).decision?.targetNodeId || (agentNode as any).sim?.selectedNodeId,
+              confidence: (response as any).decision?.confidence || (agentNode as any).sim?.decision?.confidence || 0.85,
+            },
+            allowedBlabberModes: ['ACK'],
+          },
+          stepRecommendation: (response as any).decision ? {
+            decision: {
+              move: (response as any).decision.move,
+              targetNodeId: (response as any).decision.targetNodeId,
+              confidence: (response as any).decision.confidence,
+            },
+            rankedCandidates: [],
+          } : undefined,
+        };
+        
+        const firstMsgExecutionResult = (agentNode as any).metadata?.executionResult || {
+          executionDecision: (response as any).decision?.action || (response as any).decision?.move || 'ADVANCE',
+          reasoning: `Selected node: ${(agentNode as any).sim?.selectedNodeId} (confidence: ${(agentNode as any).sim?.decision?.confidence || 0.85})`,
+          agentMessage: agentNode.content,
+          executionMetadata: {
+            blabberModeUsed: (response as any).updatedState?.lastTurnType || 'VALUE_ANCHOR',
+            stepSatisfiedThisTurn: ((response as any).progress?.completedSteps?.length || 0) > 0,
+            newlyKnownFacts: (response as any).progress?.learnedThisTurn || [],
+            readinessDelta: [],
+          },
         };
         
         const newAgentNode: SimulationNode = {
@@ -268,20 +350,25 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
           turnNumber: turnNumber + 1,
           agentMessage: agentNode.content,
           knownFactsBefore: {},
-          controllerOutput: (agentNode as any).metadata?.controllerOutput || {} as any,
-          executionResult: (agentNode as any).metadata?.executionResult || {} as any,
+          controllerOutput: firstMsgControllerOutput,
+          executionResult: firstMsgExecutionResult,
           knownFactsAfter: {},
           timestamp: agentNode.timestamp,
           contractVersion: '1.0.0',
           designVersionHash: 'pending',
           status: 'VALID',
+          // Preserve top-level tickSignals (matching GET response structure)
+          tickSignals,
           metadata: {
             tickSignals,
-            controllerOutput: (agentNode as any).metadata?.controllerOutput,
-            executionResult: (agentNode as any).metadata?.executionResult,
+            controllerOutput: firstMsgControllerOutput,
+            executionResult: firstMsgExecutionResult,
             sim: (agentNode as any).sim,
             knownFactsBefore: response.factsCollected?.before || [],
             knownFactsAfter: response.factsCollected?.after || [],
+            progress: (response as any).progress,
+            decision: (response as any).decision,
+            loopDetection: (response as any).loopDetection,
           },
         };
         
@@ -293,6 +380,7 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
         
         setCurrentRun(updatedRun);
         setSelectedNodeId(agentNode.nodeId);
+        setAlternateReplyAnchorNodeId(null); // Clear fork mode
         console.log('✅ First message completed successfully');
         return;
       } catch (error) {
@@ -323,6 +411,7 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
           
           setCurrentRun(updatedRun);
           setSelectedNodeId(response.node.nodeId);
+          setAlternateReplyAnchorNodeId(null); // Clear fork mode
         } else {
           throw new Error('No mock step data available');
         }
@@ -402,11 +491,15 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
           knownFactsBefore: {},
           controllerOutput: {
             intent: { primary: userNode.intentDetection.primaryIntent, confidence: 0.85 },
-            affectScalars: { pain: 0, urgency: 0, vulnerability: 0 },
+            affectScalars: { 
+              pain: tickSignals.pain / 10, 
+              urgency: tickSignals.urgency / 10, 
+              vulnerability: tickSignals.vulnerability / 10 
+            },
             signals: {
-              hesitation: userNode.intentDetection.signals.hesitation > 0.5,
-              objection: userNode.intentDetection.signals.objections.length > 0,
-              confusion: userNode.intentDetection.signals.confusion > 0.5,
+              hesitation: tickSignals.hesitation > 0,
+              objection: tickSignals.objections.length > 0,
+              confusion: tickSignals.confusion > 0,
               engagement: tickSignals.engagement,
             },
             progress: { madeProgress: true, stallDetected: false, stagnationTurns: 0 },
@@ -434,10 +527,69 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
           contractVersion: '1.0.0',
           designVersionHash: 'pending',
           status: 'VALID',
+          // Preserve top-level tickSignals (matching GET response structure)
+          tickSignals,
           // Store tickSignals in metadata for ReadinessPanel
           metadata: {
             tickSignals,
             intentDetection: userNode.intentDetection,
+          },
+          intentDetection: userNode.intentDetection,
+        };
+        
+        // Build controllerOutput from API response structure
+        const controllerOutput = agentNode.metadata?.controllerOutput || {
+          intent: { 
+            primary: userNode.intentDetection?.primaryIntent || 'provide_information',
+            confidence: response.decision?.confidence || agentNode.sim.decision.confidence 
+          },
+          affectScalars: { 
+            pain: tickSignals.pain / 10, 
+            urgency: tickSignals.urgency / 10, 
+            vulnerability: tickSignals.vulnerability / 10 
+          },
+          signals: { 
+            hesitation: tickSignals.hesitation > 0,
+            objection: tickSignals.objections.length > 0,
+            confusion: tickSignals.confusion > 0,
+            engagement: tickSignals.engagement 
+          },
+          progress: { 
+            madeProgress: (response.factsCollected?.newFactsThisTurn?.length || 0) > 0,
+            stallDetected: response.loopDetection?.isApproachingLoop || false,
+            stagnationTurns: response.loopDetection?.turnsOnCurrentNode || 0 
+          },
+          stepSufficiency: true,
+          controlFlags: {
+            canAdvance: response.decision?.move === 'ADVANCE',
+            needsExplanation: false,
+            fastTrackEligible: response.fastTrackStatus !== null,
+            humanTakeoverAllowed: false,
+            recommendedStep: {
+              stepId: response.decision?.targetNodeId || agentNode.sim.selectedNodeId,
+              confidence: response.decision?.confidence || agentNode.sim.decision.confidence,
+            },
+            allowedBlabberModes: ['ACK'],
+          },
+          stepRecommendation: response.decision ? {
+            decision: {
+              move: response.decision.move,
+              targetNodeId: response.decision.targetNodeId,
+              confidence: response.decision.confidence,
+            },
+            rankedCandidates: [], // Not provided in new API
+          } : undefined,
+        };
+        
+        const executionResult = agentNode.metadata?.executionResult || {
+          executionDecision: response.decision?.action || response.decision?.move || 'ADVANCE',
+          reasoning: `Selected node: ${agentNode.sim.selectedNodeId} (confidence: ${agentNode.sim.decision.confidence})`,
+          agentMessage: agentNode.content,
+          executionMetadata: {
+            blabberModeUsed: response.updatedState?.lastTurnType || 'VALUE_ANCHOR',
+            stepSatisfiedThisTurn: (response.progress?.completedSteps?.length || 0) > 0,
+            newlyKnownFacts: response.progress?.learnedThisTurn || [],
+            readinessDelta: [],
           },
         };
         
@@ -448,48 +600,26 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
           turnNumber: turnNumber + 1,
           agentMessage: agentNode.content,
           knownFactsBefore: {},
-          controllerOutput: agentNode.metadata?.controllerOutput || {
-            intent: { primary: 'RESPOND', confidence: agentNode.sim.decision.confidence },
-            affectScalars: { pain: 0, urgency: 0, vulnerability: 0 },
-            signals: { hesitation: false, objection: false, confusion: false, engagement: tickSignals.engagement },
-            progress: { madeProgress: true, stallDetected: false, stagnationTurns: 0 },
-            stepSufficiency: true,
-            controlFlags: {
-              canAdvance: true,
-              needsExplanation: false,
-              fastTrackEligible: false,
-              humanTakeoverAllowed: false,
-              recommendedStep: {
-                stepId: agentNode.sim.selectedNodeId,
-                confidence: agentNode.sim.decision.confidence,
-              },
-              allowedBlabberModes: ['ACK'],
-            },
-          },
-          executionResult: agentNode.metadata?.executionResult || {
-            executionDecision: 'ADVANCE',
-            reasoning: `Selected node: ${agentNode.sim.selectedNodeId} (confidence: ${agentNode.sim.decision.confidence})`,
-            agentMessage: agentNode.content,
-            executionMetadata: {
-              blabberModeUsed: 'ACK',
-              stepSatisfiedThisTurn: true,
-              newlyKnownFacts: response.updatedState.knownFacts,
-              readinessDelta: [],
-            },
-          },
+          controllerOutput,
+          executionResult,
           knownFactsAfter: {},
           timestamp: agentNode.timestamp,
           contractVersion: '1.0.0',
           designVersionHash: 'pending',
           status: 'VALID',
-          // Store all metadata from API response including tickSignals, controllerOutput, executionResult, sim
+          // Preserve top-level tickSignals (matching GET response structure)
+          tickSignals,
+          // Store all metadata from API response including tickSignals, controllerOutput, executionResult, sim, progress, decision
           metadata: {
             tickSignals,
-            controllerOutput: agentNode.metadata?.controllerOutput,
-            executionResult: agentNode.metadata?.executionResult,
+            controllerOutput,
+            executionResult,
             sim: agentNode.sim,
             knownFactsBefore: response.factsCollected?.before || [],
             knownFactsAfter: response.factsCollected?.after || [],
+            progress: response.progress,
+            decision: response.decision,
+            loopDetection: response.loopDetection,
           },
         };
         
@@ -527,9 +657,16 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
         }
         
         setCurrentRun(updatedRun);
-        setSelectedNodeId(agentNode.nodeId);
         
-        console.log('✅ stepSimulation completed successfully');
+        // CRITICAL: Select the new agent node so user can see the response details
+        console.log('🎯 Selecting new agent node:', agentNode.nodeId);
+        console.log('🎯 Previous selectedNodeId:', selectedNodeId);
+        setSelectedNodeId(agentNode.nodeId);
+        console.log('🎯 After setSelectedNodeId called for:', agentNode.nodeId);
+        
+        setAlternateReplyAnchorNodeId(null); // Clear fork mode after successful message
+        
+        console.log('✅ stepSimulation completed successfully, agent node selected:', agentNode.nodeId);
         
         // Log gap detection if present
         if (agentNode.sim.gapRecommendation) {
@@ -803,10 +940,20 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
         setCurrentRun(run);
         setActiveBranchId('branch-main');
         
-        // Select the last node
+        // Select the last AGENT node (so user can see the response details immediately)
         if (simulationNodes.length > 0) {
-          const lastNodeId = simulationNodes[simulationNodes.length - 1].nodeId;
-          console.log('🎯 Selecting last node:', lastNodeId);
+          // Find the last agent node in the array
+          const lastAgentNode = [...simulationNodes].reverse().find(n => n.agentMessage !== undefined);
+          const lastNodeId = lastAgentNode ? lastAgentNode.nodeId : simulationNodes[simulationNodes.length - 1].nodeId;
+          
+          console.log('🎯 Selecting last node for initial load:', {
+            totalNodes: simulationNodes.length,
+            lastNodeId,
+            lastNodeIndex: simulationNodes.findIndex(n => n.nodeId === lastNodeId),
+            isAgentNode: !!lastAgentNode,
+            actualLastNodeInArray: simulationNodes[simulationNodes.length - 1].nodeId,
+          });
+          
           setSelectedNodeId(lastNodeId);
         }
         

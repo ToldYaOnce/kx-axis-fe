@@ -22,12 +22,13 @@ import {
   ToggleButtonGroup,
   ToggleButton,
 } from '@mui/material';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import PublishIcon from '@mui/icons-material/Publish';
-import UnpublishedIcon from '@mui/icons-material/Unpublished';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import UpdateIcon from '@mui/icons-material/Update';
+import BusinessIcon from '@mui/icons-material/Business';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import DraftsIcon from '@mui/icons-material/Drafts';
 import { flowAPI } from '../../api/flowClient';
 import type { FlowListItem } from '../../types/flow-api';
 import { useToast } from '../../context/ToastContext';
@@ -138,22 +139,56 @@ export const FlowsList: React.FC<FlowsListProps> = ({ onOpenFlow, onCreateNew })
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 4 }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, pb: 3, borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
         <Box>
-          <Typography variant="h4" gutterBottom>
-            Conversation Flows
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {filteredFlows.length} {filteredFlows.length === 1 ? 'flow' : 'flows'}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+            <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary', letterSpacing: '-0.02em' }}>
+              Conversation Flows
+            </Typography>
+            <Chip 
+              label={filteredFlows.length}
+              size="small"
+              sx={{
+                background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.2) 0%, rgba(167, 139, 250, 0.2) 100%)',
+                color: 'secondary.main',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                height: 28,
+                border: '1px solid rgba(0, 229, 255, 0.3)',
+              }}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <FiberManualRecordIcon sx={{ fontSize: '0.5rem', color: 'secondary.main' }} />
+            <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+              {filteredFlows.length} {filteredFlows.length === 1 ? 'flow' : 'flows'}
+            </Typography>
+          </Box>
         </Box>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={onCreateNew}
-          size="large"
+          sx={{
+            background: 'linear-gradient(135deg, rgb(0, 229, 255) 0%, rgb(0, 200, 230) 100%)',
+            color: '#000000',
+            fontWeight: 700,
+            px: 4,
+            py: 1.5,
+            borderRadius: 2.5,
+            textTransform: 'none',
+            fontSize: '1rem',
+            boxShadow: '0 8px 24px rgba(0, 229, 255, 0.35)',
+            border: '1px solid rgba(0, 229, 255, 0.5)',
+            '&:hover': {
+              background: 'linear-gradient(135deg, rgb(0, 255, 255) 0%, rgb(0, 229, 255) 100%)',
+              boxShadow: '0 12px 32px rgba(0, 229, 255, 0.5)',
+              transform: 'translateY(-2px)',
+            },
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
         >
           Create New Flow
         </Button>
@@ -161,7 +196,7 @@ export const FlowsList: React.FC<FlowsListProps> = ({ onOpenFlow, onCreateNew })
 
       {/* Status Filter */}
       {flows.length > 0 && (
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 4 }}>
           <ToggleButtonGroup
             value={statusFilter}
             exclusive
@@ -170,7 +205,28 @@ export const FlowsList: React.FC<FlowsListProps> = ({ onOpenFlow, onCreateNew })
                 setStatusFilter(newFilter);
               }
             }}
-            size="small"
+            sx={{
+              '& .MuiToggleButton-root': {
+                px: 3,
+                py: 1.25,
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: 'text.secondary',
+                fontWeight: 600,
+                textTransform: 'none',
+                fontSize: '0.95rem',
+                '&.Mui-selected': {
+                  background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.2) 0%, rgba(167, 139, 250, 0.2) 100%)',
+                  color: 'secondary.main',
+                  borderColor: 'rgba(0, 229, 255, 0.4)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.25) 0%, rgba(167, 139, 250, 0.25) 100%)',
+                  }
+                },
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                }
+              }
+            }}
           >
             <ToggleButton value="ALL">
               All ({flows.length})
@@ -187,156 +243,242 @@ export const FlowsList: React.FC<FlowsListProps> = ({ onOpenFlow, onCreateNew })
 
       {/* Empty State */}
       {flows.length === 0 && (
-        <Paper sx={{ p: 6, textAlign: 'center' }}>
-          <Typography variant="h6" color="text.secondary" gutterBottom>
-            No flows yet
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            minHeight: '60vh',
+            textAlign: 'center',
+          }}
+        >
+          <Box
+            sx={{
+              width: 140,
+              height: 140,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.15) 0%, rgba(167, 139, 250, 0.15) 100%)',
+              border: '3px solid rgba(0, 229, 255, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mb: 4,
+              boxShadow: '0 8px 32px rgba(0, 229, 255, 0.2)',
+            }}
+          >
+            <AddIcon sx={{ fontSize: 70, color: 'secondary.main' }} />
+          </Box>
+          
+          <Typography variant="h3" sx={{ fontWeight: 700, mb: 2, letterSpacing: '-0.02em' }}>
+            Create Your First Flow
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Create your first conversation flow to get started
+          
+          <Typography variant="body1" sx={{ color: 'text.secondary', mb: 5, maxWidth: 520, fontSize: '1.1rem', lineHeight: 1.6 }}>
+            Design intelligent conversation flows that guide users through personalized experiences
           </Typography>
+          
           <Button
             variant="contained"
+            size="large"
             startIcon={<AddIcon />}
             onClick={onCreateNew}
+            sx={{
+              background: 'linear-gradient(135deg, rgb(0, 229, 255) 0%, rgb(0, 200, 230) 100%)',
+              color: '#000000',
+              fontWeight: 700,
+              fontSize: '1.1rem',
+              py: 2,
+              px: 5,
+              borderRadius: 2.5,
+              textTransform: 'none',
+              boxShadow: '0 8px 24px rgba(0, 229, 255, 0.35)',
+              border: '1px solid rgba(0, 229, 255, 0.5)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, rgb(0, 255, 255) 0%, rgb(0, 229, 255) 100%)',
+                boxShadow: '0 12px 32px rgba(0, 229, 255, 0.5)',
+                transform: 'translateY(-3px)',
+              },
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
           >
             Create Flow
           </Button>
-        </Paper>
+        </Box>
       )}
 
-      {/* Flows Table */}
+      {/* Flows - No Results */}
       {flows.length > 0 && filteredFlows.length === 0 && (
-        <Paper sx={{ p: 6, textAlign: 'center' }}>
-          <Typography variant="body1" color="text.secondary">
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            minHeight: '40vh',
+            textAlign: 'center',
+          }}
+        >
+          <Typography variant="h6" sx={{ color: 'text.secondary', mb: 1 }}>
             No {statusFilter.toLowerCase()} flows
           </Typography>
-        </Paper>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Try adjusting your filter
+          </Typography>
+        </Box>
       )}
 
+      {/* Flows Grid */}
       {filteredFlows.length > 0 && (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Industry</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Last Updated</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredFlows.map((flow) => (
-                <TableRow
-                  key={flow.flowId}
-                  onClick={() => onOpenFlow(flow.flowId)}
-                  sx={{ 
-                    '&:hover': { bgcolor: 'action.hover' },
-                    cursor: 'pointer'
-                  }}
-                >
-                  <TableCell>
-                    <Typography variant="body1" fontWeight="medium">
-                      {flow.name}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {filteredFlows.map((flow) => (
+            <Paper
+              key={flow.flowId}
+              onClick={() => onOpenFlow(flow.flowId)}
+              sx={{
+                p: 3,
+                background: 'linear-gradient(135deg, rgba(30, 30, 40, 0.6) 0%, rgba(20, 20, 30, 0.8) 100%)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 3,
+                cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '3px',
+                  background: flow.status === 'PUBLISHED'
+                    ? 'linear-gradient(90deg, rgb(16, 185, 129) 0%, rgb(52, 211, 153) 100%)'
+                    : 'linear-gradient(90deg, rgba(156, 163, 175, 0.5) 0%, rgba(156, 163, 175, 0.2) 100%)',
+                  opacity: 0,
+                  transition: 'opacity 0.3s ease',
+                },
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 12px 40px rgba(0, 229, 255, 0.15)',
+                  borderColor: 'rgba(0, 229, 255, 0.3)',
+                  '&::before': {
+                    opacity: 1,
+                  }
+                },
+              }}
+            >
+              {/* Main Content Grid */}
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                
+                {/* Left: Name & Description */}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography 
+                    variant="h6" 
+                    sx={{ 
+                      fontWeight: 600, 
+                      mb: 0.5,
+                      fontSize: '1.1rem',
+                      color: 'text.primary',
+                      letterSpacing: '-0.01em'
+                    }}
+                  >
+                    {flow.name}
+                  </Typography>
+                  {flow.description && (
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5, lineHeight: 1.5 }}>
+                      {flow.description}
                     </Typography>
-                    {flow.description && (
-                      <Typography variant="body2" color="text.secondary">
-                        {flow.description}
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {flow.industry && (
-                      <Chip label={flow.industry} size="small" variant="outlined" />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={flow.status}
-                      color={flow.status === 'PUBLISHED' ? 'success' : 'default'}
+                  )}
+                </Box>
+
+                {/* Center: Chips Section */}
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                  {/* Industry Chip */}
+                  {flow.industry && (
+                    <Chip 
+                      icon={<BusinessIcon />}
+                      label={flow.industry}
                       size="small"
+                      sx={{
+                        background: 'linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%)',
+                        color: 'rgb(196, 181, 253)',
+                        border: '1px solid rgba(167, 139, 250, 0.3)',
+                        fontWeight: 600,
+                        fontSize: '0.85rem',
+                        height: 32,
+                        '& .MuiChip-icon': {
+                          color: 'rgb(196, 181, 253)',
+                          fontSize: '1.1rem',
+                        }
+                      }}
                     />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
+                  )}
+
+                  {/* Status Chip */}
+                  <Chip
+                    icon={flow.status === 'PUBLISHED' ? <CheckCircleIcon /> : <DraftsIcon />}
+                    label={flow.status === 'PUBLISHED' ? 'Published' : 'Draft'}
+                    size="small"
+                    sx={{
+                      background: flow.status === 'PUBLISHED'
+                        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.25) 100%)'
+                        : 'linear-gradient(135deg, rgba(100, 116, 139, 0.25) 0%, rgba(71, 85, 105, 0.25) 100%)',
+                      color: flow.status === 'PUBLISHED'
+                        ? 'rgb(110, 231, 183)'
+                        : 'rgb(203, 213, 225)',
+                      border: flow.status === 'PUBLISHED'
+                        ? '1px solid rgba(16, 185, 129, 0.4)'
+                        : '1px solid rgba(148, 163, 184, 0.4)',
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      height: 32,
+                      '& .MuiChip-icon': {
+                        color: 'inherit',
+                        fontSize: '1.1rem',
+                      }
+                    }}
+                  />
+
+                  {/* Updated Date */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 100 }}>
+                    <UpdateIcon sx={{ fontSize: '1.1rem', color: 'rgba(0, 229, 255, 0.6)' }} />
+                    <Typography variant="body2" sx={{ color: 'secondary.main', fontWeight: 600, whiteSpace: 'nowrap' }}>
                       {formatDate(flow.updatedAt)}
                     </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
-                      {/* Open Published (if exists) */}
-                      {flow.latestPublishedVersionId && (
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenFlow(flow.flowId, flow.latestPublishedVersionId!);
-                          }}
-                          title="View Published Version"
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      )}
+                  </Box>
+                </Box>
 
-                      {/* Duplicate */}
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          console.log('Duplicate:', flow.flowId);
-                        }}
-                        title="Duplicate"
-                        disabled
-                      >
-                        <ContentCopyIcon fontSize="small" />
-                      </IconButton>
-
-                      {/* Publish / Unpublish */}
-                      {flow.status === 'DRAFT' ? (
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            console.log('Publish:', flow.flowId);
-                          }}
-                          title="Publish"
-                          disabled
-                        >
-                          <PublishIcon fontSize="small" />
-                        </IconButton>
-                      ) : (
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            console.log('Unpublish:', flow.flowId);
-                          }}
-                          title="Unpublish"
-                          disabled
-                        >
-                          <UnpublishedIcon fontSize="small" />
-                        </IconButton>
-                      )}
-
-                      {/* Delete */}
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClick(flow);
-                        }}
-                        title="Delete"
-                        color="error"
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                {/* Right: Actions */}
+                <Box>
+                  {/* Delete */}
+                  <IconButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClick(flow);
+                    }}
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.15) 100%)',
+                      color: 'rgb(248, 113, 113)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(220, 38, 38, 0.3) 100%)',
+                        transform: 'scale(1.05) rotate(5deg)',
+                        borderColor: 'rgba(239, 68, 68, 0.5)',
+                        boxShadow: '0 6px 20px rgba(239, 68, 68, 0.3)',
+                      },
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    }}
+                  >
+                    <DeleteIcon sx={{ fontSize: '1.3rem' }} />
+                  </IconButton>
+                </Box>
+              </Box>
+            </Paper>
+          ))}
+        </Box>
       )}
 
       {/* Delete Confirmation Dialog */}

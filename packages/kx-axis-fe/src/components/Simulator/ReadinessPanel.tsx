@@ -10,12 +10,10 @@
  * AGENT DIAGNOSTICS MODE (when agent response selected):
  * 
  * 1. Agent Intent - Gradient card with confidence bar
- * 2. Execution Decision - Visual status with target node
- * 3. User Signals - Icon grid (hesitation, confusion, objection, engagement)
- * 4. Emotional State - Progress bars (pain, urgency, vulnerability)
- * 5. Progress Status - Status cards (made progress, stall detection, stagnation)
- * 6. Control Flags - Compact checklist with colored indicators
- * 7. Execution Metadata - Badge-style cards with fact/capability lists
+ * 2. Execution Decision - Compact card with icon, pills, and current step
+ * 3. Progress Status - Status cards (made progress, stall detection, stagnation)
+ * 4. Control Flags - Compact checklist with colored indicators
+ * 5. Execution Metadata - Badge-style cards with fact/capability lists
  * 
  * CONVERSATION READINESS MODE (default - no agent selected):
  * - Known facts, missing info, unlocked capabilities
@@ -41,18 +39,14 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import FavoriteIcon from '@mui/icons-material/Favorite';
-import SpeedIcon from '@mui/icons-material/Speed';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import BlockIcon from '@mui/icons-material/Block';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import PanToolIcon from '@mui/icons-material/PanTool';
+import LiveHelpIcon from '@mui/icons-material/LiveHelp';
 import CancelIcon from '@mui/icons-material/Cancel';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
-import HeartBrokenIcon from '@mui/icons-material/HeartBroken';
-import FlashOnIcon from '@mui/icons-material/FlashOn';
-import SecurityIcon from '@mui/icons-material/Security';
 import { useSimulator } from '../../context/SimulatorContext';
 import type { KnownFacts } from '../../types/simulator';
 
@@ -67,7 +61,8 @@ const formatFactValue = (value: any): string => {
   return String(value);
 };
 
-const formatIntentLabel = (intent: string): string => {
+const formatIntentLabel = (intent: string | undefined): string => {
+  if (!intent) return '';
   return intent
     .split('_')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -106,6 +101,18 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
   const controllerOutput = selectedNode?.metadata?.controllerOutput || selectedNode?.controllerOutput;
   const executionResult = selectedNode?.metadata?.executionResult || selectedNode?.executionResult;
   const simData = selectedNode?.metadata?.sim || selectedNode?.sim;
+
+  // Get decision from multiple possible sources
+  const decision = executionResult?.executionDecision 
+    || simData?.decision?.action 
+    || controllerOutput?.stepRecommendation?.decision?.move
+    || selectedNode?.metadata?.decision?.action;
+
+  // Get target step/node from multiple possible sources
+  const targetStepId = controllerOutput?.controlFlags?.recommendedStep?.stepId 
+    || controllerOutput?.stepRecommendation?.decision?.targetNodeId
+    || simData?.decision?.targetNodeId
+    || selectedNode?.metadata?.decision?.targetNodeId;
   
   // tickSignals can be stored in multiple places depending on API response structure:
   // 1. Agent node top-level (GET responses - duplicated from user node)
@@ -241,7 +248,7 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
 
   return (
     <Box sx={{ 
-      width: 320,
+      width: 440,
       height: '100%',  // ✅ Fill parent height
       borderLeft: '1px solid', 
       borderColor: 'divider', 
@@ -276,7 +283,7 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
           <>
             {/* Header */}
             <Typography variant="overline" sx={{ fontWeight: 700, color: 'secondary.main', display: 'block', mb: 2 }}>
-              Agent Response Analysis
+              Agent Decision Analysis
             </Typography>
 
             {/* Agent Intent - Big Visual Card */}
@@ -329,269 +336,362 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
               </Box>
             )}
 
-            {/* Execution Decision - Visual Status Card */}
-            {executionResult?.executionDecision && (
+            {/* Unified Decision Card - Winner + Alternatives */}
+            {decision && (
               <Box sx={{ mb: 3 }}>
-                <Box sx={{ 
-                  p: 2, 
-                  borderRadius: 2,
-                  bgcolor: executionResult.executionDecision === 'ADVANCE' ? 'rgba(34, 211, 238, 0.08)' : 'rgba(167, 139, 250, 0.08)',
-                  border: '1px solid',
-                  borderColor: executionResult.executionDecision === 'ADVANCE' ? 'secondary.main' : 'warning.main',
+                <Typography variant="caption" sx={{ 
+                  color: 'text.secondary', 
+                  fontSize: '0.7rem', 
+                  textTransform: 'uppercase', 
+                  fontWeight: 700,
+                  letterSpacing: '1px',
+                  display: 'block',
+                  mb: 1,
                 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-                    {executionResult.executionDecision === 'ADVANCE' ? (
-                      <TrendingUpIcon sx={{ fontSize: 28, color: 'secondary.main' }} />
-                    ) : (
-                      <SpeedIcon sx={{ fontSize: 28, color: 'warning.main' }} />
-                    )}
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600, display: 'block' }}>
-                        Decision
-                      </Typography>
-                      <Typography variant="h6" sx={{ 
-                        fontWeight: 700, 
-                        fontSize: '1rem', 
-                        color: executionResult.executionDecision === 'ADVANCE' ? 'secondary.main' : 'warning.main'
+                  Routing
+                </Typography>
+                <Box sx={{ 
+                  borderRadius: 1.5,
+                  bgcolor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  overflow: 'hidden',
+                }}>
+                  {/* Winning Path - Prominent */}
+                  <Box sx={{ 
+                    p: 2,
+                    bgcolor: decision === 'ADVANCE' 
+                      ? 'rgba(34, 211, 238, 0.05)' 
+                      : decision === 'BRIDGE'
+                      ? 'rgba(139, 92, 246, 0.05)'
+                      : decision?.toUpperCase().includes('CLARIFY')
+                      ? 'rgba(236, 72, 153, 0.05)'
+                      : 'rgba(245, 158, 11, 0.05)',
+                  }}>
+                    {/* Winner Header */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                      <Box sx={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 40,
+                        height: 40,
+                        borderRadius: 1,
+                        bgcolor: decision === 'ADVANCE' 
+                          ? 'rgba(34, 211, 238, 0.15)' 
+                          : decision === 'BRIDGE'
+                          ? 'rgba(139, 92, 246, 0.15)'
+                          : decision?.toUpperCase().includes('CLARIFY')
+                          ? 'rgba(236, 72, 153, 0.15)'
+                          : 'rgba(245, 158, 11, 0.15)',
                       }}>
-                        {formatIntentLabel(executionResult.executionDecision)}
-                      </Typography>
-                    </Box>
-                  </Box>
-                  {controllerOutput.controlFlags?.recommendedStep?.stepId && (
-                    <Box sx={{ 
-                      p: 2, 
-                      bgcolor: 'rgba(34, 211, 238, 0.08)',
-                      borderRadius: 1.5,
-                      mt: 1,
-                      border: '2px solid',
-                      borderColor: 'secondary.main'
-                    }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                        <Box sx={{ 
-                          width: 6, 
-                          height: 6, 
-                          borderRadius: '50%', 
-                          bgcolor: 'secondary.main'
-                        }} />
+                        {decision === 'ADVANCE' ? (
+                          <ArrowForwardIcon sx={{ fontSize: 24, color: '#22d3ee' }} />
+                        ) : decision === 'BRIDGE' ? (
+                          <CompareArrowsIcon sx={{ fontSize: 24, color: '#8b5cf6' }} />
+                        ) : decision?.toUpperCase().includes('CLARIFY') ? (
+                          <LiveHelpIcon sx={{ fontSize: 24, color: '#ec4899' }} />
+                        ) : (
+                          <PanToolIcon sx={{ fontSize: 24, color: '#f59e0b' }} />
+                        )}
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
                         <Typography variant="caption" sx={{ 
-                          color: 'secondary.main', 
-                          fontSize: '0.65rem', 
+                          color: 'text.secondary', 
+                          fontSize: '0.65rem',
                           textTransform: 'uppercase',
-                          fontWeight: 700,
-                          letterSpacing: '0.5px'
+                          fontWeight: 600,
+                          display: 'block',
+                          mb: 0.25,
                         }}>
-                          → Next Step
+                          Chosen
+                        </Typography>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 700, 
+                          fontSize: '1.1rem', 
+                          color: 'text.primary',
+                          lineHeight: 1.2,
+                        }}>
+                          {formatIntentLabel(decision)} → {targetStepId ? getNodeTitle(targetStepId) : 'Current Step'}
                         </Typography>
                       </Box>
-                      <Typography variant="body1" sx={{ 
-                        fontWeight: 700, 
-                        color: 'text.primary', 
-                        fontSize: '0.9rem'
-                      }}>
-                        {getNodeTitle(controllerOutput.controlFlags.recommendedStep.stepId)}
-                      </Typography>
                     </Box>
-                  )}
-                  {executionResult.reasoning && (
-                    <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem', display: 'block', mt: 1.5, fontStyle: 'italic', opacity: 0.8 }}>
-                      "{executionResult.reasoning}"
-                    </Typography>
+
+                    {/* Pills Row */}
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      {controllerOutput?.stepRecommendation?.decision?.confidence && (
+                        <Chip 
+                          label={`${(controllerOutput.stepRecommendation.decision.confidence * 100).toFixed(0)}% Confident`}
+                          size="small"
+                          sx={{ 
+                            bgcolor: 'rgba(100, 116, 139, 0.12)',
+                            fontWeight: 700, 
+                            fontSize: '0.7rem',
+                            height: 24,
+                          }}
+                        />
+                      )}
+                      {simData?.decision?.status && (
+                        <Chip 
+                          label={formatIntentLabel(simData.decision.status)}
+                          size="small"
+                          color={simData.decision.status === 'HIGH' ? 'success' : simData.decision.status === 'MEDIUM' ? 'default' : 'warning'}
+                          sx={{ fontSize: '0.7rem', fontWeight: 700, height: 24 }}
+                        />
+                      )}
+                      {simData?.decision?.margin !== undefined && (
+                        <Chip 
+                          label={`Margin ${(simData.decision.margin * 100).toFixed(0)}%`}
+                          size="small"
+                          variant="outlined"
+                          sx={{ 
+                            fontSize: '0.7rem', 
+                            fontWeight: 700,
+                            height: 24,
+                          }}
+                        />
+                      )}
+                    </Box>
+                    
+                    {/* Reasoning */}
+                    {executionResult?.reasoning && (
+                      <Typography variant="caption" sx={{ 
+                        color: 'text.secondary', 
+                        fontSize: '0.72rem',
+                        fontStyle: 'italic',
+                        lineHeight: 1.5,
+                        display: 'block',
+                        mt: 1.5,
+                      }}>
+                        {executionResult.reasoning}
+                      </Typography>
+                    )}
+                  </Box>
+
+                  {/* Alternative Paths - Also Considered */}
+                  {controllerOutput?.stepRecommendation?.rankedCandidates && controllerOutput.stepRecommendation.rankedCandidates.length > 0 && (
+                    <Box sx={{ 
+                      borderTop: '2px solid',
+                      borderColor: 'divider',
+                      bgcolor: 'rgba(0,0,0,0.02)',
+                    }}>
+                      <Box sx={{ p: 1.5, pb: 1 }}>
+                        <Typography variant="caption" sx={{ 
+                          color: 'text.secondary', 
+                          fontSize: '0.65rem',
+                          textTransform: 'uppercase',
+                          fontWeight: 700,
+                          letterSpacing: '0.5px',
+                        }}>
+                          Also Considered
+                        </Typography>
+                      </Box>
+                      {controllerOutput.stepRecommendation.rankedCandidates.map((candidate, idx) => (
+                      <Box key={idx} sx={{ 
+                        p: 1.5,
+                        borderBottom: idx < controllerOutput.stepRecommendation.rankedCandidates.length - 1 ? '1px solid' : 'none',
+                        borderColor: 'divider',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        '&:hover': {
+                          bgcolor: 'rgba(0,0,0,0.02)',
+                        },
+                      }}>
+                        {/* Info Icon with Tooltip */}
+                        <Tooltip 
+                          title={
+                            <Box sx={{ p: 0.5 }}>
+                              {candidate.reasons.map((reason, rIdx) => (
+                                <Typography 
+                                  key={rIdx} 
+                                  variant="caption" 
+                                  sx={{ 
+                                    display: 'block',
+                                    mb: rIdx < candidate.reasons.length - 1 ? 0.5 : 0,
+                                    fontSize: '0.72rem',
+                                    lineHeight: 1.4,
+                                  }}
+                                >
+                                  • {reason}
+                                </Typography>
+                              ))}
+                            </Box>
+                          }
+                          placement="left"
+                          arrow
+                        >
+                          <InfoOutlinedIcon sx={{ 
+                            fontSize: 18, 
+                            color: 'text.secondary',
+                            cursor: 'pointer',
+                            '&:hover': {
+                              color: 'primary.main',
+                            },
+                          }} />
+                        </Tooltip>
+
+                        {/* Title */}
+                        <Typography variant="body2" sx={{ 
+                          fontWeight: 600, 
+                          fontSize: '0.8rem',
+                          color: 'text.primary',
+                          flex: 1,
+                        }}>
+                          {getNodeTitle(candidate.nodeId)}
+                        </Typography>
+
+                        {/* Progress Bar */}
+                        <Box sx={{ 
+                          width: 100,
+                          height: 6,
+                          bgcolor: 'rgba(0,0,0,0.05)',
+                          borderRadius: 1,
+                          overflow: 'hidden',
+                        }}>
+                          <Box sx={{
+                            width: `${candidate.score * 100}%`,
+                            height: '100%',
+                            bgcolor: candidate.score >= 0.7 
+                              ? '#22d3ee' 
+                              : candidate.score >= 0.4
+                              ? '#94a3b8'
+                              : '#f87171',
+                            transition: 'width 0.3s ease',
+                          }} />
+                        </Box>
+                        
+                        {/* Score Badge */}
+                        <Chip 
+                          label={`${(candidate.score * 100).toFixed(0)}%`}
+                          size="small"
+                          sx={{ 
+                            height: 22, 
+                            fontSize: '0.7rem',
+                            bgcolor: candidate.score >= 0.7 
+                              ? 'rgba(34, 211, 238, 0.15)' 
+                              : candidate.score >= 0.4
+                              ? 'rgba(100, 116, 139, 0.1)'
+                              : 'rgba(248, 113, 113, 0.1)',
+                            color: candidate.score >= 0.7 
+                              ? '#22d3ee' 
+                              : candidate.score >= 0.4
+                              ? 'text.secondary'
+                              : '#f87171',
+                            fontWeight: 700,
+                          }}
+                        />
+                      </Box>
+                  ))}
+                    </Box>
                   )}
                 </Box>
               </Box>
             )}
 
-            {/* User Signals - Icon Grid */}
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600, display: 'block', mb: 1.5 }}>
-                User Signals
-              </Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-                  {/* Hesitation */}
-                  <Box sx={{ 
-                    p: 1.5, 
-                    bgcolor: (tickSignals?.hesitation || controllerOutput?.signals?.hesitation) > 0 ? 'rgba(237, 108, 2, 0.1)' : 'rgba(0,0,0,0.02)', 
-                    borderRadius: 1.5,
-                    border: '1px solid',
-                    borderColor: (tickSignals?.hesitation || controllerOutput?.signals?.hesitation) > 0 ? 'warning.main' : 'divider',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    {(tickSignals?.hesitation || controllerOutput?.signals?.hesitation) > 0 ? (
-                      <WarningAmberIcon sx={{ fontSize: 20, color: 'warning.main' }} />
-                    ) : (
-                      <CheckCircleOutlineIcon sx={{ fontSize: 20, color: 'success.light', opacity: 0.5 }} />
-                    )}
-                    <Box>
-                      <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', display: 'block' }}>
-                        Hesitation
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>
-                        {tickSignals?.hesitation ? `${tickSignals.hesitation}/10` : controllerOutput?.signals?.hesitation ? 'Detected' : 'None'}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  {/* Confusion */}
-                  <Box sx={{ 
-                    p: 1.5, 
-                    bgcolor: (tickSignals?.confusion || controllerOutput?.signals?.confusion) > 0 ? 'rgba(237, 108, 2, 0.1)' : 'rgba(0,0,0,0.02)', 
-                    borderRadius: 1.5,
-                    border: '1px solid',
-                    borderColor: (tickSignals?.confusion || controllerOutput?.signals?.confusion) > 0 ? 'warning.main' : 'divider',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    {(tickSignals?.confusion || controllerOutput?.signals?.confusion) > 0 ? (
-                      <HelpOutlineIcon sx={{ fontSize: 20, color: 'warning.main' }} />
-                    ) : (
-                      <CheckCircleOutlineIcon sx={{ fontSize: 20, color: 'success.light', opacity: 0.5 }} />
-                    )}
-                    <Box>
-                      <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', display: 'block' }}>
-                        Confusion
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>
-                        {tickSignals?.confusion !== undefined ? `${tickSignals.confusion}/10` : controllerOutput?.signals?.confusion ? 'Detected' : 'None'}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  {/* Objection */}
-                  <Box sx={{ 
-                    p: 1.5, 
-                    bgcolor: (tickSignals?.objections?.length > 0 || controllerOutput?.signals?.objection) ? 'rgba(239, 68, 68, 0.1)' : 'rgba(0,0,0,0.02)', 
-                    borderRadius: 1.5,
-                    border: '1px solid',
-                    borderColor: (tickSignals?.objections?.length > 0 || controllerOutput?.signals?.objection) ? 'error.main' : 'divider',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    {(tickSignals?.objections?.length > 0 || controllerOutput?.signals?.objection) ? (
-                      <BlockIcon sx={{ fontSize: 20, color: 'error.main' }} />
-                    ) : (
-                      <CheckCircleOutlineIcon sx={{ fontSize: 20, color: 'success.light', opacity: 0.5 }} />
-                    )}
-                    <Box>
-                      <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', display: 'block' }}>
-                        Objection
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>
-                        {tickSignals?.objections?.length ? `${tickSignals.objections.length}` : controllerOutput?.signals?.objection ? 'Detected' : 'None'}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  {/* Engagement */}
-                  <Box sx={{ 
-                    p: 1.5, 
-                    bgcolor: (tickSignals?.engagement || controllerOutput?.signals?.engagement || 0) > 7 ? 'rgba(34, 197, 94, 0.1)' : (tickSignals?.engagement || controllerOutput?.signals?.engagement || 0) >= 5 ? 'rgba(100, 116, 139, 0.1)' : 'rgba(0,0,0,0.02)',
-                    borderRadius: 1.5,
-                    border: '1px solid',
-                    borderColor: (tickSignals?.engagement || controllerOutput?.signals?.engagement || 0) > 7 ? 'success.main' : (tickSignals?.engagement || controllerOutput?.signals?.engagement || 0) >= 5 ? 'divider' : 'divider',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <FavoriteIcon sx={{ 
-                      fontSize: 20, 
-                      color: (tickSignals?.engagement || controllerOutput?.signals?.engagement || 0) > 7 ? 'success.main' : (tickSignals?.engagement || controllerOutput?.signals?.engagement || 0) >= 5 ? 'text.secondary' : 'text.disabled'
-                    }} />
-                    <Box>
-                      <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', display: 'block' }}>
-                        Engagement
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>
-                        {tickSignals?.engagement !== undefined ? `${tickSignals.engagement}/10` : controllerOutput?.signals?.engagement !== undefined ? `${controllerOutput.signals.engagement}/10` : '0/10'}
-                      </Typography>
-                    </Box>
-                  </Box>
+            {/* Dynamic Half-Ring Gauges (no title) */}
+            {tickSignals && (
+              <Box sx={{ mb: 3 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+                  {Object.entries(tickSignals)
+                    .filter(([key, value]) => typeof value === 'number' && key !== 'objections')
+                    .map(([key, value]) => {
+                      const percentage = (value as number) / 10;
+                      const angle = percentage * 180; // Half circle (0-180 degrees)
+                      
+                      // Color scheme based on value
+                      const getColor = () => {
+                        if (key === 'pain') return value > 5 ? '#ef4444' : '#22c55e';
+                        if (key === 'urgency') return value > 5 ? '#f59e0b' : '#22c55e';
+                        if (key === 'vulnerability') return value > 5 ? '#f59e0b' : '#22c55e';
+                        if (key === 'engagement') return value > 7 ? '#22c55e' : value >= 5 ? '#3b82f6' : '#94a3b8';
+                        if (key === 'hesitation') return value > 5 ? '#f59e0b' : '#22c55e';
+                        if (key === 'confusion') return value > 5 ? '#f59e0b' : '#22c55e';
+                        return value > 5 ? '#f59e0b' : '#22c55e';
+                      };
+                      
+                      const color = getColor();
+                      
+                      return (
+                        <Box 
+                          key={key}
+                          sx={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            alignItems: 'center',
+                            p: 1.5,
+                            bgcolor: 'rgba(0,0,0,0.02)',
+                            borderRadius: 1.5,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                          }}
+                        >
+                          {/* Half-Ring Gauge */}
+                          <Box sx={{ position: 'relative', width: 80, height: 50, mb: 1 }}>
+                            {/* SVG for precise half-ring */}
+                            <svg width="80" height="50" viewBox="0 0 80 50" style={{ overflow: 'visible' }}>
+                              {/* Background arc (muted/toned down color) - always full */}
+                              <path
+                                d="M 10 45 A 30 30 0 0 1 70 45"
+                                fill="none"
+                                stroke={`${color}20`}
+                                strokeWidth="8"
+                                strokeLinecap="round"
+                              />
+                              {/* Colored progress arc (bright) - only the filled portion */}
+                              <path
+                                d="M 10 45 A 30 30 0 0 1 70 45"
+                                fill="none"
+                                stroke={color}
+                                strokeWidth="8"
+                                strokeLinecap="round"
+                                strokeDasharray={`${percentage * 94.2} 94.2`}
+                                style={{ transition: 'stroke-dasharray 0.3s ease' }}
+                              />
+                            </svg>
+                            
+                            {/* Value in center */}
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                bottom: 0,
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                              }}
+                            >
+                              <Typography 
+                                variant="h5" 
+                                sx={{ 
+                                  fontWeight: 700, 
+                                  fontSize: '1.4rem',
+                                  color: color,
+                                  lineHeight: 1,
+                                }}
+                              >
+                                {value}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          
+                          {/* Label */}
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              fontSize: '0.7rem', 
+                              fontWeight: 600,
+                              textAlign: 'center',
+                              textTransform: 'capitalize',
+                              mt: 0.5,
+                            }}
+                          >
+                            {key}
+                          </Typography>
+                        </Box>
+                      );
+                    })}
                 </Box>
-            </Box>
-
-            {/* Emotional State - Progress Bars */}
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600, display: 'block', mb: 1.5 }}>
-                Emotional State
-              </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  {/* Pain */}
-                  <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <HeartBrokenIcon sx={{ fontSize: 16, color: 'error.main' }} />
-                        <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                          Pain
-                        </Typography>
-                      </Box>
-                      <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 700, color: (tickSignals?.pain || (controllerOutput?.affectScalars?.pain || 0) * 10) > 5 ? 'error.main' : 'text.secondary' }}>
-                        {tickSignals?.pain !== undefined ? `${tickSignals.pain}/10` : `${((controllerOutput?.affectScalars?.pain || 0) * 100).toFixed(0)}%`}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ height: 6, bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 3, overflow: 'hidden' }}>
-                      <Box sx={{ 
-                        width: tickSignals?.pain !== undefined ? `${(tickSignals.pain / 10) * 100}%` : `${(controllerOutput?.affectScalars?.pain || 0) * 100}%`, 
-                        height: '100%', 
-                        bgcolor: (tickSignals?.pain || (controllerOutput?.affectScalars?.pain || 0) * 10) > 5 ? 'error.main' : 'success.light',
-                        transition: 'all 0.3s ease',
-                        borderRadius: 3
-                      }} />
-                    </Box>
-                  </Box>
-
-                  {/* Urgency */}
-                  <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <FlashOnIcon sx={{ fontSize: 16, color: 'warning.main' }} />
-                        <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                          Urgency
-                        </Typography>
-                      </Box>
-                      <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 700, color: (tickSignals?.urgency || (controllerOutput?.affectScalars?.urgency || 0) * 10) > 5 ? 'warning.main' : 'text.secondary' }}>
-                        {tickSignals?.urgency !== undefined ? `${tickSignals.urgency}/10` : `${((controllerOutput?.affectScalars?.urgency || 0) * 100).toFixed(0)}%`}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ height: 6, bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 3, overflow: 'hidden' }}>
-                      <Box sx={{ 
-                        width: tickSignals?.urgency !== undefined ? `${(tickSignals.urgency / 10) * 100}%` : `${(controllerOutput?.affectScalars?.urgency || 0) * 100}%`, 
-                        height: '100%', 
-                        bgcolor: (tickSignals?.urgency || (controllerOutput?.affectScalars?.urgency || 0) * 10) > 5 ? 'warning.main' : 'success.light',
-                        transition: 'all 0.3s ease',
-                        borderRadius: 3
-                      }} />
-                    </Box>
-                  </Box>
-
-                  {/* Vulnerability */}
-                  <Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <SecurityIcon sx={{ fontSize: 16, color: 'info.main' }} />
-                        <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                          Vulnerability
-                        </Typography>
-                      </Box>
-                      <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 700, color: (tickSignals?.vulnerability || (controllerOutput?.affectScalars?.vulnerability || 0) * 10) > 5 ? 'warning.main' : 'text.secondary' }}>
-                        {tickSignals?.vulnerability !== undefined ? `${tickSignals.vulnerability}/10` : `${((controllerOutput?.affectScalars?.vulnerability || 0) * 100).toFixed(0)}%`}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ height: 6, bgcolor: 'rgba(0,0,0,0.1)', borderRadius: 3, overflow: 'hidden' }}>
-                      <Box sx={{ 
-                        width: tickSignals?.vulnerability !== undefined ? `${(tickSignals.vulnerability / 10) * 100}%` : `${(controllerOutput?.affectScalars?.vulnerability || 0) * 100}%`, 
-                        height: '100%', 
-                        bgcolor: (tickSignals?.vulnerability || (controllerOutput?.affectScalars?.vulnerability || 0) * 10) > 5 ? 'warning.main' : 'success.light',
-                        transition: 'all 0.3s ease',
-                        borderRadius: 3
-                      }} />
-                    </Box>
-                  </Box>
-                </Box>
-            </Box>
+              </Box>
+            )}
 
             {/* Progress Indicators - Status Grid */}
             {controllerOutput.progress && (
@@ -906,128 +1006,7 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
               </Box>
             )}
 
-            {/* OLD CODE - Remove if stepRecommendation exists */}
-            {controllerOutput?.stepRecommendation?.decision && (
-              <Box sx={{ mb: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
-                  <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem' }}>
-                    Decision
-                  </Typography>
-                  <Chip 
-                    label={formatIntentLabel(controllerOutput.stepRecommendation.decision.move)}
-                    size="small"
-                    sx={{ 
-                      bgcolor: controllerOutput.decision === 'ADVANCE' ? 'secondary.main' : 'warning.main',
-                      color: 'white',
-                      fontWeight: 600,
-                      fontSize: '0.75rem'
-                    }}
-                  />
-                  <Chip 
-                    label={`${(controllerOutput.stepRecommendation.decision.confidence * 100).toFixed(0)}% confident`}
-                    size="small"
-                    sx={{ bgcolor: 'rgba(100,116,139,0.2)', fontWeight: 600, fontSize: '0.7rem' }}
-                  />
-                  {simData?.decision?.status && (
-                    <Chip 
-                      label={formatIntentLabel(simData.decision.status)}
-                      size="small"
-                      color={simData.decision.status === 'HIGH' ? 'success' : simData.decision.status === 'MEDIUM' ? 'default' : 'warning'}
-                      sx={{ fontSize: '0.7rem', fontWeight: 600 }}
-                    />
-                  )}
-                  {simData?.decision?.margin !== undefined && (
-                    <Chip 
-                      label={`Margin: ${(simData.decision.margin * 100).toFixed(0)}%`}
-                      size="small"
-                      color={simData.decision.margin < 0.15 ? 'warning' : 'default'}
-                      variant="outlined"
-                      sx={{ fontSize: '0.7rem' }}
-                    />
-                  )}
-                </Box>
-                {controllerOutput.stepRecommendation.decision.targetNodeId && (
-                  <Box sx={{ 
-                    p: 2, 
-                    bgcolor: 'rgba(34, 211, 238, 0.08)',
-                    borderRadius: 1.5,
-                    mb: 2,
-                    border: '2px solid',
-                    borderColor: 'secondary.main'
-                  }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                      <Box sx={{ 
-                        width: 6, 
-                        height: 6, 
-                        borderRadius: '50%', 
-                        bgcolor: 'secondary.main'
-                      }} />
-                      <Typography variant="caption" sx={{ 
-                        color: 'secondary.main', 
-                        fontSize: '0.65rem', 
-                        textTransform: 'uppercase',
-                        fontWeight: 700,
-                        letterSpacing: '0.5px'
-                      }}>
-                        → Next Step
-                      </Typography>
-                    </Box>
-                      <Typography variant="body1" sx={{ 
-                        fontWeight: 700, 
-                        color: 'text.primary', 
-                        fontSize: '0.9rem'
-                      }}>
-                        {getNodeTitle(controllerOutput.stepRecommendation.decision.targetNodeId)}
-                      </Typography>
-                  </Box>
-                )}
-              </Box>
-            )}
 
-            {/* Ranked Candidates */}
-            {controllerOutput?.stepRecommendation?.rankedCandidates && controllerOutput.stepRecommendation.rankedCandidates.length > 0 && (
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem', mb: 1.5 }}>
-                  Alternative Paths Considered
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  {controllerOutput.stepRecommendation.rankedCandidates.map((candidate, idx) => (
-                    <Box key={idx} sx={{ 
-                      p: 1.5, 
-                      border: '1px solid', 
-                      borderColor: 'divider', 
-                      borderRadius: 1,
-                      bgcolor: 'background.default'
-                    }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>
-                            {getNodeTitle(candidate.nodeId)}
-                          </Typography>
-                        </Box>
-                        <Chip 
-                          label={`${(candidate.score * 100).toFixed(0)}%`}
-                          size="small"
-                          sx={{ 
-                            height: 22, 
-                            fontSize: '0.7rem',
-                            bgcolor: candidate.score >= 0.7 ? 'rgba(34, 211, 238, 0.2)' : 'rgba(100,116,139,0.1)',
-                            fontWeight: 600,
-                            ml: 1,
-                            flexShrink: 0
-                          }}
-                        />
-                      </Box>
-                      {candidate.reasons.map((reason, rIdx) => (
-                        <Typography key={rIdx} variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem', display: 'block', mt: 0.5 }}>
-                          • {reason}
-                        </Typography>
-                      ))}
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            )}
 
             {/* Gap Recommendation */}
             {executionResult?.gapRecommendation && (
@@ -1152,21 +1131,6 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
                     ))}
                   </Box>
                 )}
-              </Box>
-            )}
-
-            {/* Execution Details */}
-            {executionResult && (
-              <Box sx={{ mb: 3, p: 1.5, bgcolor: 'background.default', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5, fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 600 }}>
-                  Execution
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5, fontSize: '0.8rem' }}>
-                  {formatIntentLabel(executionResult.executionDecision || controllerOutput?.decision)}
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.72rem', fontStyle: 'italic' }}>
-                  {executionResult.reasoning || executionResult.processorResponse?.substring(0, 200) + (executionResult.processorResponse?.length > 200 ? '...' : '')}
-                </Typography>
               </Box>
             )}
 

@@ -8,7 +8,7 @@ export interface PersonaPersonality {
   communicationStyle?: string;
   nickname?: string;
   personalityQuirks?: string;
-  traits?: string;
+  traits?: string | string[]; // Can be comma-separated string or array
   expertise?: string;
   terminology?: string;
 }

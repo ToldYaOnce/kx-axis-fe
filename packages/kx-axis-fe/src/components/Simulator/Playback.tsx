@@ -41,6 +41,7 @@ import CallSplitIcon from '@mui/icons-material/CallSplit';
 import PersonIcon from '@mui/icons-material/Person';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import CloseIcon from '@mui/icons-material/Close';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useSimulator } from '../../context/SimulatorContext';
 import type { SimulationNode } from '../../types/simulator';
 
@@ -348,7 +349,8 @@ export const Playback: React.FC = () => {
     setAlternateReplyAnchor,
     stepSimulation, 
     forkSimulation, 
-    getNodesForBranch 
+    getNodesForBranch,
+    flow
   } = useSimulator();
   const [userInput, setUserInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -369,12 +371,46 @@ export const Playback: React.FC = () => {
     setToastOpen(true);
   };
   
+  // Ref for selected node element
+  const selectedNodeRef = React.useRef<HTMLDivElement>(null);
+  
+  // Ref for text input to auto-focus after agent responses
+  const textInputRef = React.useRef<HTMLInputElement>(null);
+  
   // Auto-scroll to bottom when new messages arrive or pending states change
   React.useEffect(() => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   }, [currentRun?.nodes.length, pendingUserMessage, showTypingIndicator]);
+  
+  // Auto-scroll to selected node when selection changes
+  // Use a small delay to ensure DOM has updated and to let the scroll-to-bottom effect finish first
+  React.useEffect(() => {
+    console.log('🎯 Playback: selectedNodeId changed to:', selectedNodeId);
+    if (selectedNodeRef.current && selectedNodeId) {
+      console.log('🎯 Playback: Scrolling to selected node:', selectedNodeId);
+      const timer = setTimeout(() => {
+        selectedNodeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedNodeId]);
+
+  // Auto-focus text input after agent response is selected
+  React.useEffect(() => {
+    if (selectedNodeId && currentRun) {
+      const selectedNode = currentRun.nodes.find(n => n.nodeId === selectedNodeId);
+      // Focus input if it's an agent message (meaning user can respond)
+      if (selectedNode?.agentMessage && textInputRef.current && !isSending) {
+        console.log('⌨️ Auto-focusing text input after agent response');
+        const timer = setTimeout(() => {
+          textInputRef.current?.focus();
+        }, 300); // Small delay to let scrolling finish
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [selectedNodeId, currentRun, isSending]);
 
   // Build ancestry path to selected node (only show this path, not sibling branches)
   const nodes = useMemo(() => {
@@ -438,19 +474,6 @@ export const Playback: React.FC = () => {
     return ancestryNodes;
   }, [currentRun, selectedNodeId]);
 
-  // Build breadcrumb trail from user messages in the path (MUST be before any function declarations)
-  const breadcrumb = useMemo(() => {
-    const userMessages = nodes
-      .filter(n => n.userMessage)
-      .map(n => {
-        const msg = n.userMessage!;
-        return msg.length > 30 ? msg.substring(0, 30) + '...' : msg;
-      });
-    
-    if (userMessages.length === 0) return 'Main';
-    return 'Main > ' + userMessages.map(m => `"${m}"`).join(' > ');
-  }, [nodes]);
-
   // Check if selected node is a leaf (no children)
   const isLeafNode = () => {
     if (!selectedNodeId || !currentRun) return true;
@@ -509,16 +532,32 @@ export const Playback: React.FC = () => {
       // Show typing indicator after a brief moment
       setTimeout(() => setShowTypingIndicator(true), 300);
       
-      // Send message (PATCH /agent/simulations/:id)
-      // Note: stepSimulation will check alternateReplyAnchorNodeId to determine parent
-      // For real API, we DON'T call forkSimulation - the API handles forks via parentNodeId
-      console.log('💬 Calling stepSimulation with:', { 
-        userInput: messageToSend, 
-        alternateReplyAnchorNodeId: anchorNodeId,
-        explanation: anchorNodeId ? `Will fork from anchor node's parent (creating sibling to ${anchorNodeId})` : 'Will use latest node'
+      // CRITICAL FIX: Find the last AGENT in the VISIBLE path (what user is actually seeing)
+      // This ensures we respond to the correct branch when there are multiple forks
+      const lastVisibleAgent = [...nodes].reverse().find(n => n.agentMessage !== undefined);
+      
+      console.log('🎯 CRITICAL: Determining parent for new message:', {
+        visibleNodesCount: nodes.length,
+        lastVisibleAgentId: lastVisibleAgent?.nodeId,
+        lastVisibleAgentMsg: lastVisibleAgent?.agentMessage?.substring(0, 40),
+        anchorNodeId,
+        selectedNodeId,
       });
-      await stepSimulation(messageToSend);
+      
+      // Pass the last visible agent directly to stepSimulation
+      // This way it KNOWS exactly which agent to respond to, regardless of selectedNodeId
+      console.log('💬 Calling stepSimulation with explicit parent:', { 
+        userInput: messageToSend, 
+        explicitParentNodeId: lastVisibleAgent?.nodeId,
+        alternateReplyAnchorNodeId: anchorNodeId,
+        visibleNodes: nodes.map(n => ({ id: n.nodeId, type: n.agentMessage ? 'agent' : 'user', msg: (n.agentMessage || n.userMessage || '').substring(0, 30) })),
+        explanation: anchorNodeId ? `Will fork from anchor node's parent (creating sibling to ${anchorNodeId})` : `Will respond to explicit parent: ${lastVisibleAgent?.nodeId}`
+      });
+      await stepSimulation(messageToSend, lastVisibleAgent?.nodeId);
       console.log('✅ Message sent successfully');
+      
+      // Note: stepSimulation already selects the new agent node from the PATCH response
+      // No need to manually select here - let the context handle it!
       
       // Clear the anchor AFTER stepSimulation so it can use it
       if (anchorNodeId) {
@@ -647,6 +686,7 @@ export const Playback: React.FC = () => {
               fullWidth
               multiline
               maxRows={3}
+              inputRef={textInputRef}
               placeholder={(() => {
                 if (isAgentOnlyTurn) {
                   return "Select a user reply to create an alternate branch";
@@ -743,17 +783,129 @@ export const Playback: React.FC = () => {
       {/* Breadcrumb Trail */}
       <Box
         sx={{
-          flexShrink: 0,  // Prevent shrinking
-          py: 1,
+          flexShrink: 0,
+          py: 1.5,
           px: 2,
-          bgcolor: 'background.default',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
+          background: 'linear-gradient(135deg, rgba(30, 30, 40, 0.8) 0%, rgba(20, 20, 30, 0.9) 100%)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid rgba(0, 229, 255, 0.2)',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
         }}
       >
-        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
-          {breadcrumb}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          {(() => {
+            if (!flow) return <Typography variant="caption" sx={{ color: 'text.secondary' }}>Main</Typography>;
+            
+            // Extract flow nodes visited
+            const visitedFlowNodes: Array<{ id: string; title: string }> = [];
+            
+            for (const node of nodes) {
+              if (node.agentMessage) {
+                const selectedNodeId = 
+                  node.metadata?.sim?.selectedNodeId || 
+                  node.sim?.selectedNodeId ||
+                  node.metadata?.controllerOutput?.targetNodeId ||
+                  node.metadata?.controllerOutput?.stepRecommendation?.decision?.targetNodeId;
+                
+                if (selectedNodeId && !visitedFlowNodes.some(n => n.id === selectedNodeId)) {
+                  const flowNode = flow.nodes.find(fn => fn.id === selectedNodeId);
+                  if (flowNode) {
+                    visitedFlowNodes.push({ id: selectedNodeId, title: flowNode.title });
+                  }
+                }
+              }
+            }
+            
+            const breadcrumbItems = ['Main', ...visitedFlowNodes.map(n => n.title)];
+            
+            return breadcrumbItems.map((item, index) => {
+              const isLast = index === breadcrumbItems.length - 1;
+              const isFirst = index === 0;
+              
+              return (
+                <React.Fragment key={index}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      px: isFirst ? 0 : isLast ? 2 : 1.5,
+                      py: isLast ? 0.5 : 0.5,
+                      borderRadius: isLast ? '16px' : 1,
+                      background: isLast 
+                        ? 'linear-gradient(135deg, rgba(167, 139, 250, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%)'
+                        : 'transparent',
+                      border: isLast ? '1.5px solid rgb(196, 181, 253)' : 'none',
+                      boxShadow: isLast ? '0 0 16px rgba(167, 139, 250, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1)' : 'none',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      transition: 'all 0.3s ease',
+                      animation: isLast ? 'glow 2s ease-in-out infinite' : 'none',
+                      '&::before': isLast ? {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: '-100%',
+                        width: '100%',
+                        height: '100%',
+                        background: 'linear-gradient(90deg, transparent, rgba(196, 181, 253, 0.3), transparent)',
+                        animation: 'shimmer 3s infinite',
+                      } : {},
+                      '@keyframes glow': {
+                        '0%, 100%': {
+                          boxShadow: '0 0 16px rgba(167, 139, 250, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+                        },
+                        '50%': {
+                          boxShadow: '0 0 24px rgba(167, 139, 250, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+                        }
+                      },
+                      '@keyframes shimmer': {
+                        '0%': {
+                          left: '-100%',
+                        },
+                        '100%': {
+                          left: '200%',
+                        }
+                      }
+                    }}
+                  >
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        color: isLast ? 'rgb(196, 181, 253)' : 'text.secondary',
+                        fontSize: isLast ? '0.8rem' : '0.75rem',
+                        fontWeight: isLast ? 700 : 500,
+                        letterSpacing: isLast ? '0.03em' : 'normal',
+                        textTransform: isLast ? 'uppercase' : 'none',
+                        textShadow: isLast ? '0 0 8px rgba(167, 139, 250, 0.8)' : 'none',
+                        position: 'relative',
+                        zIndex: 1,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {item}
+                    </Typography>
+                  </Box>
+                  
+                  {!isLast && (
+                    <ChevronRightIcon
+                      sx={{
+                        color: index === breadcrumbItems.length - 2 
+                          ? 'rgb(196, 181, 253)' 
+                          : 'rgba(255, 255, 255, 0.3)',
+                        fontSize: '1.5rem',
+                        transition: 'all 0.3s ease',
+                        filter: index === breadcrumbItems.length - 2
+                          ? 'drop-shadow(0 0 6px rgba(167, 139, 250, 0.8))'
+                          : 'none',
+                      }}
+                    />
+                  )}
+                </React.Fragment>
+              );
+            });
+          })()}
+        </Box>
       </Box>
 
       {/* Conversation History */}
@@ -797,23 +949,27 @@ export const Playback: React.FC = () => {
         ) : (
           <>
             {nodes.map((node) => (
-              <TurnCard
+              <Box
                 key={node.nodeId}
-                node={node}
-                isSelected={node.nodeId === selectedNodeId}
-                isAlternateReplyAnchor={node.nodeId === alternateReplyAnchorNodeId}
-                isInAlternateReplyMode={alternateReplyAnchorNodeId !== null}
-                onClick={() => selectNode(node.nodeId)}
-                onSetAlternateReplyAnchor={node.userMessage ? () => {
-                  console.log('🔀 FORK BUTTON CLICKED:', {
-                    anchorNodeId: node.nodeId,
-                    anchorMessage: node.userMessage,
-                    anchorParentNodeId: node.parentNodeId,
-                    explanation: 'New message will use the same parentNodeId as this anchor node'
-                  });
-                  setAlternateReplyAnchor(node.nodeId);
-                } : undefined}
-              />
+                ref={node.nodeId === selectedNodeId ? selectedNodeRef : null}
+              >
+                <TurnCard
+                  node={node}
+                  isSelected={node.nodeId === selectedNodeId}
+                  isAlternateReplyAnchor={node.nodeId === alternateReplyAnchorNodeId}
+                  isInAlternateReplyMode={alternateReplyAnchorNodeId !== null}
+                  onClick={() => selectNode(node.nodeId)}
+                  onSetAlternateReplyAnchor={node.userMessage ? () => {
+                    console.log('🔀 FORK BUTTON CLICKED:', {
+                      anchorNodeId: node.nodeId,
+                      anchorMessage: node.userMessage,
+                      anchorParentNodeId: node.parentNodeId,
+                      explanation: 'New message will use the same parentNodeId as this anchor node'
+                    });
+                    setAlternateReplyAnchor(node.nodeId);
+                  } : undefined}
+                />
+              </Box>
             ))}
             
             {/* Pending User Message (Optimistic UI) */}

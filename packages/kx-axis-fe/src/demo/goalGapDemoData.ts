@@ -67,7 +67,7 @@ export const goalGapDemoFlow: ConversationFlow = {
       type: 'EXPLANATION',
       title: 'Welcome / Introduction',
       purpose: 'Greet the user and set expectations',
-      produces: ['WELCOME_SHOWN'], // completion marker
+      produces: ['name'], // Collect user's name
       ui: {
         x: 100,
         y: 50,

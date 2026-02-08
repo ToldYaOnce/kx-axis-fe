@@ -32,7 +32,7 @@
         "facts": []
       },
       "produces": {
-        "facts": ["WELCOME_SHOWN"]
+        "facts": ["name"]
       },
       "config": {
         "purpose": "Greet the user and set expectations",

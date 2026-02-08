@@ -47,6 +47,22 @@ export const defaultLightTheme = createTheme({
         },
       },
     },
+    MuiTooltip: {
+      styleOverrides: {
+        tooltip: {
+          backgroundColor: '#000000',
+          color: '#FFFFFF',
+          fontSize: '0.75rem',
+          fontWeight: 400,
+          padding: '8px 12px',
+          borderRadius: '6px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+        },
+        arrow: {
+          color: '#000000',
+        },
+      },
+    },
     MuiCssBaseline: {
       styleOverrides: {
         body: {
@@ -271,6 +287,22 @@ export const kxgryndeTheme = createTheme({
         paper: {
           backgroundColor: '#1B1B1B',
           backgroundImage: 'none',
+        },
+      },
+    },
+    MuiTooltip: {
+      styleOverrides: {
+        tooltip: {
+          backgroundColor: '#000000',
+          color: '#FFFFFF',
+          fontSize: '0.75rem',
+          fontWeight: 400,
+          padding: '8px 12px',
+          borderRadius: '6px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+        },
+        arrow: {
+          color: '#000000',
         },
       },
     },
