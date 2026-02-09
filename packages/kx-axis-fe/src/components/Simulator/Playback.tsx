@@ -816,6 +816,29 @@ export const Playback: React.FC = () => {
               }
             }
             
+            // Get the LATEST target from the most recent decision (where we ARE now)
+            const lastAgentNode = nodes.filter(n => n.agentMessage).pop();
+            const latestTargetId = 
+              lastAgentNode?.metadata?.controllerOutput?.targetNodeId ||
+              lastAgentNode?.metadata?.controllerOutput?.stepRecommendation?.decision?.targetNodeId ||
+              lastAgentNode?.metadata?.sim?.selectedNodeId;
+            
+            console.log('🍞 Breadcrumb Debug:', {
+              lastAgentNodeId: lastAgentNode?.nodeId,
+              latestTargetId,
+              controllerOutput: lastAgentNode?.metadata?.controllerOutput,
+              sim: lastAgentNode?.metadata?.sim,
+              visitedFlowNodes: visitedFlowNodes.map(n => n.title),
+            });
+            
+            // Add latest target if it's not already in the breadcrumb
+            if (latestTargetId && !visitedFlowNodes.some(n => n.id === latestTargetId)) {
+              const flowNode = flow.nodes.find(fn => fn.id === latestTargetId);
+              if (flowNode) {
+                visitedFlowNodes.push({ id: latestTargetId, title: flowNode.title });
+              }
+            }
+            
             const breadcrumbItems = ['Main', ...visitedFlowNodes.map(n => n.title)];
             
             return breadcrumbItems.map((item, index) => {

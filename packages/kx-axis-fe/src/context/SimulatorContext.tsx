@@ -291,7 +291,7 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
         const firstMsgControllerOutput = (agentNode as any).metadata?.controllerOutput || {
           intent: { 
             primary: userNode.intentDetection?.primaryIntent || 'provide_information',
-            confidence: (response as any).decision?.confidence || (agentNode as any).sim?.decision?.confidence || 0.85
+            confidence: (response as any).decision?.confidence || (agentNode as any).sim?.decision?.confidence || 0.85 
           },
           affectScalars: { 
             pain: tickSignals.pain / 10, 
@@ -310,6 +310,7 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
             stagnationTurns: (response as any).loopDetection?.turnsOnCurrentNode || 0 
           },
           stepSufficiency: true,
+          targetNodeId: (response as any).decision?.targetNodeId || (agentNode as any).sim?.selectedNodeId,
           controlFlags: {
             canAdvance: (response as any).decision?.move === 'ADVANCE',
             needsExplanation: false,
@@ -560,6 +561,7 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
             stagnationTurns: response.loopDetection?.turnsOnCurrentNode || 0 
           },
           stepSufficiency: true,
+          targetNodeId: response.decision?.targetNodeId || agentNode.sim.selectedNodeId,
           controlFlags: {
             canAdvance: response.decision?.move === 'ADVANCE',
             needsExplanation: false,
