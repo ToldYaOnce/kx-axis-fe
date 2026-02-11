@@ -246,7 +246,7 @@ export const SimulationsList: React.FC<SimulationsListProps> = ({
       
       // Step 2: Navigate to execution mode with the simulationId
       // Pass the simulation data via state to avoid unnecessary GET request
-      const redirectUrl = `${basePath}/${flowId}/simulations/${response.simulationId}`;
+      const redirectUrl = `/simulations/${response.simulationId}`;
       console.log('🔀 Redirecting to:', redirectUrl);
       
       setDialogOpen(false);
@@ -266,8 +266,8 @@ export const SimulationsList: React.FC<SimulationsListProps> = ({
   };
 
   const handleOpenSimulation = (simulationId: string) => {
-    // For existing simulations, explicitly clear state and force API load
-    navigate(`${basePath}/${flowId}/simulations/${simulationId}`, {
+    // Navigate to top-level simulations route (not nested under flow)
+    navigate(`/simulations/${simulationId}`, {
       replace: true, // Replace history entry to clear cached state
       state: null,    // Explicitly clear any cached state
     });

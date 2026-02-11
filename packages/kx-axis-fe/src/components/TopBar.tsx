@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, Typography, Button, Divider, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Snackbar, Alert, Chip } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
@@ -6,6 +7,7 @@ import PublishIcon from '@mui/icons-material/Publish';
 import EditIcon from '@mui/icons-material/Edit';
 import HistoryIcon from '@mui/icons-material/History';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ArticleIcon from '@mui/icons-material/Article';
 import { useFlow } from '../context/FlowContext';
 import { useOptionalFlowDataContext } from '../context/FlowDataContext';
 import { SaveIndicator } from './Flow/SaveIndicator';
@@ -17,6 +19,7 @@ interface TopBarProps {
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ onSimulations }) => {
+  const navigate = useNavigate();
   const { flow, updateFlow, setSelection } = useFlow();
   const flowDataContext = useOptionalFlowDataContext();
   
@@ -684,6 +687,23 @@ export const TopBar: React.FC<TopBarProps> = ({ onSimulations }) => {
       )}
 
       {/* Actions */}
+      <Button
+        variant="outlined"
+        startIcon={<ArticleIcon />}
+        onClick={() => navigate('/conversation-item-templates')}
+        sx={{
+          textTransform: 'none',
+          borderColor: 'divider',
+          color: 'text.primary',
+          '&:hover': {
+            borderColor: 'text.primary',
+            backgroundColor: 'action.hover',
+          },
+        }}
+      >
+        Templates
+      </Button>
+
       <Button
         variant="outlined"
         startIcon={<PlayArrowIcon />}

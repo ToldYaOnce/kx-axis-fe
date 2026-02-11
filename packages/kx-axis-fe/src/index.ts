@@ -48,7 +48,15 @@ export type {
   // Selection types
   SelectionType,
   Selection,
+  
+  // Template types
+  ConversationTemplate,
+  CreateTemplateRequest,
+  UpdateTemplateRequest,
+  TemplateVariable,
 } from './types';
+
+export { AVAILABLE_VARIABLES } from './types';
 
 // Auth utilities
 export { 
@@ -125,6 +133,7 @@ export { useVersions } from './hooks/useVersions';
 // Flow API client
 export { flowAPI } from './api/flowClient';
 export { personasAPI, type Persona, type PersonaPersonality } from './api/personasClient';
+export { templatesAPI } from './api/templatesClient';
 
 // ========== EXECUTION MODE ==========
 
@@ -172,6 +181,9 @@ export {
   FlowsListRoute,
   FlowDesignerRoute,
   FlowSimulatorRoute,
+  AllSimulationsRoute,
+  ConversationTemplatesListRoute,
+  ConversationTemplateEditRoute,
 } from './routes';
 
 export type {
@@ -183,4 +195,14 @@ export type {
 
 // Standalone components (for custom routing)
 export { FlowsList } from './components/FlowsList/FlowsList';
+
+// Conversation Template Components
+export {
+  DroppableTextField,
+  RichTextField,
+  ContentEditor,
+  DraggableFactChip,
+  FactsPalette,
+  TemplateCard,
+} from './components/ConversationTemplates';
 

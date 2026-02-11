@@ -408,7 +408,10 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
           
           // Format decision as title case
           const formatDecision = (dec: string) => {
-            return dec.charAt(0) + dec.slice(1).toLowerCase();
+            return dec
+              .split('_')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+              .join(' ');
           };
           
           // Get decision color
@@ -604,6 +607,12 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
     
     // Log divergence points WITH DETAILS
     const logDivergences = (node: TreeNode, depth: number, path: string = '') => {
+      // Safety check for undefined nodeId
+      if (!node.nodeId) {
+        console.warn('⚠️ Node without nodeId encountered in logDivergences:', node);
+        return;
+      }
+      
       const currentPath = path + '/' + node.nodeId.substring(node.nodeId.length - 6);
       
       // Check for divergence using the SAME logic as isDivergence()
@@ -621,7 +630,7 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
           isDivergence: isDiv,
           parentNodeId: node.parentNodeId,
           children: node.children.map(c => ({
-            nodeId: c.nodeId,
+            nodeId: c.nodeId || 'unknown',
             type: c.userMessage ? 'USER' : 'AGENT',
             message: (c.userMessage || c.agentMessage || '').substring(0, 40) + '...',
           })),

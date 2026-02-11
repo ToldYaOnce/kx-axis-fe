@@ -33,6 +33,8 @@ import {
   IconButton,
   Tooltip,
   LinearProgress,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -46,18 +48,57 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PanToolIcon from '@mui/icons-material/PanTool';
 import LiveHelpIcon from '@mui/icons-material/LiveHelp';
 import CancelIcon from '@mui/icons-material/Cancel';
+import UpdateIcon from '@mui/icons-material/Update';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import WarningIcon from '@mui/icons-material/Warning';
 import { useSimulator } from '../../context/SimulatorContext';
 import type { KnownFacts } from '../../types/simulator';
 
 const formatFactValue = (value: any): string => {
-  if (typeof value === 'string') return value;
-  if (typeof value === 'object' && value !== null) {
+  if (value === null || value === undefined) return 'N/A';
+  
+  if (typeof value === 'string') {
+    // Apply title case to snake_case strings
+    return value
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+  
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return value ? '✓ Yes' : '✗ No';
+  
+  // Handle objects with smart formatting
+  if (typeof value === 'object') {
+    // Handle arrays
+    if (Array.isArray(value)) {
+      if (value.length === 0) return '(empty list)';
+      return value.map(item => {
+        if (typeof item === 'string') {
+          return item.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+        }
+        return String(item);
+      }).join(', ');
+    }
+    
+    // Handle range objects (min/max)
+    if (value.min !== undefined && value.max !== undefined) {
+      const unit = value.unit ? ` ${value.unit}` : '';
+      return `${value.min}-${value.max}${unit}`;
+    }
+    
+    // Handle single value with unit
+    if (value.value !== undefined && value.unit !== undefined) {
+      return `${value.value} ${value.unit}`;
+    }
+    
+    // Fallback: readable key-value pairs
     return Object.entries(value)
       .filter(([_, v]) => v !== undefined && v !== null)
       .map(([k, v]) => `${k}: ${v}`)
       .join(', ');
   }
+  
   return String(value);
 };
 
@@ -74,11 +115,12 @@ interface ReadinessPanelProps {
 }
 
 export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = false }) => {
-  const { getCurrentFacts, getLatestNode, selectedNodeId, getNodeById, flow } = useSimulator();
+  const { getCurrentFacts, getLatestNode, selectedNodeId, getNodeById, flow, currentRun } = useSimulator();
   const currentFacts = getCurrentFacts();
   const latestNode = getLatestNode();
   const selectedNode = selectedNodeId ? getNodeById(selectedNodeId) : null;
   const [isManuallyExpanded, setIsManuallyExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
   
   // Helper to get node title from flow by nodeId
   const getNodeTitle = (nodeId: string): string => {
@@ -271,6 +313,53 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
         )}
       </Box>
 
+      {/* Tabs */}
+      <Box sx={{ flexShrink: 0, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'background.default' }}>
+        <Tabs 
+          value={activeTab} 
+          onChange={(e, newValue) => setActiveTab(newValue)}
+          variant="fullWidth"
+          sx={{
+            minHeight: 40,
+            '& .MuiTab-root': {
+              minHeight: 40,
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+              py: 1,
+            },
+          }}
+        >
+          <Tab label="Decision" />
+          <Tab 
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                Data
+                {selectedNode?.progress?.learnedThisTurn && selectedNode.progress.learnedThisTurn.length > 0 && (
+                  <Chip 
+                    label={selectedNode.progress.learnedThisTurn.length} 
+                    size="small" 
+                    sx={{ 
+                      height: 18,
+                      minWidth: 18,
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      bgcolor: 'success.main', 
+                      color: 'white',
+                      '& .MuiChip-label': {
+                        px: 0.5,
+                      }
+                    }}
+                  />
+                )}
+              </Box>
+            } 
+          />
+          <Tab label="Cost" />
+        </Tabs>
+      </Box>
+
       <Box sx={{ 
         flex: 1, 
         minHeight: 0, 
@@ -278,8 +367,11 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
         overflowX: 'hidden',
       }}>
         <Box sx={{ p: 2, pb: 4 }}>
-          {/* AGENT METADATA - Show when agent node is selected */}
-        {hasMetadata && selectedNode && controllerOutput && (
+          {/* Tab 0: Decision Analysis */}
+          {activeTab === 0 && (
+            <>
+              {/* AGENT METADATA - Show when agent node is selected */}
+              {hasMetadata && selectedNode && controllerOutput && (
           <>
             {/* Header */}
             <Typography variant="overline" sx={{ fontWeight: 700, color: 'secondary.main', display: 'block', mb: 2 }}>
@@ -335,6 +427,270 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
                 </Box>
               </Box>
             )}
+
+            {/* Conflicts Section */}
+            {(selectedNode?.metadata?.controllerOutput?.conflictToResolve || 
+              (selectedNode as any)?.conflictResolution?.status === 'ACTIVE' ||
+              (selectedNode as any)?.updatedState?.conflictResolution?.status === 'ACTIVE') && (() => {
+              const conflictData = selectedNode?.metadata?.controllerOutput?.conflictToResolve || 
+                                  (selectedNode as any)?.conflictResolution?.currentConflict ||
+                                  (selectedNode as any)?.updatedState?.conflictResolution?.currentConflict;
+              const conflictStatus = (selectedNode as any)?.conflictResolution?.status || 
+                                    (selectedNode as any)?.updatedState?.conflictResolution?.status;
+              
+              if (!conflictData) return null;
+
+              return (
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+                    <WarningIcon sx={{ fontSize: '1rem', color: '#a855f7' }} />
+                    <Typography variant="caption" sx={{
+                      color: '#a855f7',
+                      fontSize: '0.75rem',
+                      textTransform: 'uppercase',
+                      fontWeight: 700,
+                      letterSpacing: '1px',
+                    }}>
+                      Conflict Detection
+                    </Typography>
+                  </Box>
+                  <Box sx={{ 
+                    borderRadius: 1.5,
+                    bgcolor: 'rgba(168, 85, 247, 0.05)',
+                    border: '2px solid',
+                    borderColor: '#a855f7',
+                    p: 2,
+                  }}>
+                    {/* Status Badge */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                      <Box sx={{
+                        px: 1.5,
+                        py: 0.5,
+                        borderRadius: 0.75,
+                        bgcolor: conflictStatus === 'ACTIVE' ? '#a855f7' : 'success.main',
+                        color: 'white',
+                        fontSize: '0.65rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                      }}>
+                        {conflictStatus || 'DETECTED'}
+                      </Box>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>
+                        Attempt {conflictData.attempts || 0} of {conflictData.maxAttempts || 2}
+                      </Typography>
+                    </Box>
+
+                    {/* Fact ID */}
+                    <Box sx={{ mb: 1.5 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 0.5 }}>
+                        Conflicting Fact
+                      </Typography>
+                      <Typography variant="body2" sx={{ 
+                        fontWeight: 600, 
+                        fontSize: '0.85rem',
+                        color: '#a855f7',
+                      }}>
+                        {formatIntentLabel(conflictData.factId)}
+                      </Typography>
+                    </Box>
+
+                    {/* Implausibility Statement */}
+                    {(selectedNode?.intentDetection?.conflicts?.[0]?.implausibilityStatement) && (
+                      <Box sx={{ 
+                        p: 1.5, 
+                        borderRadius: 1,
+                        bgcolor: 'rgba(168, 85, 247, 0.08)',
+                        border: '1px solid',
+                        borderColor: 'rgba(168, 85, 247, 0.3)',
+                      }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 0.5 }}>
+                          Issue Detected
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontSize: '0.75rem', lineHeight: 1.5 }}>
+                          {selectedNode.intentDetection.conflicts[0].implausibilityStatement}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {/* Severity Indicator */}
+                    {conflictData.severity && (
+                      <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+                            Severity:
+                          </Typography>
+                          <Box sx={{
+                            px: 1,
+                            py: 0.25,
+                            borderRadius: 0.5,
+                            bgcolor: conflictData.severity === 'high' 
+                              ? 'rgba(239, 68, 68, 0.15)' 
+                              : conflictData.severity === 'med'
+                              ? 'rgba(245, 158, 11, 0.15)'
+                              : 'rgba(34, 197, 94, 0.15)',
+                            color: conflictData.severity === 'high' 
+                              ? 'error.main' 
+                              : conflictData.severity === 'med'
+                              ? 'warning.main'
+                              : 'success.main',
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                          }}>
+                            {conflictData.severity}
+                          </Box>
+                        </Box>
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+              );
+            })()}
+
+            {/* Discrepancy Detection */}
+            {(() => {
+              const discrepancy = (selectedNode?.metadata as any)?.updatedState?.discrepancyToResolve;
+              
+              console.log('🔍 Discrepancy check:', {
+                hasMetadata: !!selectedNode?.metadata,
+                hasUpdatedState: !!(selectedNode?.metadata as any)?.updatedState,
+                discrepancy,
+                fullMetadata: selectedNode?.metadata,
+              });
+              
+              if (!discrepancy) return null;
+
+              return (
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
+                    <InfoOutlinedIcon sx={{ fontSize: '1rem', color: '#ec4899' }} />
+                    <Typography variant="caption" sx={{
+                      color: '#ec4899',
+                      fontSize: '0.75rem',
+                      textTransform: 'uppercase',
+                      fontWeight: 700,
+                      letterSpacing: '1px',
+                    }}>
+                      Answer Mismatch
+                    </Typography>
+                  </Box>
+                  <Box sx={{ 
+                    borderRadius: 1.5,
+                    bgcolor: 'rgba(236, 72, 153, 0.05)',
+                    border: '2px solid',
+                    borderColor: '#ec4899',
+                    p: 2,
+                  }}>
+                    <Box sx={{ mb: 1.5 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 0.75 }}>
+                        User answered a different question
+                      </Typography>
+                      
+                      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 1.5 }}>
+                        <Box sx={{ 
+                          p: 1.5, 
+                          borderRadius: 1,
+                          bgcolor: 'rgba(236, 72, 153, 0.08)',
+                          border: '1px solid',
+                          borderColor: 'rgba(236, 72, 153, 0.2)',
+                        }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 0.5 }}>
+                            Asked For
+                          </Typography>
+                          <Typography variant="body2" sx={{ 
+                            fontWeight: 600, 
+                            fontSize: '0.85rem',
+                            color: '#ec4899',
+                          }}>
+                            {formatIntentLabel(discrepancy.askedFact)}
+                          </Typography>
+                        </Box>
+                        
+                        <Box sx={{ 
+                          p: 1.5, 
+                          borderRadius: 1,
+                          bgcolor: 'rgba(34, 197, 94, 0.08)',
+                          border: '1px solid',
+                          borderColor: 'rgba(34, 197, 94, 0.2)',
+                        }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 0.5 }}>
+                            Actually Got
+                          </Typography>
+                          <Typography variant="body2" sx={{ 
+                            fontWeight: 600, 
+                            fontSize: '0.85rem',
+                            color: 'success.main',
+                          }}>
+                            {formatIntentLabel(discrepancy.answeredFact)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontStyle: 'italic' }}>
+                        Agent will need to re-ask for {formatIntentLabel(discrepancy.askedFact)}
+                      </Typography>
+                    </Box>
+
+                    {/* Show cantGatherFacts if available */}
+                    {(() => {
+                      const parentUserNode = currentRun?.nodes?.find((n: any) => n.nodeId === selectedNode.parentNodeId);
+                      const cantGatherFacts = parentUserNode?.intentDetection?.cantGatherFacts || [];
+                      
+                      if (cantGatherFacts.length === 0) return null;
+                      
+                      return (
+                        <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'rgba(236, 72, 153, 0.2)' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 1, fontWeight: 600 }}>
+                            Facts That Can't Be Gathered
+                          </Typography>
+                          {cantGatherFacts.map((item: any, index: number) => (
+                            <Box 
+                              key={index}
+                              sx={{ 
+                                p: 1.25, 
+                                mb: 1,
+                                borderRadius: 0.75,
+                                bgcolor: 'rgba(236, 72, 153, 0.05)',
+                                border: '1px solid',
+                                borderColor: 'rgba(236, 72, 153, 0.15)',
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.75rem', color: '#ec4899' }}>
+                                  {formatIntentLabel(item.factId)}
+                                </Typography>
+                                {item.confidence && (
+                                  <Chip 
+                                    label={`${Math.round(item.confidence * 100)}%`}
+                                    size="small"
+                                    sx={{ 
+                                      height: 20,
+                                      fontSize: '0.65rem',
+                                      bgcolor: 'rgba(236, 72, 153, 0.15)', 
+                                      color: '#ec4899',
+                                      fontWeight: 600,
+                                    }}
+                                  />
+                                )}
+                              </Box>
+                              <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                                Reason: {item.reason || 'Unknown'}
+                              </Typography>
+                              {item.userStatement && (
+                                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.disabled', fontStyle: 'italic' }}>
+                                  "{item.userStatement}"
+                                </Typography>
+                              )}
+                            </Box>
+                          ))}
+                        </Box>
+                      );
+                    })()}
+                  </Box>
+                </Box>
+              );
+            })()}
 
             {/* Unified Decision Card - Winner + Alternatives */}
             {decision && (
@@ -1282,7 +1638,1038 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
               )}
             </Box>
           </>
-        )}
+              )}
+            </>
+          )}
+
+          {/* Tab 1: Data Collected */}
+          {activeTab === 1 && (
+            <Box>
+              <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 2 }}>
+                Data Collected
+              </Typography>
+              
+              {/* Show turn-specific progress if agent node is selected */}
+              {selectedNode && selectedNode.progress ? (
+                <>
+                  {(() => {
+                    const directCollectedData = (selectedNode.metadata as any)?.collectedData || {};
+                    const updatedStateData = (selectedNode.metadata as any)?.updatedState?.collectedData || {};
+                    const allAgentNodes = currentRun?.nodes?.filter((n: any) => n.agentMessage) || [];
+                    const latestWithData = allAgentNodes
+                      .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                      .find((n: any) => (n.metadata as any)?.collectedData && Object.keys((n.metadata as any).collectedData).length > 0);
+                    
+                    console.log('🔍 DEBUG ReadinessPanel Data Tab:', {
+                      selectedNodeId: selectedNode.nodeId,
+                      selectedNodeTimestamp: selectedNode.timestamp,
+                      hasDirectCollectedData: Object.keys(directCollectedData).length,
+                      hasUpdatedStateData: Object.keys(updatedStateData).length,
+                      directCollectedDataKeys: Object.keys(directCollectedData),
+                      updatedStateDataKeys: Object.keys(updatedStateData),
+                      latestNodeWithDataId: latestWithData?.nodeId,
+                      latestNodeDataKeys: latestWithData ? Object.keys((latestWithData.metadata as any)?.collectedData || {}) : [],
+                      learnedThisTurn: selectedNode.progress?.learnedThisTurn,
+                      knownSoFar: selectedNode.progress?.knownSoFar,
+                      selectedNodeMetadataKeys: Object.keys(selectedNode.metadata || {}),
+                      fullMetadata: selectedNode.metadata,
+                    });
+                    return null;
+                  })()}
+                  {/* Learned This Turn */}
+                  {selectedNode.progress.learnedThisTurn && selectedNode.progress.learnedThisTurn.length > 0 && (
+                    <Box sx={{ mb: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                        <Box sx={{ 
+                          width: 24, 
+                          height: 24, 
+                          borderRadius: '50%', 
+                          bgcolor: 'success.main', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                        }}>
+                          <Typography variant="caption" sx={{ color: 'white', fontWeight: 700, fontSize: '0.7rem' }}>
+                            🆕
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem' }}>
+                          Learned This Turn
+                        </Typography>
+                        <Chip 
+                          label={selectedNode.progress.learnedThisTurn.length} 
+                          size="small" 
+                          sx={{ bgcolor: 'rgba(34, 197, 94, 0.15)', color: 'success.main', fontWeight: 600 }}
+                        />
+                      </Box>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        {selectedNode.progress.learnedThisTurn.map((factId: string, index: number) => {
+                          // Get collectedData with comprehensive fallback
+                          const directData = (selectedNode.metadata as any)?.collectedData || {};
+                          const updatedStateData = (selectedNode.metadata as any)?.updatedState?.collectedData || {};
+                          const latestAgentWithData = currentRun?.nodes
+                            ?.filter((n: any) => n.agentMessage && (n.metadata as any)?.collectedData)
+                            ?.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+                          const latestData = (latestAgentWithData?.metadata as any)?.collectedData || {};
+                          
+                          const collectedData = Object.keys(directData).length > 0 
+                            ? directData 
+                            : Object.keys(updatedStateData).length > 0 
+                              ? updatedStateData 
+                              : latestData;
+                          
+                          const factData = collectedData[factId];
+                          const confidence = factData?.confidence ? Math.round(factData.confidence * 100) : null;
+                          const value = factData?.value;
+                          const inferredFrom = factData?.inferredFrom || [];
+                          
+                          // Check if this fact has a conflict - look in parent user node's intentDetection
+                          const parentUserNode = currentRun?.nodes?.find((n: any) => n.nodeId === selectedNode.parentNodeId);
+                          const conflicts = parentUserNode?.intentDetection?.conflicts || 
+                                          selectedNode?.intentDetection?.conflicts || 
+                                          [];
+                          
+                          console.log('🔍 Conflict check for fact:', {
+                            factId,
+                            parentUserNodeId: parentUserNode?.nodeId,
+                            hasParentIntentDetection: !!parentUserNode?.intentDetection,
+                            parentConflicts: parentUserNode?.intentDetection?.conflicts,
+                            selectedNodeConflicts: selectedNode?.intentDetection?.conflicts,
+                            allConflicts: conflicts,
+                          });
+                          
+                          const hasConflict = conflicts.some((conflict: any) => 
+                            conflict.factId === factId || conflict.affectedFactIds?.includes(factId)
+                          );
+                          const conflictInfo = conflicts.find((conflict: any) => 
+                            conflict.factId === factId || conflict.affectedFactIds?.includes(factId)
+                          );
+                          
+                          // Check if value is an object (not array, not null) - expand into sub-facts
+                          const isObjectValue = value && typeof value === 'object' && !Array.isArray(value);
+                          
+                          if (isObjectValue) {
+                            // Render each property as a separate fact
+                            return Object.entries(value as Record<string, any>).map(([subKey, subValue], subIndex) => (
+                              <Box 
+                                key={`${index}-${subIndex}`} 
+                                sx={{ 
+                                  display: 'grid',
+                                  gridTemplateColumns: '1fr auto auto',
+                                  gap: 2,
+                                  alignItems: 'center',
+                                  p: 1.5,
+                                  bgcolor: hasConflict ? 'rgba(245, 158, 11, 0.08)' : 'rgba(34, 197, 94, 0.08)',
+                                  borderLeft: '3px solid',
+                                  borderLeftColor: hasConflict ? 'warning.main' : 'success.main',
+                                  borderRadius: 0.5,
+                                  animation: 'fadeIn 0.5s ease-in',
+                                  '@keyframes fadeIn': {
+                                    '0%': { opacity: 0, transform: 'translateX(-10px)' },
+                                    '100%': { opacity: 1, transform: 'translateX(0)' },
+                                  },
+                                }}
+                              >
+                                {/* Fact Name & Value */}
+                                <Box sx={{ flex: 1 }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                                    <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                                      {formatIntentLabel(factId)} → {formatIntentLabel(subKey)}
+                                    </Typography>
+                                    {hasConflict && (
+                                      <Tooltip title={conflictInfo?.implausibilityStatement || 'Conflict detected'} placement="top">
+                                        <Box sx={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 0.5,
+                                          px: 0.75,
+                                          py: 0.25,
+                                          borderRadius: 0.5,
+                                          bgcolor: 'rgba(245, 158, 11, 0.15)',
+                                          border: '1px solid',
+                                          borderColor: 'warning.main',
+                                          cursor: 'help',
+                                        }}>
+                                          <WarningIcon sx={{ fontSize: '0.75rem', color: 'warning.main' }} />
+                                          <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'warning.main', fontWeight: 700, textTransform: 'uppercase' }}>
+                                            Conflict
+                                          </Typography>
+                                        </Box>
+                                      </Tooltip>
+                                    )}
+                                  </Box>
+                                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 700, color: hasConflict ? 'warning.main' : 'text.primary', lineHeight: 1.2 }}>
+                                    {typeof subValue === 'boolean' 
+                                      ? (subValue ? '✓ Confirmed' : '✗ Not confirmed')
+                                      : formatFactValue(subValue)}
+                                  </Typography>
+                                  {hasConflict && conflictInfo?.implausibilityStatement && (
+                                    <Typography variant="body2" sx={{ fontSize: '0.85rem', color: 'error.main', lineHeight: 1.5, fontWeight: 600, mt: 1 }}>
+                                      {conflictInfo.implausibilityStatement}
+                                    </Typography>
+                                  )}
+                                </Box>
+                                
+                                {/* Confidence Badge */}
+                                {confidence !== null && (
+                                  <Box sx={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: 0.5,
+                                    px: 1,
+                                    py: 0.5,
+                                    bgcolor: 'success.main',
+                                    borderRadius: 1,
+                                  }}>
+                                    <Typography variant="caption" sx={{ color: 'white', fontWeight: 700, fontSize: '0.7rem' }}>
+                                      {confidence}%
+                                    </Typography>
+                                  </Box>
+                                )}
+                                
+                                {/* New Indicator */}
+                                <UpdateIcon sx={{ fontSize: 18, color: 'success.main' }} />
+                              </Box>
+                            ));
+                          }
+                          
+                          // Regular fact rendering
+                          return (
+                            <Box 
+                              key={index} 
+                              sx={{ 
+                                display: 'grid',
+                                gridTemplateColumns: '1fr auto auto',
+                                gap: 2,
+                                alignItems: 'center',
+                                p: 1.5,
+                                bgcolor: hasConflict ? 'rgba(245, 158, 11, 0.08)' : 'rgba(34, 197, 94, 0.08)',
+                                borderLeft: '3px solid',
+                                borderLeftColor: hasConflict ? 'warning.main' : 'success.main',
+                                borderRadius: 0.5,
+                                animation: 'fadeIn 0.5s ease-in',
+                                '@keyframes fadeIn': {
+                                  '0%': { opacity: 0, transform: 'translateX(-10px)' },
+                                  '100%': { opacity: 1, transform: 'translateX(0)' },
+                                },
+                              }}
+                            >
+                              {/* Fact Name & Value */}
+                              <Box sx={{ flex: 1 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+                                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                                    {formatIntentLabel(factId)}
+                                  </Typography>
+                                  {hasConflict && (
+                                    <Tooltip title={conflictInfo?.implausibilityStatement || 'Conflict detected'} placement="top">
+                                      <Box sx={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 0.5,
+                                        px: 0.75,
+                                        py: 0.25,
+                                        borderRadius: 0.5,
+                                        bgcolor: 'rgba(245, 158, 11, 0.15)',
+                                        border: '1px solid',
+                                        borderColor: 'warning.main',
+                                        cursor: 'help',
+                                      }}>
+                                        <WarningIcon sx={{ fontSize: '0.75rem', color: 'warning.main' }} />
+                                        <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'warning.main', fontWeight: 700, textTransform: 'uppercase' }}>
+                                          Conflict
+                                        </Typography>
+                                      </Box>
+                                    </Tooltip>
+                                  )}
+                                </Box>
+                                {value !== undefined ? (
+                                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 700, color: hasConflict ? 'warning.main' : 'text.primary', lineHeight: 1.2 }}>
+                                    {typeof value === 'boolean' 
+                                      ? (value ? '✓ Confirmed' : '✗ Not confirmed')
+                                      : formatFactValue(value)}
+                                  </Typography>
+                                ) : (
+                                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.disabled', fontStyle: 'italic' }}>
+                                    No value captured
+                                  </Typography>
+                                )}
+                                {inferredFrom.length > 0 && (
+                                  <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.disabled', fontStyle: 'italic', display: 'block', mt: 0.5 }}>
+                                    ↳ inferred from {inferredFrom.map((f: string) => formatIntentLabel(f)).join(', ')}
+                                  </Typography>
+                                )}
+                                {hasConflict && conflictInfo?.implausibilityStatement && (
+                                  <Typography variant="body2" sx={{ fontSize: '0.85rem', color: 'error.main', lineHeight: 1.5, fontWeight: 600, mt: 1 }}>
+                                    {conflictInfo.implausibilityStatement}
+                                  </Typography>
+                                )}
+                              </Box>
+                              
+                              {/* Confidence Badge */}
+                              {confidence !== null && (
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: 0.5,
+                                  px: 1,
+                                  py: 0.5,
+                                  bgcolor: 'success.main',
+                                  borderRadius: 1,
+                                }}>
+                                  <Typography variant="caption" sx={{ color: 'white', fontWeight: 700, fontSize: '0.7rem' }}>
+                                    {confidence}%
+                                  </Typography>
+                                </Box>
+                              )}
+                              
+                              {/* New Indicator */}
+                              <UpdateIcon sx={{ fontSize: 18, color: 'success.main' }} />
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* Conflicted Observations */}
+                  {(() => {
+                    // Get the parent user node for this agent response
+                    const parentUserNode = currentRun?.nodes?.find((n: any) => n.nodeId === selectedNode.parentNodeId);
+                    const observedFacts = parentUserNode?.intentDetection?.observedFacts || [];
+                    const conflicts = parentUserNode?.intentDetection?.conflicts || [];
+                    
+                    // Filter observed facts that have conflicts
+                    const conflictedFacts = observedFacts.filter((fact: any) => 
+                      conflicts.some((conflict: any) => 
+                        conflict.factId === fact.factId || conflict.affectedFactIds?.includes(fact.factId)
+                      )
+                    );
+
+                    if (conflictedFacts.length === 0) return null;
+
+                    return (
+                      <>
+                        <Divider sx={{ my: 2 }} />
+                        <Box sx={{ mb: 3 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                            <Box sx={{ 
+                              width: 24, 
+                              height: 24, 
+                              borderRadius: '50%', 
+                              bgcolor: 'error.main', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                            }}>
+                              <WarningIcon sx={{ fontSize: '0.8rem', color: 'white' }} />
+                            </Box>
+                            <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem', color: 'error.main' }}>
+                              Conflicted Observations
+                            </Typography>
+                            <Chip 
+                              label={conflictedFacts.length} 
+                              size="small" 
+                              sx={{ bgcolor: 'rgba(211, 47, 47, 0.15)', color: 'error.main', fontWeight: 600 }}
+                            />
+                          </Box>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            {conflictedFacts.map((fact: any, index: number) => {
+                              const conflictInfo = conflicts.find((conflict: any) => 
+                                conflict.factId === fact.factId || conflict.affectedFactIds?.includes(fact.factId)
+                              );
+                              
+                              return (
+                                <Box 
+                                  key={index} 
+                                  sx={{ 
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr auto',
+                                    gap: 2,
+                                    alignItems: 'center',
+                                    p: 1.5,
+                                    bgcolor: 'rgba(60, 60, 60, 0.6)',
+                                    borderLeft: '3px solid',
+                                    borderLeftColor: 'error.main',
+                                    borderRadius: 0.5,
+                                  }}
+                                >
+                                  {/* Fact Name & Value */}
+                                  <Box>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.75 }}>
+                                      <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.primary', fontWeight: 600 }}>
+                                        {formatIntentLabel(fact.factId)}
+                                      </Typography>
+                                      <Tooltip title={conflictInfo?.implausibilityStatement || 'Conflict detected'} placement="top">
+                                        <Box sx={{ 
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 0.35,
+                                          px: 0.6,
+                                          py: 0.3,
+                                          bgcolor: 'error.main',
+                                          borderRadius: 0.5,
+                                          cursor: 'help',
+                                        }}>
+                                          <WarningIcon sx={{ fontSize: '0.7rem', color: 'white' }} />
+                                          <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'white', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                                            Conflict
+                                          </Typography>
+                                        </Box>
+                                      </Tooltip>
+                                    </Box>
+                                    {fact.value !== undefined ? (
+                                      <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 700, color: 'text.primary', lineHeight: 1.2 }}>
+                                        {typeof fact.value === 'boolean' 
+                                          ? (fact.value ? '✓ Confirmed' : '✗ Not confirmed')
+                                          : formatFactValue(fact.value)}
+                                      </Typography>
+                                    ) : (
+                                      <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.disabled', fontStyle: 'italic' }}>
+                                        No value observed
+                                      </Typography>
+                                    )}
+                                    {conflictInfo?.implausibilityStatement && (
+                                      <Typography variant="body2" sx={{ fontSize: '0.85rem', color: 'error.main', lineHeight: 1.5, fontWeight: 600, mt: 1 }}>
+                                        {conflictInfo.implausibilityStatement}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                  
+                                  {/* Confidence Badge */}
+                                  {fact.confidence !== undefined && (
+                                    <Box sx={{ 
+                                      display: 'flex', 
+                                      alignItems: 'center', 
+                                      gap: 0.5,
+                                      px: 1,
+                                      py: 0.5,
+                                      bgcolor: 'error.main',
+                                      borderRadius: 1,
+                                    }}>
+                                      <Typography variant="caption" sx={{ color: 'white', fontWeight: 700, fontSize: '0.7rem' }}>
+                                        {Math.round(fact.confidence * 100)}%
+                                      </Typography>
+                                    </Box>
+                                  )}
+                                </Box>
+                              );
+                            })}
+                          </Box>
+                        </Box>
+                      </>
+                    );
+                  })()}
+
+                  <Divider sx={{ my: 2 }} />
+
+                  {/* Known So Far (up until this turn) */}
+                  <Box sx={{ mb: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                      <CheckCircleIcon fontSize="small" sx={{ color: 'secondary.main' }} />
+                      <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem' }}>
+                        Known Up Until Now
+                      </Typography>
+                      <Chip 
+                        label={selectedNode.progress.knownSoFar?.length || 0} 
+                        size="small" 
+                        sx={{ bgcolor: 'rgba(34, 211, 238, 0.15)', color: 'secondary.main', fontWeight: 600 }}
+                      />
+                    </Box>
+                    {!selectedNode.progress.knownSoFar || selectedNode.progress.knownSoFar.length === 0 ? (
+                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', fontSize: '0.75rem' }}>
+                        Nothing captured yet
+                      </Typography>
+                    ) : (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        {selectedNode.progress.knownSoFar.map((factId: string, index: number) => {
+                          const isNewThisTurn = selectedNode.progress.learnedThisTurn?.includes(factId);
+                          // Get collectedData with comprehensive fallback
+                          const directData = (selectedNode.metadata as any)?.collectedData || {};
+                          const updatedStateData = (selectedNode.metadata as any)?.updatedState?.collectedData || {};
+                          const latestAgentWithData = currentRun?.nodes
+                            ?.filter((n: any) => n.agentMessage && (n.metadata as any)?.collectedData)
+                            ?.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+                          const latestData = (latestAgentWithData?.metadata as any)?.collectedData || {};
+                          
+                          const collectedData = Object.keys(directData).length > 0 
+                            ? directData 
+                            : Object.keys(updatedStateData).length > 0 
+                              ? updatedStateData 
+                              : latestData;
+                          
+                          const factData = collectedData[factId];
+                          const confidence = factData?.confidence ? Math.round(factData.confidence * 100) : null;
+                          const value = factData?.value;
+                          const inferredFrom = factData?.inferredFrom || [];
+                          
+                          // Check if value is an object (not array, not null) - expand into sub-facts
+                          const isObjectValue = value && typeof value === 'object' && !Array.isArray(value);
+                          
+                          if (isObjectValue) {
+                            // Render each property as a separate fact
+                            return Object.entries(value as Record<string, any>).map(([subKey, subValue], subIndex) => (
+                              <Box 
+                                key={`${index}-${subIndex}`} 
+                                sx={{ 
+                                  display: 'grid',
+                                  gridTemplateColumns: '1fr auto',
+                                  gap: 2,
+                                  alignItems: 'center',
+                                  p: 1.5,
+                                  bgcolor: isNewThisTurn ? 'rgba(34, 197, 94, 0.05)' : 'transparent',
+                                  borderLeft: '3px solid',
+                                  borderLeftColor: isNewThisTurn ? 'success.main' : 'divider',
+                                  borderRadius: 0.5,
+                                }}
+                              >
+                                {/* Fact Name & Value */}
+                                <Box>
+                                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary', mb: 0.5, display: 'block' }}>
+                                    {formatIntentLabel(factId)} → {formatIntentLabel(subKey)}
+                                  </Typography>
+                                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 700, color: 'text.primary', lineHeight: 1.2 }}>
+                                    {typeof subValue === 'boolean' 
+                                      ? (subValue ? '✓ Confirmed' : '✗ Not confirmed')
+                                      : formatFactValue(subValue)}
+                                  </Typography>
+                                </Box>
+                                
+                                {/* Confidence Badge */}
+                                {confidence !== null && (
+                                  <Box sx={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: 0.5,
+                                    px: 1,
+                                    py: 0.5,
+                                    bgcolor: isNewThisTurn ? 'success.main' : 'rgba(34, 211, 238, 0.2)',
+                                    color: isNewThisTurn ? 'white' : 'secondary.main',
+                                    borderRadius: 1,
+                                  }}>
+                                    <Typography variant="caption" sx={{ color: 'inherit', fontWeight: 700, fontSize: '0.7rem' }}>
+                                      {confidence}%
+                                    </Typography>
+                                  </Box>
+                                )}
+                              </Box>
+                            ));
+                          }
+                          
+                          // Regular fact rendering
+                          return (
+                            <Box 
+                              key={index} 
+                              sx={{ 
+                                display: 'grid',
+                                gridTemplateColumns: '1fr auto',
+                                gap: 2,
+                                alignItems: 'center',
+                                p: 1.5,
+                                bgcolor: isNewThisTurn ? 'rgba(34, 197, 94, 0.05)' : 'transparent',
+                                borderLeft: '3px solid',
+                                borderLeftColor: isNewThisTurn ? 'success.main' : 'divider',
+                                borderRadius: 0.5,
+                              }}
+                            >
+                              {/* Fact Name & Value */}
+                              <Box>
+                                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary', mb: 0.5, display: 'block' }}>
+                                  {formatIntentLabel(factId)}
+                                </Typography>
+                                {value !== undefined ? (
+                                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 700, color: 'text.primary', lineHeight: 1.2 }}>
+                                    {typeof value === 'boolean' 
+                                      ? (value ? '✓ Confirmed' : '✗ Not confirmed')
+                                      : formatFactValue(value)}
+                                  </Typography>
+                                ) : (
+                                  <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.disabled', fontStyle: 'italic' }}>
+                                    No value captured
+                                  </Typography>
+                                )}
+                                {inferredFrom.length > 0 && (
+                                  <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.disabled', fontStyle: 'italic', display: 'block', mt: 0.5 }}>
+                                    ↳ inferred from {inferredFrom.map((f: string) => formatIntentLabel(f)).join(', ')}
+                                  </Typography>
+                                )}
+                              </Box>
+                              
+                              {/* Confidence Badge */}
+                              {confidence !== null && (
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: 0.5,
+                                  px: 1,
+                                  py: 0.5,
+                                  bgcolor: isNewThisTurn ? 'success.main' : 'rgba(34, 211, 238, 0.2)',
+                                  color: isNewThisTurn ? 'white' : 'secondary.main',
+                                  borderRadius: 1,
+                                }}>
+                                  <Typography variant="caption" sx={{ color: 'inherit', fontWeight: 700, fontSize: '0.7rem' }}>
+                                    {confidence}%
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    )}
+                  </Box>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  {/* Still Needed */}
+                  <Box sx={{ mb: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                      <HelpOutlineIcon fontSize="small" sx={{ color: 'warning.main' }} />
+                      <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem' }}>
+                        Still Needed
+                      </Typography>
+                      <Chip 
+                        label={selectedNode.progress.pendingToLearn?.length || 0} 
+                        size="small" 
+                        color="warning" 
+                      />
+                    </Box>
+                    {!selectedNode.progress.pendingToLearn || selectedNode.progress.pendingToLearn.length === 0 ? (
+                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', fontSize: '0.75rem' }}>
+                        All required information captured (or no specific requirements)
+                      </Typography>
+                    ) : (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        {selectedNode.progress.pendingToLearn.map((factId: string, index: number) => {
+                          // Check if this pending fact has a conflict - look in parent user node's intentDetection
+                          const parentUserNode = currentRun?.nodes?.find((n: any) => n.nodeId === selectedNode.parentNodeId);
+                          const conflicts = parentUserNode?.intentDetection?.conflicts || 
+                                          selectedNode?.intentDetection?.conflicts || 
+                                          [];
+                          const hasConflict = conflicts.some((conflict: any) => 
+                            conflict.factId === factId || conflict.affectedFactIds?.includes(factId)
+                          );
+                          const conflictInfo = conflicts.find((conflict: any) => 
+                            conflict.factId === factId || conflict.affectedFactIds?.includes(factId)
+                          );
+                          
+                          return (
+                            <Box 
+                              key={index} 
+                              sx={{ 
+                                display: 'grid',
+                                gridTemplateColumns: '1fr auto',
+                                gap: 2,
+                                alignItems: 'center',
+                                p: 1.5,
+                                bgcolor: hasConflict ? 'rgba(245, 158, 11, 0.05)' : 'transparent',
+                                borderLeft: '3px dashed',
+                                borderLeftColor: hasConflict ? 'error.main' : 'warning.main',
+                                borderRadius: 0.5,
+                              }}
+                            >
+                              {/* Fact Name */}
+                              <Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.25 }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem', color: 'text.primary' }}>
+                                    {formatIntentLabel(factId)}
+                                  </Typography>
+                                  {hasConflict && (
+                                    <Tooltip title={conflictInfo?.implausibilityStatement || 'Conflict detected'} placement="top">
+                                      <Box sx={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 0.5,
+                                        px: 0.75,
+                                        py: 0.25,
+                                        borderRadius: 0.5,
+                                        bgcolor: 'rgba(239, 68, 68, 0.15)',
+                                        border: '1px solid',
+                                        borderColor: 'error.main',
+                                        cursor: 'help',
+                                      }}>
+                                        <WarningIcon sx={{ fontSize: '0.75rem', color: 'error.main' }} />
+                                        <Typography variant="caption" sx={{ fontSize: '0.6rem', color: 'error.main', fontWeight: 700, textTransform: 'uppercase' }}>
+                                          Conflict
+                                        </Typography>
+                                      </Box>
+                                    </Tooltip>
+                                  )}
+                                </Box>
+                                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.disabled', fontStyle: 'italic' }}>
+                                  {hasConflict ? 'Needs resolution' : 'Not yet collected'}
+                                </Typography>
+                                {hasConflict && conflictInfo?.implausibilityStatement && (
+                                  <Box sx={{ 
+                                    mt: 1, 
+                                    p: 1, 
+                                    bgcolor: 'rgba(239, 68, 68, 0.08)', 
+                                    borderRadius: 0.5,
+                                    border: '1px solid',
+                                    borderColor: 'rgba(239, 68, 68, 0.2)',
+                                  }}>
+                                    <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'error.dark', lineHeight: 1.4 }}>
+                                      {conflictInfo.implausibilityStatement}
+                                    </Typography>
+                                  </Box>
+                                )}
+                              </Box>
+                              
+                              {/* Status Badge */}
+                              <Box sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 0.5,
+                                px: 1,
+                              py: 0.5,
+                              bgcolor: 'rgba(245, 158, 11, 0.15)',
+                              color: 'warning.main',
+                              borderRadius: 1,
+                            }}>
+                              <Typography variant="caption" sx={{ color: 'inherit', fontWeight: 600, fontSize: '0.7rem' }}>
+                                PENDING
+                              </Typography>
+                            </Box>
+                          </Box>
+                          );
+                        })}
+                      </Box>
+                    )}
+                  </Box>
+
+                  {/* Generic Attributes (if any) */}
+                  {selectedNode.metadata?.genericAttributes && selectedNode.metadata.genericAttributes.length > 0 && (
+                    <>
+                      <Divider sx={{ my: 2 }} />
+                      <Box sx={{ mb: 3 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem', mb: 1.5, color: 'text.secondary' }}>
+                          Generic Attributes
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          {selectedNode.metadata.genericAttributes.map((attr: any, index: number) => (
+                            <Box key={index} sx={{ p: 1.5, bgcolor: 'background.default', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem', mb: 0.25 }}>
+                                {typeof attr === 'string' ? attr : JSON.stringify(attr)}
+                              </Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                      </Box>
+                    </>
+                  )}
+                </>
+              ) : (
+                /* Fallback to global state if no node selected */
+                <>
+                  {/* Known Facts */}
+                  <Box sx={{ mb: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                      <CheckCircleIcon fontSize="small" sx={{ color: 'secondary.main' }} />
+                      <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem' }}>
+                        Known Facts
+                      </Typography>
+                      <Chip 
+                        label={knownFacts.length} 
+                        size="small" 
+                        sx={{ bgcolor: 'rgba(34, 211, 238, 0.15)', color: 'secondary.main', fontWeight: 600 }}
+                      />
+                    </Box>
+                    {knownFacts.length === 0 ? (
+                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', fontSize: '0.75rem' }}>
+                        Nothing captured yet
+                      </Typography>
+                    ) : (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        {knownFacts.map((item, index) => (
+                          <Box key={index} sx={{ p: 1.5, bgcolor: 'background.default', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.65rem', display: 'block', mb: 0.5 }}>
+                              {item.category}
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem', mb: 0.25 }}>
+                              {formatIntentLabel(item.fact)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem' }}>
+                              {formatFactValue(item.value)}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  {/* Missing Facts */}
+                  <Box sx={{ mb: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                      <HelpOutlineIcon fontSize="small" sx={{ color: 'warning.main' }} />
+                      <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem' }}>
+                        Still Needed
+                      </Typography>
+                      <Chip label={missingFacts.length} size="small" color="warning" />
+                    </Box>
+                    {missingFacts.length === 0 ? (
+                      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', fontSize: '0.75rem' }}>
+                        All required information captured
+                      </Typography>
+                    ) : (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                        {missingFacts.map((fact, index) => (
+                          <Chip
+                            key={index}
+                            label={formatIntentLabel(fact)}
+                            size="small"
+                            variant="outlined"
+                            color="warning"
+                            sx={{ fontSize: '0.7rem' }}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                </>
+              )}
+            </Box>
+          )}
+
+          {/* Tab 2: Turn Cost */}
+          {activeTab === 2 && (
+            <Box>
+              <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 2 }}>
+                Turn Cost & Metrics
+              </Typography>
+              
+              {(() => {
+                // Calculate current turn cost
+                const tokens = (selectedNode?.metadata as any)?.executionResult?.tokens || 
+                               selectedNode?.executionResult?.tokens;
+                
+                console.log('🔍 Cost Tab - Tokens:', {
+                  tokens,
+                  hasIntentDetection: !!tokens?.intentDetection,
+                  hasTickAnalyzer: !!tokens?.tickAnalyzer,
+                  hasStepRecommender: !!tokens?.stepRecommender,
+                  hasProcessorLLM: !!tokens?.processorLLM,
+                  tokenKeys: tokens ? Object.keys(tokens) : 'N/A',
+                });
+                
+                const currentTurnCost = tokens ? (
+                  (tokens.intentDetection?.costUsd || 0) +
+                  (tokens.stepRecommender?.costUsd || 0) +
+                  (tokens.processorLLM?.costUsd || 0) +
+                  (tokens.tickAnalyzer?.costUsd || 0)
+                ) : 0;
+
+                const currentTurnTokens = tokens?.total ? (
+                  (tokens.total.input || 0) + (tokens.total.output || 0)
+                ) : 0;
+
+                // Traverse upwards from selected node to calculate branch cost
+                const branchNodes: any[] = [];
+                let currentNodeId = selectedNode?.nodeId;
+                const nodeMap = new Map((currentRun?.nodes || []).map((n: any) => [n.nodeId, n]));
+                
+                console.log('🔍 Cost Tab Debug:', {
+                  selectedNodeId: selectedNode?.nodeId,
+                  selectedNodeType: selectedNode?.type,
+                  currentRunNodesCount: currentRun?.nodes?.length,
+                  nodeMapSize: nodeMap.size,
+                  nodeMapKeys: Array.from(nodeMap.keys()).slice(0, 5),
+                  currentTurnCost,
+                  currentTurnTokens,
+                  tokensSource: tokens ? 'found' : 'missing'
+                });
+                
+                // Walk up the tree collecting all ancestor agent nodes
+                while (currentNodeId) {
+                  const node = nodeMap.get(currentNodeId);
+                  console.log(`  -> Checking node ${currentNodeId}: ${node ? `type=${node.type}` : 'NOT FOUND'}`);
+                  if (!node) break;
+                  
+                  if (node.type === 'agent') {
+                    branchNodes.push(node);
+                    const nodeTokens = (node.metadata as any)?.executionResult?.tokens || node.executionResult?.tokens;
+                    console.log(`    ✓ Agent node added, has tokens: ${!!nodeTokens}`);
+                  }
+                  
+                  currentNodeId = node.parentNodeId;
+                }
+
+                console.log('🔍 Branch traversal complete:', {
+                  branchNodesCount: branchNodes.length,
+                  branchNodeIds: branchNodes.map(n => n.nodeId)
+                });
+
+                // Calculate cumulative cost for this branch only
+                const branchCost = branchNodes.reduce((sum: number, node: any) => {
+                  const nodeTokens = (node.metadata as any)?.executionResult?.tokens || node.executionResult?.tokens;
+                  if (!nodeTokens) {
+                    console.log(`    ❌ Node ${node.nodeId}: No tokens found`);
+                    return sum;
+                  }
+                  
+                  const nodeCost = (
+                    (nodeTokens.intentDetection?.costUsd || 0) +
+                    (nodeTokens.stepRecommender?.costUsd || 0) +
+                    (nodeTokens.processorLLM?.costUsd || 0) +
+                    (nodeTokens.tickAnalyzer?.costUsd || 0)
+                  );
+                  console.log(`    💰 Node ${node.nodeId}: $${nodeCost.toFixed(4)}`);
+                  return sum + nodeCost;
+                }, 0);
+
+                console.log(`💵 Total branch cost: $${branchCost.toFixed(4)}`);
+
+                const branchTokens = branchNodes.reduce((sum: number, node: any) => {
+                  const nodeTokens = (node.metadata as any)?.executionResult?.tokens || node.executionResult?.tokens;
+                  if (!nodeTokens?.total) return sum;
+                  return sum + (nodeTokens.total.input || 0) + (nodeTokens.total.output || 0);
+                }, 0);
+
+                const currentTurnTiming = (selectedNode?.metadata as any)?.executionResult?.timing || 
+                                         selectedNode?.executionResult?.timing;
+
+                return (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {/* Branch Total */}
+                    <Box sx={{ 
+                      p: 2, 
+                      bgcolor: 'rgba(139, 92, 246, 0.1)', 
+                      borderRadius: 1, 
+                      border: '1px solid',
+                      borderColor: 'rgba(139, 92, 246, 0.3)'
+                    }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase' }}>
+                        Conversation Branch Cost
+                      </Typography>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: '#8b5cf6', mt: 0.5 }}>
+                        ${branchCost.toFixed(4)}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+                        {branchTokens.toLocaleString()} tokens • {branchNodes.length} turns
+                      </Typography>
+                    </Box>
+
+                    {/* Current Turn Cost */}
+                    <Box sx={{ 
+                      p: 2, 
+                      bgcolor: 'rgba(34, 197, 94, 0.1)', 
+                      borderRadius: 1, 
+                      border: '1px solid',
+                      borderColor: 'rgba(34, 197, 94, 0.3)'
+                    }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase' }}>
+                        This Turn
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 700, color: 'success.main', mt: 0.5 }}>
+                        ${currentTurnCost.toFixed(4)}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+                        {currentTurnTokens.toLocaleString()} tokens
+                      </Typography>
+                    </Box>
+
+                    {/* Cost Breakdown */}
+                    {tokens && (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', mb: 0.5 }}>
+                          Breakdown
+                        </Typography>
+                        {tokens.intentDetection && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontSize: '0.72rem' }}>
+                              Intent Detection
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
+                                {(tokens.intentDetection.input + tokens.intentDetection.output).toLocaleString()} tok
+                              </Typography>
+                              <Typography variant="caption" sx={{ fontSize: '0.72rem', fontWeight: 600 }}>
+                                ${tokens.intentDetection.costUsd.toFixed(4)}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        )}
+                        {tokens.tickAnalyzer && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontSize: '0.72rem' }}>
+                              Tick Analyzer
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
+                                {(tokens.tickAnalyzer.input + tokens.tickAnalyzer.output).toLocaleString()} tok
+                              </Typography>
+                              <Typography variant="caption" sx={{ fontSize: '0.72rem', fontWeight: 600 }}>
+                                ${tokens.tickAnalyzer.costUsd.toFixed(4)}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        )}
+                        {tokens.stepRecommender && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontSize: '0.72rem' }}>
+                              Step Recommender
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
+                                {(tokens.stepRecommender.input + tokens.stepRecommender.output).toLocaleString()} tok
+                              </Typography>
+                              <Typography variant="caption" sx={{ fontSize: '0.72rem', fontWeight: 600 }}>
+                                ${tokens.stepRecommender.costUsd.toFixed(4)}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        )}
+                        {tokens.processor && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontSize: '0.72rem' }}>
+                              Processor LLM
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
+                                {(tokens.processor.input + tokens.processor.output).toLocaleString()} tok
+                              </Typography>
+                              <Typography variant="caption" sx={{ fontSize: '0.72rem', fontWeight: 600 }}>
+                                ${tokens.processor.costUsd.toFixed(4)}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        )}
+                      </Box>
+                    )}
+
+                    {/* Timing Metrics */}
+                    {currentTurnTiming && (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', mb: 0.5 }}>
+                          Performance
+                        </Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
+                          <Typography variant="caption" sx={{ fontSize: '0.72rem' }}>
+                            Total Time
+                          </Typography>
+                          <Typography variant="caption" sx={{ fontSize: '0.72rem', fontWeight: 600, color: 'primary.main' }}>
+                            {currentTurnTiming.total}ms
+                          </Typography>
+                        </Box>
+                        {currentTurnTiming.parallelMode && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontSize: '0.72rem' }}>
+                              Parallel Mode
+                            </Typography>
+                            <Chip 
+                              label={currentTurnTiming.parallelMode}
+                              size="small"
+                              sx={{ height: 18, fontSize: '0.65rem' }}
+                            />
+                          </Box>
+                        )}
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })()}
+            </Box>
+          )}
         </Box>
       </Box>
     </Box>

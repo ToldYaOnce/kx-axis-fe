@@ -81,12 +81,18 @@ class SimulatorAPIClient {
    */
   async listSimulations(request: ListSimulationsRequest): Promise<ListSimulationsResponse> {
     const params = new URLSearchParams();
-    params.append('flowId', request.flowId);
+    
+    // Only add flowId if it's defined
+    if (request.flowId) {
+      params.append('flowId', request.flowId);
+      console.log('📋 Listing simulations for flow:', request.flowId);
+    } else {
+      console.log('📋 Listing all simulations');
+    }
+    
     if (request.tenantId) params.append('tenantId', request.tenantId);
     if (request.limit) params.append('limit', request.limit.toString());
     if (request.offset) params.append('offset', request.offset.toString());
-
-    console.log('📋 Listing simulations for flow:', request.flowId);
     
     const response = await fetch(`${this.baseURL}/agent/simulations?${params.toString()}`, {
       method: 'GET',

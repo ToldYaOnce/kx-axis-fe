@@ -269,20 +269,27 @@ export interface StartSimulationResponse {
  * GET /agent/simulations?flowId={flowId}&tenantId={tenantId} - List simulations
  */
 export interface ListSimulationsRequest {
-  flowId: string;
+  flowId?: string; // Optional - if not provided, returns all simulations
   tenantId?: string;
   limit?: number;
   offset?: number;
 }
 
 export interface SimulationSummary {
-  simulationId: string;
+  id: string; // Primary ID (matches API response)
+  simulationId: string; // Alias for backwards compatibility
   name: string;
   flowId: string;
   leadState: LeadState;
+  channel: Channel;
   personaId?: string; // Persona used in this simulation
+  persona?: {
+    name: string;
+    [key: string]: any;
+  }; // Populated persona data
   rootNodeId: string;
   nodeCount: number;
+  turnsCount?: number; // Number of conversation turns
   createdAt: string;
   updatedAt: string;
 }

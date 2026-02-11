@@ -263,9 +263,14 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
         const { userNode, agentNode, tickSignals } = response;
         const turnNumber = 1;
         
+        // Handle missing nodeIds (generate fallback if needed)
+        const userNodeId = userNode.nodeId || `user_node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const agentNodeId = agentNode.nodeId || `agent_node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
         // Convert API response to our SimulationNode format
         const newUserNode: SimulationNode = {
-          nodeId: userNode.nodeId,
+          nodeId: userNodeId,
+          type: 'user',  // Set type for branch traversal
           parentNodeId: userNode.parentNodeId,
           branchId: null,
           turnNumber,
@@ -345,8 +350,9 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
         };
         
         const newAgentNode: SimulationNode = {
-          nodeId: agentNode.nodeId,
-          parentNodeId: agentNode.parentNodeId,
+          nodeId: agentNodeId,
+          type: 'agent',  // Set type for branch traversal
+          parentNodeId: userNodeId,  // Agent node is a child of user node
           branchId: null,
           turnNumber: turnNumber + 1,
           agentMessage: agentNode.content,
@@ -360,6 +366,8 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
           status: 'VALID',
           // Preserve top-level tickSignals (matching GET response structure)
           tickSignals,
+          // Preserve top-level progress (matching GET response structure)
+          progress: (response as any).progress,
           metadata: {
             tickSignals,
             controllerOutput: firstMsgControllerOutput,
@@ -370,6 +378,8 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
             progress: (response as any).progress,
             decision: (response as any).decision,
             loopDetection: (response as any).loopDetection,
+            updatedState: (response as any).updatedState,  // Store updatedState for Data tab
+            collectedData: (response as any).updatedState?.collectedData || {},  // Direct access to collectedData
           },
         };
         
@@ -380,7 +390,7 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
         };
         
         setCurrentRun(updatedRun);
-        setSelectedNodeId(agentNode.nodeId);
+        setSelectedNodeId(agentNodeId);
         setAlternateReplyAnchorNodeId(null); // Clear fork mode
         console.log('✅ First message completed successfully');
         return;
@@ -478,13 +488,20 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
         
         console.log('📡 PATCH response:', response);
         console.log('📊 tickSignals from API:', response.tickSignals);
+        console.log('📊 updatedState.collectedData:', response.updatedState?.collectedData);
+        console.log('📊 progress:', response.progress);
         
         const { userNode, agentNode, tickSignals } = response;
         const turnNumber = latestAgentNode.turnNumber + 1;
         
+        // Handle missing nodeIds (generate fallback if needed)
+        const userNodeId = userNode.nodeId || `user_node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const agentNodeId = agentNode.nodeId || `agent_node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
         // Convert API response to our SimulationNode format
         const newUserNode: SimulationNode = {
-          nodeId: userNode.nodeId,
+          nodeId: userNodeId,
+          type: 'user',  // Set type for branch traversal
           parentNodeId: userNode.parentNodeId,
           branchId: null, // No longer using branchId - rely on parentNodeId
           turnNumber,
@@ -596,8 +613,9 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
         };
         
         const newAgentNode: SimulationNode = {
-          nodeId: agentNode.nodeId,
-          parentNodeId: agentNode.parentNodeId,
+          nodeId: agentNodeId,
+          type: 'agent',  // Set type for branch traversal
+          parentNodeId: userNodeId,  // Agent node is a child of user node
           branchId: null, // No longer using branchId - rely on parentNodeId
           turnNumber: turnNumber + 1,
           agentMessage: agentNode.content,
@@ -611,6 +629,8 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
           status: 'VALID',
           // Preserve top-level tickSignals (matching GET response structure)
           tickSignals,
+          // Preserve top-level progress (matching GET response structure)
+          progress: response.progress,
           // Store all metadata from API response including tickSignals, controllerOutput, executionResult, sim, progress, decision
           metadata: {
             tickSignals,
@@ -622,8 +642,17 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
             progress: response.progress,
             decision: response.decision,
             loopDetection: response.loopDetection,
+            updatedState: response.updatedState,  // Store updatedState for Data tab
+            collectedData: response.updatedState?.collectedData || {},  // Direct access to collectedData
           },
         };
+        
+        console.log('🔍 DEBUG newAgentNode.metadata:', {
+          hasCollectedData: !!newAgentNode.metadata?.collectedData,
+          collectedDataKeys: Object.keys(newAgentNode.metadata?.collectedData || {}),
+          hasUpdatedState: !!newAgentNode.metadata?.updatedState,
+          hasProgress: !!newAgentNode.metadata?.progress,
+        });
         
         // Add both user and agent nodes to run
         const updatedRun = {
@@ -661,14 +690,14 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
         setCurrentRun(updatedRun);
         
         // CRITICAL: Select the new agent node so user can see the response details
-        console.log('🎯 Selecting new agent node:', agentNode.nodeId);
+        console.log('🎯 Selecting new agent node:', agentNodeId);
         console.log('🎯 Previous selectedNodeId:', selectedNodeId);
-        setSelectedNodeId(agentNode.nodeId);
-        console.log('🎯 After setSelectedNodeId called for:', agentNode.nodeId);
+        setSelectedNodeId(agentNodeId);
+        console.log('🎯 After setSelectedNodeId called for:', agentNodeId);
         
         setAlternateReplyAnchorNodeId(null); // Clear fork mode after successful message
         
-        console.log('✅ stepSimulation completed successfully, agent node selected:', agentNode.nodeId);
+        console.log('✅ stepSimulation completed successfully, agent node selected:', agentNodeId);
         
         // Log gap detection if present
         if (agentNode.sim.gapRecommendation) {
@@ -864,10 +893,23 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
         // Get conversation tree nodes from API
         const apiNodes = response.nodes || [];
         
+        // Extract collectedData from top-level state (this is where GET stores it!)
+        const globalCollectedData = response.state?.collectedData || response.updatedState?.collectedData || {};
+        
+        console.log('🔍 GET Response - Global collectedData:', {
+          hasStateCollectedData: !!response.state?.collectedData,
+          collectedDataKeys: Object.keys(globalCollectedData),
+          sampleFact: globalCollectedData.name,
+        });
+        
         // Convert API nodes to SimulationNode format
         const simulationNodes: SimulationNode[] = apiNodes.map((node: any, index: number) => {
+          // Handle missing nodeId - use rootNodeId for root node or generate fallback
+          const nodeId = node.nodeId || (node.type === 'root' ? response.rootNodeId : `node_generated_${index}`);
+          
           console.log(`🔄 Converting node ${index}:`, {
-            nodeId: node.nodeId,
+            nodeId: nodeId,
+            originalNodeId: node.nodeId,
             type: node.type,
             hasMetadata: !!node.metadata,
             hasTopLevelTickSignals: !!node.tickSignals,
@@ -876,8 +918,25 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
             metadataKeys: node.metadata ? Object.keys(node.metadata) : []
           });
           
+          // For agent nodes, inject collectedData from global state
+          const enrichedMetadata = node.type === 'agent' && node.metadata ? {
+            ...node.metadata,
+            // Inject global collectedData into every agent node
+            collectedData: globalCollectedData,
+            // Also preserve updatedState if it exists
+            updatedState: node.metadata.updatedState || { collectedData: globalCollectedData },
+          } : node.metadata;
+          
+          console.log(`🔍 Enriched metadata for node ${index}:`, {
+            type: node.type,
+            hasCollectedData: !!(enrichedMetadata?.collectedData),
+            collectedDataKeys: Object.keys(enrichedMetadata?.collectedData || {}),
+            hasUpdatedState: !!(enrichedMetadata?.updatedState),
+          });
+          
           return {
-            nodeId: node.nodeId,
+            nodeId: nodeId,
+            type: node.type,  // Preserve node type for branch traversal
             parentNodeId: node.parentNodeId,
             branchId: 'branch-main',
             turnNumber: index,
@@ -913,8 +972,8 @@ export const SimulatorProvider: React.FC<SimulatorProviderProps> = ({
             contractVersion: '1.0.0',
             designVersionHash: 'pending',
             status: 'VALID',
-            // Preserve all metadata from API including tickSignals, controllerOutput, executionResult, sim
-            metadata: node.metadata,
+            // Use enriched metadata that includes collectedData for agent nodes
+            metadata: enrichedMetadata,
             intentDetection: node.metadata?.intentDetection,
             // Preserve top-level tickSignals from GET responses (they're duplicated here from user nodes)
             tickSignals: node.tickSignals,

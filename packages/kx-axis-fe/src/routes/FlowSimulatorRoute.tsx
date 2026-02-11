@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Box, IconButton, Tooltip } from '@mui/material';
+import { Box, IconButton, Tooltip, CircularProgress, Alert } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { ExecutionMode } from '../components/Simulator/ExecutionMode';
 import { SimulatorProvider } from '../context/SimulatorContext';
 import { ToastProvider } from '../context/ToastContext';
+import { simulatorAPI } from '../api/simulatorClient';
 
 export interface FlowSimulatorRouteProps {
   /**
@@ -35,9 +36,12 @@ export const FlowSimulatorRoute: React.FC<FlowSimulatorRouteProps> = ({
   showBackButton = true,
   onBack,
 }) => {
-  const { flowId, simulationId } = useParams<{ flowId: string; simulationId: string }>();
+  const { flowId: flowIdParam, simulationId } = useParams<{ flowId?: string; simulationId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const [flowId, setFlowId] = useState<string | null>(flowIdParam || null);
+  const [loading, setLoading] = useState(!flowIdParam);
+  const [error, setError] = useState<string | null>(null);
   
   // Extract simulation data from navigation state (if navigating from "Start" button)
   const simulationState = (location.state as any)?.simulationData;
@@ -47,19 +51,58 @@ export const FlowSimulatorRoute: React.FC<FlowSimulatorRouteProps> = ({
   console.log('📍 FlowSimulatorRoute - location.state:', location.state);
   console.log('📍 Extracted data:', { simulationState, channel, leadState });
 
+  // If flowId not in URL, fetch simulation to get flowId
+  useEffect(() => {
+    if (!flowIdParam && simulationId) {
+      const fetchSimulation = async () => {
+        try {
+          setLoading(true);
+          const simulation = await simulatorAPI.getSimulation(simulationId);
+          setFlowId(simulation.flowId);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to load simulation');
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      fetchSimulation();
+    }
+  }, [flowIdParam, simulationId]);
+
   const handleBack = () => {
     if (onBack) {
       onBack();
     } else {
       // Navigate back to simulations list
-      navigate(`${basePath}/${flowId}/simulations`);
+      if (basePath === '/simulations') {
+        navigate('/simulations');
+      } else {
+        navigate(`${basePath}/${flowId}/simulations`);
+      }
     }
   };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 4 }}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
+  }
 
   if (!flowId) {
     return (
       <Box p={3}>
-        <p>Error: No flow ID provided</p>
+        <Alert severity="error">Error: No flow ID provided</Alert>
       </Box>
     );
   }

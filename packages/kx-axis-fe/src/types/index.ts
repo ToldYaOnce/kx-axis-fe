@@ -367,3 +367,14 @@ export interface FlowConfiguration {
   isValid: boolean;
   validationErrors?: string[];
 }
+
+// ========== CONVERSATION ITEM TEMPLATES ==========
+
+export type {
+  ConversationTemplate,
+  CreateTemplateRequest,
+  UpdateTemplateRequest,
+  TemplateVariable,
+} from './templates';
+
+export { AVAILABLE_VARIABLES } from './templates';
