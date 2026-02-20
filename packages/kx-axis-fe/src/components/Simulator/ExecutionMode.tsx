@@ -28,8 +28,13 @@ const TREE_DEFAULT_NARROW = 280;
 const TREE_DEFAULT_WIDE = 450;
 const BRANCHING_DEPTH_THRESHOLD = 3;
 
+export interface ExecutionModeProps {
+  showBackButton?: boolean;
+  onBack?: () => void;
+}
+
 // ExecutionMode now expects SimulatorProvider to be provided by parent (e.g., FlowSimulatorRoute)
-export const ExecutionMode: React.FC = () => {
+export const ExecutionMode: React.FC<ExecutionModeProps> = ({ showBackButton, onBack }) => {
   const { currentRun } = useSimulator();
   const [treeWidth, setTreeWidth] = useState(TREE_DEFAULT_NARROW);
   const [isResizing, setIsResizing] = useState(false);
@@ -96,7 +101,7 @@ export const ExecutionMode: React.FC = () => {
     }}>
       {/* Top Bar */}
       <Box sx={{ flexShrink: 0 }}>
-        <ScenarioBar />
+        <ScenarioBar showBackButton={showBackButton} onBack={onBack} />
       </Box>
 
       {/* Main Content */}

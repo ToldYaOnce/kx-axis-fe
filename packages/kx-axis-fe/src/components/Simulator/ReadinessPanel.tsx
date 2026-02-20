@@ -2446,18 +2446,19 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
                 console.log('🔍 Cost Tab - Tokens:', {
                   tokens,
                   hasIntentDetection: !!tokens?.intentDetection,
-                  hasTickAnalyzer: !!tokens?.tickAnalyzer,
-                  hasStepRecommender: !!tokens?.stepRecommender,
+                  hasMergedTickStep: !!tokens?.mergedTickStep,
                   hasProcessorLLM: !!tokens?.processorLLM,
+                  hasTotal: !!tokens?.total,
                   tokenKeys: tokens ? Object.keys(tokens) : 'N/A',
                 });
                 
-                const currentTurnCost = tokens ? (
-                  (tokens.intentDetection?.costUsd || 0) +
-                  (tokens.stepRecommender?.costUsd || 0) +
-                  (tokens.processorLLM?.costUsd || 0) +
-                  (tokens.tickAnalyzer?.costUsd || 0)
-                ) : 0;
+                // Use total.costUsd for turn cost if available, otherwise sum individual services
+                const currentTurnCost = tokens?.total?.costUsd || 
+                  (tokens ? (
+                    (tokens.intentDetection?.costUsd || 0) +
+                    (tokens.mergedTickStep?.costUsd || 0) +
+                    (tokens.processorLLM?.costUsd || 0)
+                  ) : 0);
 
                 const currentTurnTokens = tokens?.total ? (
                   (tokens.total.input || 0) + (tokens.total.output || 0)
@@ -2507,11 +2508,11 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
                     return sum;
                   }
                   
-                  const nodeCost = (
+                  // Use total.costUsd if available, otherwise sum individual services
+                  const nodeCost = nodeTokens.total?.costUsd || (
                     (nodeTokens.intentDetection?.costUsd || 0) +
-                    (nodeTokens.stepRecommender?.costUsd || 0) +
-                    (nodeTokens.processorLLM?.costUsd || 0) +
-                    (nodeTokens.tickAnalyzer?.costUsd || 0)
+                    (nodeTokens.mergedTickStep?.costUsd || 0) +
+                    (nodeTokens.processorLLM?.costUsd || 0)
                   );
                   console.log(`    💰 Node ${node.nodeId}: $${nodeCost.toFixed(4)}`);
                   return sum + nodeCost;
@@ -2574,7 +2575,7 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
                         <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', mb: 0.5 }}>
                           Breakdown
                         </Typography>
-                        {tokens.intentDetection && (
+                        {tokens.intentDetection && tokens.intentDetection.costUsd !== undefined && (
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
                             <Typography variant="caption" sx={{ fontSize: '0.72rem' }}>
                               Intent Detection
@@ -2589,47 +2590,32 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
                             </Box>
                           </Box>
                         )}
-                        {tokens.tickAnalyzer && (
+                        {tokens.mergedTickStep && tokens.mergedTickStep.costUsd !== undefined && (
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
                             <Typography variant="caption" sx={{ fontSize: '0.72rem' }}>
-                              Tick Analyzer
+                              Tick & Step Analysis
                             </Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
-                                {(tokens.tickAnalyzer.input + tokens.tickAnalyzer.output).toLocaleString()} tok
+                                {(tokens.mergedTickStep.input + tokens.mergedTickStep.output).toLocaleString()} tok
                               </Typography>
                               <Typography variant="caption" sx={{ fontSize: '0.72rem', fontWeight: 600 }}>
-                                ${tokens.tickAnalyzer.costUsd.toFixed(4)}
+                                ${tokens.mergedTickStep.costUsd.toFixed(4)}
                               </Typography>
                             </Box>
                           </Box>
                         )}
-                        {tokens.stepRecommender && (
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
-                            <Typography variant="caption" sx={{ fontSize: '0.72rem' }}>
-                              Step Recommender
-                            </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
-                                {(tokens.stepRecommender.input + tokens.stepRecommender.output).toLocaleString()} tok
-                              </Typography>
-                              <Typography variant="caption" sx={{ fontSize: '0.72rem', fontWeight: 600 }}>
-                                ${tokens.stepRecommender.costUsd.toFixed(4)}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        )}
-                        {tokens.processor && (
+                        {tokens.processorLLM && tokens.processorLLM.costUsd !== undefined && (
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.5 }}>
                             <Typography variant="caption" sx={{ fontSize: '0.72rem' }}>
                               Processor LLM
                             </Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
-                                {(tokens.processor.input + tokens.processor.output).toLocaleString()} tok
+                                {(tokens.processorLLM.input + tokens.processorLLM.output).toLocaleString()} tok
                               </Typography>
                               <Typography variant="caption" sx={{ fontSize: '0.72rem', fontWeight: 600 }}>
-                                ${tokens.processor.costUsd.toFixed(4)}
+                                ${tokens.processorLLM.costUsd.toFixed(4)}
                               </Typography>
                             </Box>
                           </Box>

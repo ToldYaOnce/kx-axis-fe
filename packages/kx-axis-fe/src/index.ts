@@ -138,7 +138,7 @@ export { templatesAPI } from './api/templatesClient';
 // ========== EXECUTION MODE ==========
 
 // Main Execution Mode component
-export { ExecutionMode } from './components/Simulator/ExecutionMode';
+export { ExecutionMode, type ExecutionModeProps } from './components/Simulator/ExecutionMode';
 
 // Simulator context
 export { SimulatorProvider, useSimulator } from './context/SimulatorContext';

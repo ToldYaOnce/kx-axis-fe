@@ -537,9 +537,9 @@ export const ConversationItemsPalette: React.FC = () => {
       };
       newNode.satisfies = {
         states: ['GOAL_GAP_CAPTURED'],
-        metrics: ['goal_target', 'goal_baseline', 'goal_delta', 'goal_category'],
+        metrics: ['goal_target', 'goal_baseline', 'goal_delta', 'goal_category', 'goal_deadline'],
       };
-      newNode.produces = ['goal_target', 'goal_baseline', 'goal_delta', 'goal_category'];
+      newNode.produces = ['goal_target', 'goal_baseline', 'goal_delta', 'goal_category', 'goal_deadline'];
     }
 
     // Add default config for contact capture

@@ -8,12 +8,20 @@ import {
   Typography,
   Button,
   Chip,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useSimulator } from '../../context/SimulatorContext';
 import { useToast } from '../../context/ToastContext';
 
-export const ScenarioBar: React.FC = () => {
+export interface ScenarioBarProps {
+  showBackButton?: boolean;
+  onBack?: () => void;
+}
+
+export const ScenarioBar: React.FC<ScenarioBarProps> = ({ showBackButton = true, onBack }) => {
   const { showError, showConfirm } = useToast();
   const { currentRun, flow, isLoadingFlow, reset } = useSimulator();
   
@@ -50,6 +58,15 @@ export const ScenarioBar: React.FC = () => {
         gap: 2,
       }}
     >
+      {/* Back Button */}
+      {showBackButton && onBack && (
+        <Tooltip title="Back to Simulations">
+          <IconButton onClick={onBack} size="small">
+            <ArrowBackIcon />
+          </IconButton>
+        </Tooltip>
+      )}
+      
       {/* Mode Indicator */}
       <Chip
         label="EXECUTION MODE"

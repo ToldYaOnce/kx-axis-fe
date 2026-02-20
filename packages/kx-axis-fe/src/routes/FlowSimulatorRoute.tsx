@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Box, IconButton, Tooltip, CircularProgress, Alert } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { Box, CircularProgress, Alert } from '@mui/material';
 import { ExecutionMode } from '../components/Simulator/ExecutionMode';
 import { SimulatorProvider } from '../context/SimulatorContext';
 import { ToastProvider } from '../context/ToastContext';
@@ -123,18 +122,10 @@ export const FlowSimulatorRoute: React.FC<FlowSimulatorRouteProps> = ({
           overflow: 'hidden',
           minHeight: 0,
         }}>
-          {showBackButton && (
-            <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
-              <Tooltip title="Back to Simulations">
-                <IconButton onClick={handleBack}>
-                  <ArrowBackIcon />
-                </IconButton>
-              </Tooltip>
-            </Box>
-          )}
-          <Box sx={{ flex: 1, overflow: 'hidden', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            <ExecutionMode />
-          </Box>
+          <ExecutionMode 
+            showBackButton={showBackButton}
+            onBack={handleBack}
+          />
         </Box>
       </SimulatorProvider>
     </ToastProvider>
