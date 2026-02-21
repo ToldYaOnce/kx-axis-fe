@@ -127,16 +127,56 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
     setDraggedItem(null);
   }, []);
 
-  // Custom collision detection: prioritize pointer position over geometric center
+  // Custom collision detection: prioritize drop zones over sortable items
   const customCollisionDetection = useCallback((args: any) => {
     // First try pointer-based detection (most accurate)
     const pointerCollisions = pointerWithin(args);
     if (pointerCollisions && pointerCollisions.length > 0) {
+      // Prioritize dependency drop zones (right-*) over sortable items and general canvas
+      const dependencyZones = pointerCollisions.filter((collision: any) => {
+        const droppableData = args.droppableContainers.find((c: any) => c.id === collision.id)?.data?.current;
+        return droppableData?.type === 'dependency-extension';
+      });
+      if (dependencyZones.length > 0) {
+        return dependencyZones;
+      }
+      
+      // Then prioritize empty lanes
+      const emptyLanes = pointerCollisions.filter((collision: any) => {
+        const droppableData = args.droppableContainers.find((c: any) => c.id === collision.id)?.data?.current;
+        return droppableData?.type === 'empty-lane';
+      });
+      if (emptyLanes.length > 0) {
+        return emptyLanes;
+      }
+      
       return pointerCollisions;
     }
     
     // Fallback to rectangle intersection
-    return rectIntersection(args);
+    const rectCollisions = rectIntersection(args);
+    if (rectCollisions && rectCollisions.length > 0) {
+      // Same priority logic for rect collisions
+      const dependencyZones = rectCollisions.filter((collision: any) => {
+        const droppableData = args.droppableContainers.find((c: any) => c.id === collision.id)?.data?.current;
+        return droppableData?.type === 'dependency-extension';
+      });
+      if (dependencyZones.length > 0) {
+        return dependencyZones;
+      }
+      
+      const emptyLanes = rectCollisions.filter((collision: any) => {
+        const droppableData = args.droppableContainers.find((c: any) => c.id === collision.id)?.data?.current;
+        return droppableData?.type === 'empty-lane';
+      });
+      if (emptyLanes.length > 0) {
+        return emptyLanes;
+      }
+      
+      return rectCollisions;
+    }
+    
+    return [];
   }, []);
 
   // Render content - conditionally wrap with FlowDataProvider if API integration is enabled

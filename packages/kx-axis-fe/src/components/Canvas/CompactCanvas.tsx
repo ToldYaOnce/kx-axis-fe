@@ -18,7 +18,9 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
-import { DragEndEvent, useDndMonitor } from '@dnd-kit/core';
+import { DragEndEvent, useDndMonitor, useDroppable, DragStartEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useFlow } from '../../context/FlowContext';
 import { computeGridLayout } from '../../utils/gridLayout';
 import { CompactNodeCard } from './CompactNodeCard';
@@ -60,34 +62,184 @@ interface Connection {
   toY: number;
 }
 
-// Wrapper component to properly handle refs
-interface NodeWrapperProps {
+// Lane component to properly handle hooks
+interface LaneProps {
+  colIndex: number;
+  nodes: FlowNode[];
+  activeId: string | null;
+  selection: any;
+  handleNodeClick: (node: FlowNode) => void;
+  getNodeHeight: (node: FlowNode) => string;
+  registerNodeRef: (nodeId: string, el: HTMLElement | null) => void;
+  hasEmptyLaneToRight: boolean;
+}
+
+const Lane: React.FC<LaneProps> = ({
+  colIndex,
+  nodes,
+  activeId,
+  selection,
+  handleNodeClick,
+  getNodeHeight,
+  registerNodeRef,
+  hasEmptyLaneToRight,
+}) => {
+  const nodeIds = nodes.map(n => n.id);
+  const isEmpty = nodes.length === 0;
+
+  // Empty lanes don't need droppable - the right zones from left items will handle it
+  useDroppable({
+    id: `empty-lane-${colIndex}`,
+    data: {
+      type: 'empty-lane',
+      colIndex,
+    },
+    disabled: true, // Disabled because we use right-zones instead
+  });
+
+  return (
+    <Box
+      sx={{
+        width: `${BOX_WIDTH}em`,
+        minWidth: `${BOX_WIDTH}em`,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: `${GAP}em`,
+        flexShrink: 0,
+        minHeight: isEmpty ? '20em' : 'auto',
+      }}
+    >
+      {isEmpty ? null : (
+        <SortableContext items={nodeIds} strategy={verticalListSortingStrategy}>
+          {nodes.map(node => (
+            <SortableNodeWrapper
+              key={node.id}
+              node={node}
+              isSelected={selection.type === 'node' && selection.id === node.id}
+              onClick={() => handleNodeClick(node)}
+              height={getNodeHeight(node)}
+              registerRef={registerNodeRef}
+              showRightZone={!!activeId && activeId !== node.id}
+              hasEmptyLaneToRight={hasEmptyLaneToRight}
+            />
+          ))}
+        </SortableContext>
+      )}
+    </Box>
+  );
+};
+
+// Sortable node with drop zones
+interface SortableNodeWrapperProps {
   node: FlowNode;
   isSelected: boolean;
   onClick: () => void;
   height: string;
   registerRef: (nodeId: string, el: HTMLElement | null) => void;
+  showRightZone: boolean;
+  hasEmptyLaneToRight: boolean;
 }
 
-const NodeWrapper: React.FC<NodeWrapperProps> = ({ node, isSelected, onClick, height, registerRef }) => {
+const SortableNodeWrapper: React.FC<SortableNodeWrapperProps> = ({
+  node,
+  isSelected,
+  onClick,
+  height,
+  registerRef,
+  showRightZone,
+  hasEmptyLaneToRight,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: isSortableDragging,
+  } = useSortable({
+    id: node.id,
+    data: { type: 'sortable-node', node },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isSortableDragging ? 0.5 : 1,
+  };
+
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (wrapperRef.current) {
+    if (wrapperRef.current && !isSortableDragging) {
       registerRef(node.id, wrapperRef.current);
     }
     return () => registerRef(node.id, null);
-  }, [node.id, registerRef]);
+  }, [node.id, registerRef, isSortableDragging]);
+
+  // Right-side drop zone for dependencies (must match Canvas.tsx expected type)
+  const dropZoneId = `right-${node.id}`;
+  const { setNodeRef: setRightDropRef, isOver: isOverRight } = useDroppable({
+    id: dropZoneId,
+    data: {
+      type: 'dependency-extension',
+      targetNode: node,
+    },
+  });
+
+  // Debug: Log when drop zone is rendered
+  useEffect(() => {
+    if (showRightZone && hasEmptyLaneToRight) {
+      console.log('🔵 Drop zone rendered:', dropZoneId, 'for node:', node.title);
+    }
+  }, [showRightZone, hasEmptyLaneToRight, dropZoneId, node.title]);
 
   return (
-    <div ref={wrapperRef} style={{ width: `${BOX_WIDTH}em`, display: 'flex' }}>
-      <CompactNodeCard
-        node={node}
-        isSelected={isSelected}
-        onClick={onClick}
-        height={height}
-      />
-    </div>
+    <Box sx={{ position: 'relative', width: '100%' }} style={style}>
+      <div ref={wrapperRef} style={{ width: '100%' }}>
+        <Box
+          ref={setNodeRef}
+          {...attributes}
+          {...listeners}
+          sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}
+        >
+          <CompactNodeCard
+            node={node}
+            isSelected={isSelected}
+            onClick={onClick}
+            height={height}
+          />
+        </Box>
+      </div>
+
+      {/* Right-side dependency drop zone - only visible when dragging */}
+      {showRightZone && hasEmptyLaneToRight && (
+        <Box
+          ref={setRightDropRef}
+          sx={{
+            position: 'absolute',
+            top: 0,
+            height: height,
+            left: `calc(100% + ${LANE_GAP}em)`,
+            width: `${BOX_WIDTH}em`,
+            zIndex: 1000,
+            backgroundColor: isOverRight ? alpha('#0080FF', 0.25) : alpha('#0080FF', 0.08),
+            border: isOverRight ? `2px solid #0080FF` : `1px dashed ${alpha('#0080FF', 0.3)}`,
+            borderRadius: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'all',
+            transition: 'all 0.2s',
+          }}
+        >
+          {isOverRight && (
+            <Typography variant="caption" sx={{ color: '#0080FF', fontWeight: 600, fontSize: '0.65rem', textAlign: 'center', px: 0.5 }}>
+              →
+            </Typography>
+          )}
+        </Box>
+      )}
+    </Box>
   );
 };
 
@@ -98,6 +250,7 @@ export const CompactCanvas: React.FC = () => {
   const [pendingDrop, setPendingDrop] = useState<{ nodeId: string; targetCol: number } | null>(null);
   const [nodeRefs, setNodeRefs] = useState<Map<string, HTMLElement>>(new Map());
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   // Compute grid layout
   const gridLayout = computeGridLayout(flow.nodes);
@@ -256,22 +409,64 @@ export const CompactCanvas: React.FC = () => {
     setPendingDrop(null);
   };
 
-  // Handle drops
+  // Handle drag events
   useDndMonitor({
+    onDragStart: (event: DragStartEvent) => {
+      setActiveId(event.active.id as string);
+    },
     onDragEnd: (event: DragEndEvent) => {
       const { active, over } = event;
-      if (!over || over.data.current?.type !== 'compact-lane') return;
+      setActiveId(null);
 
-      const targetCol = over.data.current.colIndex as number;
-      const draggedNode = active.data.current?.node as FlowNode | undefined;
-      if (!draggedNode) return;
+      if (!over) return;
 
-      const currentCol = gridLayout.get(draggedNode.id)?.gridCol ?? 0;
-      
-      if (targetCol > currentCol) {
-        setPendingDrop({ nodeId: draggedNode.id, targetCol });
-        setPrereqPickerOpen(true);
+      const overData = over.data.current;
+      const activeData = active.data.current;
+      const activeNode = flow.nodes.find(n => n.id === active.id);
+
+      console.log('🎯 Drop detected:', { 
+        activeId: active.id, 
+        overId: over.id, 
+        overType: overData?.type,
+        activeType: activeData?.type 
+      });
+
+      // Case 1: Dropped on right-side zone (dependency creation) - PRIORITY
+      // Note: Palette items are handled by Canvas.tsx, we only handle existing node reordering here
+      if (overData?.type === 'dependency-extension') {
+        const targetNode = overData.targetNode as FlowNode;
+        if (activeNode && targetNode.id !== activeNode.id) {
+          console.log('✅ Creating dependency:', targetNode.id, '->', activeNode.id);
+          updateNode(activeNode.id, {
+            requires: [targetNode.id],
+          });
+        }
+        return;
       }
+
+      // Case 2: Dropped on empty lane (show picker)
+      if (overData?.type === 'empty-lane') {
+        const targetCol = overData.colIndex as number;
+        if (activeNode) {
+          setPendingDrop({ nodeId: activeNode.id, targetCol });
+          setPrereqPickerOpen(true);
+        }
+        return;
+      }
+
+      // Case 3: Sortable reorder within same lane
+      // Only process if both active and over are sortable nodes
+      if (activeData?.type === 'sortable-node' && overData?.type === 'sortable-node') {
+        if (active.id !== over.id) {
+          console.log('📋 Sortable reorder:', active.id, '<->', over.id);
+          // Allow sortable to handle reordering
+          // The SortableContext will manage the position change
+        }
+        return;
+      }
+    },
+    onDragCancel: () => {
+      setActiveId(null);
     },
   });
 
@@ -358,30 +553,25 @@ export const CompactCanvas: React.FC = () => {
             p: 3,
           }}
         >
-          {columns.map(colIndex => {
+          {columns.map((colIndex, idx) => {
             const nodesInColumn = nodesByColumn.get(colIndex) || [];
+            // Check if the next column is empty (last column or next has no nodes)
+            const isLastColumn = idx === columns.length - 1;
+            const nextColNodes = !isLastColumn ? (nodesByColumn.get(columns[idx + 1]) || []) : [];
+            const hasEmptyLaneToRight = isLastColumn || nextColNodes.length === 0;
             
             return (
-              <Box
+              <Lane
                 key={`col-${colIndex}`}
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: `${GAP}em`,
-                  flexShrink: 0,
-                }}
-              >
-                {nodesInColumn.map(node => (
-                  <NodeWrapper 
-                    key={node.id} 
-                    node={node}
-                    isSelected={selection.type === 'node' && selection.id === node.id}
-                    onClick={() => handleNodeClick(node)}
-                    height={getNodeHeight(node)}
-                    registerRef={registerNodeRef}
-                  />
-                ))}
-              </Box>
+                colIndex={colIndex}
+                nodes={nodesInColumn}
+                activeId={activeId}
+                selection={selection}
+                handleNodeClick={handleNodeClick}
+                getNodeHeight={getNodeHeight}
+                registerNodeRef={registerNodeRef}
+                hasEmptyLaneToRight={hasEmptyLaneToRight && nodesInColumn.length > 0}
+              />
             );
           })}
         </Box>
