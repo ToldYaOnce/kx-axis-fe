@@ -2,7 +2,6 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { 
   Box, 
   Typography, 
-  useTheme, 
   alpha,
   Dialog,
   DialogTitle,
@@ -19,7 +18,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
-import { useDroppable, DragEndEvent, useDndMonitor } from '@dnd-kit/core';
+import { DragEndEvent, useDndMonitor } from '@dnd-kit/core';
 import { useFlow } from '../../context/FlowContext';
 import { computeGridLayout } from '../../utils/gridLayout';
 import { CompactNodeCard } from './CompactNodeCard';
@@ -50,7 +49,6 @@ const NODE_COLORS: Record<NodeKind, string> = {
 const BOX_HEIGHT = 3; // em
 const GAP = 0.75; // em
 const BOX_WIDTH = 18; // em - actual box width
-const LANE_WIDTH = 19; // em - lane container width (slight padding)
 const LANE_GAP = 2.5; // em (space for arrows)
 
 interface Connection {
@@ -95,7 +93,6 @@ const NodeWrapper: React.FC<NodeWrapperProps> = ({ node, isSelected, onClick, he
 
 export const CompactCanvas: React.FC = () => {
   const { flow, selection, setSelection, updateNode } = useFlow();
-  const theme = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const [prereqPickerOpen, setPrereqPickerOpen] = useState(false);
   const [pendingDrop, setPendingDrop] = useState<{ nodeId: string; targetCol: number } | null>(null);
@@ -109,9 +106,6 @@ export const CompactCanvas: React.FC = () => {
   const maxCol = Math.max(...Array.from(gridLayout.values()).map(p => p.gridCol), -1);
   const columns = maxCol >= 0 ? Array.from({ length: maxCol + 2 }, (_, i) => i) : [0];
   
-  // Calculate total width needed for all lanes
-  const totalWidthEm = columns.length * LANE_WIDTH + (columns.length - 1) * LANE_GAP;
-  
   // Group nodes by column
   const nodesByColumn = new Map<number, FlowNode[]>();
   columns.forEach(col => nodesByColumn.set(col, []));
@@ -123,22 +117,53 @@ export const CompactCanvas: React.FC = () => {
     }
   });
 
-  // Calculate how many dependents each node has (for height)
-  const getDependentCount = (node: FlowNode): number => {
-    return flow.nodes.filter(otherNode => {
+  // Calculate node heights recursively from right to left
+  const nodeHeights = new Map<string, number>(); // Store heights in em units
+
+  const calculateNodeHeight = (node: FlowNode): number => {
+    // Return cached height if already calculated
+    if (nodeHeights.has(node.id)) {
+      return nodeHeights.get(node.id)!;
+    }
+
+    // Find all direct dependents (nodes in the next column that require this node)
+    const directDependents = flow.nodes.filter(otherNode => {
       if (otherNode.id === node.id) return false;
       if (!otherNode.requires) return false;
       const nodeProduces = node.produces || [];
       return otherNode.requires.some(req => 
         nodeProduces.includes(req) || req === node.id
       );
-    }).length;
+    });
+
+    if (directDependents.length === 0) {
+      // Leaf node - use base height
+      nodeHeights.set(node.id, BOX_HEIGHT);
+      return BOX_HEIGHT;
+    }
+
+    // Calculate the sum of all dependent heights (including their cascading heights)
+    let totalDependentsHeight = 0;
+    directDependents.forEach((dependent, index) => {
+      const dependentHeight = calculateNodeHeight(dependent);
+      totalDependentsHeight += dependentHeight;
+      if (index < directDependents.length - 1) {
+        totalDependentsHeight += GAP; // Add gap between dependents
+      }
+    });
+
+    // This node's height is the max of: base height OR sum of dependents' heights
+    const height = Math.max(BOX_HEIGHT, totalDependentsHeight);
+    nodeHeights.set(node.id, height);
+    return height;
   };
 
+  // Calculate all heights (process from right to left automatically through recursion)
+  flow.nodes.forEach(node => calculateNodeHeight(node));
+
   const getNodeHeight = (node: FlowNode): string => {
-    const count = getDependentCount(node);
-    if (count === 0) return `${BOX_HEIGHT}em`;
-    return `${(count * BOX_HEIGHT) + ((count - 1) * GAP)}em`;
+    const height = nodeHeights.get(node.id) || BOX_HEIGHT;
+    return `${height}em`;
   };
 
   const handleNodeClick = (node: FlowNode) => {
@@ -276,46 +301,44 @@ export const CompactCanvas: React.FC = () => {
           }}
         >
           <defs>
-            {/* Arrow markers - bigger arrows, path ends at back */}
-            {Object.entries(NODE_COLORS).map(([type, color]) => (
-              <marker
-                key={`arrow-${type}`}
-                id={`arrowhead-${type}`}
-                markerWidth="10"
-                markerHeight="10"
-                refX="0"
-                refY="4"
-                orient="auto"
-                markerUnits="userSpaceOnUse"
-              >
-                <path d="M0,0 L0,8 L9,4 z" fill={color} opacity="0.8" />
-              </marker>
-            ))}
+            {/* Single consistent arrow marker - blue-slate */}
+            <marker
+              id="arrowhead-blue-slate"
+              markerWidth="10"
+              markerHeight="10"
+              refX="0"
+              refY="4"
+              orient="auto"
+              markerUnits="userSpaceOnUse"
+            >
+              <path d="M0,0 L0,8 L9,4 z" fill="#5A6B7D" opacity="0.7" />
+            </marker>
           </defs>
 
           {connections.map((conn, idx) => {
             const dx = conn.toX - conn.fromX;
             const cp1X = conn.fromX + dx * 0.6;
             const cp2X = conn.toX - dx * 0.4;
+            const arrowColor = '#5A6B7D'; // Consistent blue-slate color
             
             return (
               <g key={`${conn.from.id}-${conn.to.id}-${idx}`}>
                 {/* Glow effect */}
                 <path
                   d={`M ${conn.fromX} ${conn.fromY} C ${cp1X} ${conn.fromY}, ${cp2X} ${conn.toY}, ${conn.toX} ${conn.toY}`}
-                  stroke={NODE_COLORS[conn.from.type]}
-                  strokeWidth="5"
+                  stroke={arrowColor}
+                  strokeWidth="3"
                   fill="none"
-                  opacity="0.15"
+                  opacity="0.12"
                 />
                 {/* Main arrow */}
                 <path
                   d={`M ${conn.fromX} ${conn.fromY} C ${cp1X} ${conn.fromY}, ${cp2X} ${conn.toY}, ${conn.toX} ${conn.toY}`}
-                  stroke={NODE_COLORS[conn.from.type]}
-                  strokeWidth="2.5"
+                  stroke={arrowColor}
+                  strokeWidth="1.5"
                   fill="none"
-                  opacity="0.75"
-                  markerEnd={`url(#arrowhead-${conn.from.type})`}
+                  opacity="0.6"
+                  markerEnd={`url(#arrowhead-blue-slate)`}
                   strokeLinecap="round"
                 />
               </g>
@@ -323,48 +346,29 @@ export const CompactCanvas: React.FC = () => {
           })}
         </svg>
 
-        {/* Lanes */}
+        {/* Nodes positioned in columns */}
         <Box
           sx={{
             position: 'relative',
             zIndex: 1,
-            display: 'inline-flex', // inline-flex to respect content width
+            display: 'inline-flex',
             gap: `${LANE_GAP}em`,
             alignItems: 'flex-start',
-            flexWrap: 'nowrap', // Don't wrap lanes
+            flexWrap: 'nowrap',
+            p: 3,
           }}
         >
           {columns.map(colIndex => {
             const nodesInColumn = nodesByColumn.get(colIndex) || [];
             
-            const { setNodeRef, isOver } = useDroppable({
-              id: `compact-lane-${colIndex}`,
-              data: { type: 'compact-lane', colIndex },
-            });
-
             return (
               <Box
-                key={`lane-${colIndex}`}
-                ref={setNodeRef}
+                key={`col-${colIndex}`}
                 sx={{
-                  width: `${LANE_WIDTH}em`,
-                  minWidth: `${LANE_WIDTH}em`,
-                  maxWidth: `${LANE_WIDTH}em`,
                   display: 'flex',
                   flexDirection: 'column',
-                  alignItems: 'center', // Center boxes within lane
                   gap: `${GAP}em`,
-                  transition: 'all 0.2s',
                   flexShrink: 0,
-                  ...(nodesInColumn.length === 0 && {
-                    border: `1px dashed ${alpha('#FFFFFF', 0.1)}`,
-                    borderRadius: 1,
-                    backgroundColor: alpha('#FFFFFF', 0.02),
-                  }),
-                  ...(isOver && {
-                    borderColor: theme.palette.primary.main,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
-                  }),
                 }}
               >
                 {nodesInColumn.map(node => (

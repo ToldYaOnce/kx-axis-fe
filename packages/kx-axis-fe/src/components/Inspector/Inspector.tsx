@@ -12,18 +12,22 @@ export const Inspector: React.FC = () => {
     <Box
       sx={{
         width: 360,
+        flexShrink: 0,
+        minWidth: 360,
         borderLeft: '1px solid',
         borderColor: 'divider',
         backgroundColor: 'background.paper',
-        overflowY: 'auto',
+        overflow: 'hidden',
         height: '100%',
       }}
     >
-      {selection.type === 'node' && selection.id && <NodeInspector nodeId={selection.id} />}
-      {selection.type === 'capture' && selection.id && (
-        <CaptureInspector captureId={selection.id} />
-      )}
-      {selection.type === 'overview' && <OverviewInspector />}
+      <Box sx={{ height: '100%', overflowY: 'auto', minWidth: 0 }}>
+        {selection.type === 'node' && selection.id && <NodeInspector nodeId={selection.id} />}
+        {selection.type === 'capture' && selection.id && (
+          <CaptureInspector captureId={selection.id} />
+        )}
+        {selection.type === 'overview' && <OverviewInspector />}
+      </Box>
     </Box>
   );
 };

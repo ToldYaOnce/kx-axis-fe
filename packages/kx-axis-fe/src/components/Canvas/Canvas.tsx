@@ -28,6 +28,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
   const [canvasElement, setCanvasElement] = useState<HTMLDivElement | null>(null);
+  const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
   const [showPanHint, setShowPanHint] = useState(false);
 
   // Make entire canvas a drop zone
@@ -202,9 +203,9 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
 
   // Shift + Mouse Wheel for horizontal scroll
   const handleWheel = (e: React.WheelEvent) => {
-    if (e.shiftKey && canvasElement) {
+    if (e.shiftKey && scrollContainer) {
       e.preventDefault();
-      canvasElement.scrollLeft += e.deltaY;
+      scrollContainer.scrollLeft += e.deltaY;
     }
   };
 
@@ -420,13 +421,13 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
         }}
         tabIndex={0} // Make focusable so it can receive keyboard events
         sx={{
-          flex: 1,
+          flex: '1 1 auto',
+          minWidth: 0, // REQUIRED — allows horizontal scrolling inside
+          minHeight: 0, // REQUIRED — allows vertical scrolling inside
+          overflow: 'visible', // allow child scroll container's scrollbars to render
           position: 'relative',
           backgroundColor: isCanvasOver ? alpha(theme.palette.primary.main, 0.05) : 'background.default',
-          overflow: 'auto', // Enable native scrollbars
-          backgroundImage: `
-            radial-gradient(circle, ${alpha('#FFFFFF', 0.08)} 1px, transparent 1px)
-          `,
+          backgroundImage: `radial-gradient(circle, ${alpha('#FFFFFF', 0.08)} 1px, transparent 1px)`,
           backgroundSize: '20px 20px',
           transition: 'background-color 0.2s, cursor 0.15s',
           cursor: isPanning ? 'grabbing' : (spacePressed ? 'grab' : 'default'),
@@ -561,145 +562,145 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
             </Typography>
           </Box>
         )}
-         {/* Lane Dividers - Clear Vertical Boundaries */}
-         <Box
-           sx={{
-             position: 'absolute',
-             top: 0,
-             left: 36, // Correct offset for dividers
-             minHeight: 'calc(100vh + 1000px)',
-             display: 'grid',
-             gridTemplateColumns: `repeat(${columns.length}, ${GRID.COL_WIDTH}px)`,
-             gap: `${GRID.GUTTER_X}px`,
-             pointerEvents: 'none',
-             zIndex: 6, // Above headers (headers are zIndex: 5)
-           }}
-         >
-          {columns.map(col => {
-            const isPrimaryGoalLane = primaryGoalPosition?.gridCol === col;
-            
-            return (
-              <Box
-                key={`lane-divider-${col}`}
-                sx={{
-                  position: 'relative',
-                  backgroundColor: 'transparent',
-                  borderRight: col < columns.length - 1 
-                    ? `2px dotted ${alpha(theme.palette.primary.main, 0.25)}`
-                    : 'none',
-                  '&::before': (col % 2 !== 0 || isPrimaryGoalLane) ? {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    left: -24, // Extend background to the left
-                    right: 0, // Extend background to the right
-                    backgroundColor: isPrimaryGoalLane 
-                      ? alpha('#FFD700', 0.07) // Gold tint for primary goal lane
-                      : alpha(theme.palette.info.main, 0.06), // Default alternating tint
-                    zIndex: -1,
-                  } : {},
-                }}
-              />
-            );
-          })}
-        </Box>
 
-        {/* Canvas Framing - Mental Model Anchor */}
+        {/* FLEX COLUMN WRAPPER - contains header + scroll container */}
         <Box
           sx={{
-            position: 'sticky',
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 10,
-            backgroundColor: alpha(theme.palette.background.paper, 0.95),
-            backdropFilter: 'blur(8px)',
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-            py: 1.5,
-            px: 3,
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
+            flexDirection: 'column',
+            flex: 1,
+            minHeight: 0,
+            height: '100%',
           }}
         >
-          <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                color: 'text.primary',
-                letterSpacing: 0.3,
-                mb: 0.5,
-              }}
-            >
-              As the conversation progresses, more becomes available →
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 3, mt: 0.5 }}>
+          {/* Canvas Framing - Mental Model Anchor */}
+          <Box
+            sx={{
+              position: 'sticky',
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 10,
+              backgroundColor: alpha(theme.palette.background.paper, 0.95),
+              backdropFilter: 'blur(8px)',
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              py: 1.5,
+              px: 3,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <Box>
               <Typography
                 variant="caption"
                 sx={{
-                  fontSize: '0.65rem',
-                  color: alpha(theme.palette.text.secondary, 0.6),
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  color: 'text.primary',
+                  letterSpacing: 0.3,
+                  mb: 0.5,
                 }}
               >
-                <Box component="span" sx={{ fontWeight: 600 }}>→</Box> Right-drop creates dependencies
+                As the conversation progresses, more becomes available →
               </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  fontSize: '0.65rem',
-                  color: alpha(theme.palette.text.secondary, 0.6),
-                }}
-              >
-                <Box component="span" sx={{ fontWeight: 600 }}>↓</Box> Bottom-drop creates parallel items
-              </Typography>
+              <Box sx={{ display: 'flex', gap: 3, mt: 0.5 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.65rem',
+                    color: alpha(theme.palette.text.secondary, 0.6),
+                  }}
+                >
+                  <Box component="span" sx={{ fontWeight: 600 }}>→</Box> Right-drop creates dependencies
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.65rem',
+                    color: alpha(theme.palette.text.secondary, 0.6),
+                  }}
+                >
+                  <Box component="span" sx={{ fontWeight: 600 }}>↓</Box> Bottom-drop creates parallel items
+                </Typography>
+              </Box>
+            </Box>
+            
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Tooltip title={isCompactView ? "Detailed view" : "Compact view"}>
+                <IconButton
+                  size="small"
+                  onClick={() => setIsCompactView(!isCompactView)}
+                  sx={{
+                    color: isCompactView ? 'primary.main' : 'text.secondary',
+                  }}
+                >
+                  {isCompactView ? <UnfoldMoreIcon fontSize="small" /> : <UnfoldLessIcon fontSize="small" />}
+                </IconButton>
+              </Tooltip>
+              
+              <Tooltip title="Toggle grid debug overlay">
+                <IconButton
+                  size="small"
+                  onClick={() => setDebugMode(!debugMode)}
+                  sx={{
+                    color: debugMode ? 'primary.main' : 'text.secondary',
+                  }}
+                >
+                  <GridOnIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
             </Box>
           </Box>
-          
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Tooltip title={isCompactView ? "Detailed view" : "Compact view"}>
-              <IconButton
-                size="small"
-                onClick={() => setIsCompactView(!isCompactView)}
-                sx={{
-                  color: isCompactView ? 'primary.main' : 'text.secondary',
-                }}
-              >
-                {isCompactView ? <UnfoldMoreIcon fontSize="small" /> : <UnfoldLessIcon fontSize="small" />}
-              </IconButton>
-            </Tooltip>
-            
-            <Tooltip title="Toggle grid debug overlay">
-              <IconButton
-                size="small"
-                onClick={() => setDebugMode(!debugMode)}
-                sx={{
-                  color: debugMode ? 'primary.main' : 'text.secondary',
-                }}
-              >
-                <GridOnIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
 
-        {/* Conditional rendering: Compact vs Detailed view */}
-        {isCompactView ? (
-          <CompactCanvas />
-        ) : (
-          <>
-        {/* Grid Canvas - Physical Row Containers */}
-        <Box
-          sx={{
-            position: 'relative',
-            minHeight: 'calc(100vh - 140px)',
-            p: 3,
-            pb: 60, // Extra bottom padding to ensure bottom drop zones are scrollable
+          {/* ONE TRUE SCROLL CONTAINER - handles both vertical and horizontal scroll */}
+          <Box
+            ref={setScrollContainer}
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflow: 'auto',
+              position: 'relative',
+              scrollbarGutter: 'stable both-edges',
+            '&::-webkit-scrollbar': {
+              width: '12px',
+              height: '12px',
+            },
+            '&::-webkit-scrollbar-track': {
+              backgroundColor: theme.palette.mode === 'dark' 
+                ? alpha('#FFFFFF', 0.05) 
+                : alpha('#000000', 0.05),
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: theme.palette.mode === 'dark'
+                ? alpha('#FFFFFF', 0.35)
+                : alpha('#000000', 0.35),
+              borderRadius: '6px',
+              border: '2px solid transparent',
+              backgroundClip: 'padding-box',
+            },
+            '&::-webkit-scrollbar-thumb:hover': {
+              backgroundColor: theme.palette.mode === 'dark'
+                ? alpha('#FFFFFF', 0.5)
+                : alpha('#000000', 0.5),
+            },
           }}
         >
+          {/* Conditional rendering: Compact vs Detailed view */}
+          {isCompactView ? (
+            <CompactCanvas />
+          ) : (
+            <>
+          {/* Grid Canvas - Physical Row Containers */}
+          <Box
+            sx={{
+              position: 'relative',
+              p: 3,
+              pb: 60, // Extra bottom padding to ensure bottom drop zones are scrollable
+            }}
+          >
           {/* Column Headers (Sticky) */}
           <Box
             sx={{
@@ -1027,6 +1028,10 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
         )}
           </>
         )}
+        </Box>
+        {/* END OF SCROLL CONTAINER */}
+        </Box>
+        {/* END OF FLEX COLUMN WRAPPER */}
 
         {/* Snackbar for feedback */}
         {snackbar && (

@@ -157,14 +157,24 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
             flexDirection: 'column',
             height: '100vh',
             width: '100vw',
-            overflow: 'hidden',
+            overflowY: 'hidden',
+            overflowX: 'visible',
+            minWidth: 0,
+            minHeight: 0,
           }}
         >
           {/* Top Bar */}
           <TopBar onSimulations={handleSimulations} />
 
           {/* Main Content Area */}
-          <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          <Box sx={{ 
+            display: 'flex', 
+            flex: 1, 
+            overflow: 'visible',
+            width: '100%',
+            minWidth: 0,
+            minHeight: 0,
+          }}>
               {/* Conversation Items Palette (Left) */}
               <Drawer
                 variant="permanent"
@@ -172,17 +182,21 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
                 sx={{
                   width: 320,
                   flexShrink: 0,
+                  minWidth: 320,
                   '& .MuiDrawer-paper': {
                     width: 320,
                     boxSizing: 'border-box',
                     position: 'relative',
                     borderRight: '1px solid',
                     borderColor: 'divider',
-                    overflowY: 'auto',
+                    overflow: 'hidden',
+                    height: '100%',
                   },
                 }}
               >
-                <ConversationItemsPalette />
+                <Box sx={{ height: '100%', overflowY: 'auto', minWidth: 0 }}>
+                  <ConversationItemsPalette />
+                </Box>
               </Drawer>
 
               {/* Canvas Area (Center) */}
