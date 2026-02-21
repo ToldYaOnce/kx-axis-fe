@@ -2,7 +2,10 @@ import React, { useState, useCallback, useImperativeHandle, forwardRef } from 'r
 import { Box, Typography, Snackbar, Alert, useTheme, alpha, IconButton, Tooltip, CircularProgress } from '@mui/material';
 import { DragEndEvent, useDroppable } from '@dnd-kit/core';
 import GridOnIcon from '@mui/icons-material/GridOn';
+import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
+import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
 import { NodeCard } from './NodeCard';
+import { CompactCanvas } from './CompactCanvas';
 import { useFlow } from '../../context/FlowContext';
 import { useOptionalFlowDataContext } from '../../context/FlowDataContext';
 import type { FlowNode } from '../../types';
@@ -21,6 +24,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
   const flowDataContext = useOptionalFlowDataContext();
   const [snackbar, setSnackbar] = useState<{ message: string; severity: 'success' | 'warning' | 'error' } | null>(null);
   const [debugMode, setDebugMode] = useState(false);
+  const [isCompactView, setIsCompactView] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
   const [canvasElement, setCanvasElement] = useState<HTMLDivElement | null>(null);
@@ -655,19 +659,38 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
             </Box>
           </Box>
           
-          <Tooltip title="Toggle grid debug overlay">
-            <IconButton
-              size="small"
-              onClick={() => setDebugMode(!debugMode)}
-              sx={{
-                color: debugMode ? 'primary.main' : 'text.secondary',
-              }}
-            >
-              <GridOnIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Tooltip title={isCompactView ? "Detailed view" : "Compact view"}>
+              <IconButton
+                size="small"
+                onClick={() => setIsCompactView(!isCompactView)}
+                sx={{
+                  color: isCompactView ? 'primary.main' : 'text.secondary',
+                }}
+              >
+                {isCompactView ? <UnfoldMoreIcon fontSize="small" /> : <UnfoldLessIcon fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+            
+            <Tooltip title="Toggle grid debug overlay">
+              <IconButton
+                size="small"
+                onClick={() => setDebugMode(!debugMode)}
+                sx={{
+                  color: debugMode ? 'primary.main' : 'text.secondary',
+                }}
+              >
+                <GridOnIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
 
+        {/* Conditional rendering: Compact vs Detailed view */}
+        {isCompactView ? (
+          <CompactCanvas />
+        ) : (
+          <>
         {/* Grid Canvas - Physical Row Containers */}
         <Box
           sx={{
@@ -1001,6 +1024,8 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
               Add conversation capabilities from the palette to define what becomes possible
             </Typography>
           </Box>
+        )}
+          </>
         )}
 
         {/* Snackbar for feedback */}
