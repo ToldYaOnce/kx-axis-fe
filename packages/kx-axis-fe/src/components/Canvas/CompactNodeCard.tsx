@@ -222,21 +222,54 @@ export const CompactNodeCard: React.FC<CompactNodeCardProps> = ({ node, isSelect
           justifyContent: 'center',
           gap: '0.5em',
           p: '0.5em',
+          pl: '0.75em', // Extra padding for accent bar
           boxSizing: 'border-box',
           cursor: 'pointer',
-          transition: isDragging ? 'none' : 'all 0.2s ease',
-          border: '3px solid',
-          borderColor: isSelected ? NODE_COLORS[node.type] : isPrimaryGoal ? '#FFD700' : '#3A4552',
-          boxShadow: isPrimaryGoal ? `0 0 12px ${alpha('#FFD700', 0.3)}` : undefined,
+          position: 'relative',
+          transition: isDragging ? 'none' : 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          border: '2px solid',
+          borderColor: isSelected ? NODE_COLORS[node.type] : '#3A4552',
+          boxShadow: isSelected 
+            ? `0 4px 20px ${alpha(NODE_COLORS[node.type], 0.3)}, 0 0 0 1px ${alpha(NODE_COLORS[node.type], 0.5)}`
+            : isPrimaryGoal 
+            ? `0 4px 16px ${alpha('#FFD700', 0.25)}, 0 0 0 1px ${alpha('#FFD700', 0.2)}`
+            : `0 2px 8px ${alpha('#000000', 0.2)}`,
           '&:hover': {
-            elevation: 4,
-            borderColor: NODE_COLORS[node.type],
+            elevation: 6,
+            transform: isDragging ? 'none' : 'translateY(-2px)',
+            boxShadow: `0 8px 24px ${alpha(NODE_COLORS[node.type], 0.35)}, 0 0 0 2px ${alpha(NODE_COLORS[node.type], 0.4)}`,
+            '& .accent-bar': {
+              width: '6px',
+              boxShadow: `0 0 12px ${alpha(NODE_COLORS[node.type], 0.6)}`,
+            },
+            '& .node-icon': {
+              filter: `drop-shadow(0 0 8px ${alpha(NODE_COLORS[node.type], 0.8)})`,
+              transform: 'scale(1.1)',
+            },
           },
-          backgroundColor: isPrimaryGoal ? alpha('#FFD700', 0.18) : '#2A3542',
+          backgroundColor: isPrimaryGoal 
+            ? `linear-gradient(135deg, ${alpha('#FFD700', 0.15)} 0%, ${alpha('#2A3542', 0.95)} 50%)`
+            : '#2A3542',
+          backgroundImage: isPrimaryGoal 
+            ? `linear-gradient(135deg, ${alpha('#FFD700', 0.08)} 0%, transparent 100%)`
+            : `linear-gradient(135deg, ${alpha(NODE_COLORS[node.type], 0.05)} 0%, transparent 100%)`,
           opacity: isDragging ? 0.5 : 1,
           userSelect: 'none',
           overflow: 'hidden',
           ...style,
+          // Left accent bar
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: '4px',
+            backgroundColor: isPrimaryGoal ? '#FFD700' : NODE_COLORS[node.type],
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: `0 0 8px ${alpha(isPrimaryGoal ? '#FFD700' : NODE_COLORS[node.type], 0.4)}`,
+            className: 'accent-bar',
+          },
         }}
         {...attributes}
       >
@@ -244,15 +277,28 @@ export const CompactNodeCard: React.FC<CompactNodeCardProps> = ({ node, isSelect
         <Box
           {...listeners}
           onClick={(e) => e.stopPropagation()}
-          sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            flexShrink: 0,
+            transition: 'all 0.2s',
+            '&:hover': {
+              transform: 'scale(1.1)',
+            },
+            '&:active': {
+              transform: 'scale(0.95)',
+            },
+          }}
         >
           <DragIndicatorIcon 
             sx={{ 
               fontSize: '1em', 
-              color: 'text.secondary',
+              color: alpha(NODE_COLORS[node.type], 0.6),
               cursor: 'grab',
+              transition: 'all 0.2s',
               '&:hover': {
-                color: 'primary.main',
+                color: NODE_COLORS[node.type],
+                filter: `drop-shadow(0 0 4px ${alpha(NODE_COLORS[node.type], 0.6)})`,
               },
               '&:active': {
                 cursor: 'grabbing',
@@ -261,27 +307,60 @@ export const CompactNodeCard: React.FC<CompactNodeCardProps> = ({ node, isSelect
           />
         </Box>
 
-        {/* Icon */}
-        <Box sx={{ color: NODE_COLORS[node.type], display: 'flex', flexShrink: 0 }}>
+        {/* Icon with glow */}
+        <Box 
+          className="node-icon"
+          sx={{ 
+            color: NODE_COLORS[node.type], 
+            display: 'flex', 
+            flexShrink: 0,
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            filter: `drop-shadow(0 0 4px ${alpha(NODE_COLORS[node.type], 0.4)})`,
+          }}
+        >
           {NODE_ICONS[node.type]}
         </Box>
 
-        {/* Title */}
-        <Typography
-          variant="body2"
-          sx={{
-            fontWeight: 500,
-            color: 'text.primary',
-            lineHeight: 1.2,
-            fontSize: '0.875rem',
-            flex: 1,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {node.title}
-        </Typography>
+        {/* Title with metadata badge */}
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
+          <Typography
+            variant="body2"
+            sx={{
+              fontWeight: 500,
+              color: 'text.primary',
+              lineHeight: 1.2,
+              fontSize: '0.875rem',
+              flex: 1,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {node.title}
+          </Typography>
+          {/* Fact count badge */}
+          {produces.length > 0 && (
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '1.25em',
+                height: '1.25em',
+                px: 0.5,
+                borderRadius: '0.625em',
+                backgroundColor: alpha(NODE_COLORS[node.type], 0.2),
+                border: `1px solid ${alpha(NODE_COLORS[node.type], 0.4)}`,
+                fontSize: '0.625rem',
+                fontWeight: 700,
+                color: NODE_COLORS[node.type],
+                flexShrink: 0,
+              }}
+            >
+              {produces.length}
+            </Box>
+          )}
+        </Box>
 
         {/* Controls */}
         <Box sx={{ display: 'flex', gap: '0.25em', flexShrink: 0 }}>
@@ -292,9 +371,12 @@ export const CompactNodeCard: React.FC<CompactNodeCardProps> = ({ node, isSelect
             sx={{
               p: '0.25em',
               color: isPrimaryGoal ? '#FFD700' : 'text.secondary',
+              transition: 'all 0.2s',
               '&:hover': {
                 color: isPrimaryGoal ? '#FFA500' : '#FFD700',
-                backgroundColor: alpha('#FFD700', 0.1),
+                backgroundColor: alpha('#FFD700', 0.15),
+                transform: 'scale(1.1)',
+                boxShadow: `0 0 8px ${alpha('#FFD700', 0.3)}`,
               },
             }}
           >
@@ -308,9 +390,12 @@ export const CompactNodeCard: React.FC<CompactNodeCardProps> = ({ node, isSelect
             sx={{
               p: '0.25em',
               color: 'text.secondary',
+              transition: 'all 0.2s',
               '&:hover': {
-                color: 'error.main',
-                backgroundColor: 'error.light',
+                color: '#FF0059',
+                backgroundColor: alpha('#FF0059', 0.15),
+                transform: 'scale(1.1)',
+                boxShadow: `0 0 8px ${alpha('#FF0059', 0.3)}`,
               },
             }}
           >
