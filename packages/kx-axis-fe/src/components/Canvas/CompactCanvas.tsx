@@ -826,6 +826,7 @@ export const CompactCanvas: React.FC = () => {
 
         {/* Nodes positioned in columns */}
         <Box
+          data-kx="world"
           sx={{
             position: 'relative',
             zIndex: 1,
@@ -834,7 +835,7 @@ export const CompactCanvas: React.FC = () => {
             alignItems: 'flex-start',
             flexWrap: 'nowrap',
             p: 3,
-            width: 'max-content',
+            width: 'max-content', // ✅ Expands to ~1648px, triggers scrollbar in parent
           }}
         >
           {columns.map((colIndex) => {

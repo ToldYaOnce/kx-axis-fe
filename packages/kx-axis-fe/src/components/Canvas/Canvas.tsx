@@ -98,13 +98,13 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
 
   // Check for overflow and show hint if needed
   React.useEffect(() => {
-    if (!canvasElement) return;
+    if (!scrollContainer) return;
 
     const checkOverflow = () => {
-      const hasHorizontalOverflow = canvasElement.scrollWidth > canvasElement.clientWidth;
+      const hasHorizontalOverflow = scrollContainer.scrollWidth > scrollContainer.clientWidth;
 
       // Show hint if:
-      // 1. Canvas overflows
+      // 1. Scroll container overflows
       // 2. User hasn't panned before
       const hasPanned = localStorage.getItem('kxaxis-has-panned') === 'true';
       if (hasHorizontalOverflow && !hasPanned) {
@@ -116,12 +116,12 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
     
     // Re-check on resize
     const resizeObserver = new ResizeObserver(checkOverflow);
-    resizeObserver.observe(canvasElement);
+    resizeObserver.observe(scrollContainer);
 
     return () => {
       resizeObserver.disconnect();
     };
-  }, [canvasElement]);
+  }, [scrollContainer]);
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -161,33 +161,46 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
     };
   }, [isPanning]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (spacePressed && canvasElement) {
+  // Pointer-based panning on scroll-container ONLY
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!scrollContainer) return;
+    
+    // Check if target is excluded from panning
+    const target = e.target as HTMLElement;
+    const isExcluded = target.closest('button, input, textarea, select, [contenteditable], [data-draggable-node]');
+    
+    // Allow panning on: Space+LeftClick OR MiddleClick
+    const shouldPan = (spacePressed && e.button === 0) || e.button === 1;
+    
+    if (shouldPan && !isExcluded) {
       setIsPanning(true);
-      setPanStart({ 
-        x: e.clientX, 
+      setPanStart({
+        x: e.clientX,
         y: e.clientY,
-        scrollLeft: canvasElement.scrollLeft,
-        scrollTop: canvasElement.scrollTop,
+        scrollLeft: scrollContainer.scrollLeft,
+        scrollTop: scrollContainer.scrollTop,
       });
+      
+      // Capture pointer to receive events even outside element
+      e.currentTarget.setPointerCapture(e.pointerId);
       e.preventDefault();
       e.stopPropagation();
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isPanning && canvasElement && spacePressed) {
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isPanning && scrollContainer) {
       e.preventDefault();
       e.stopPropagation();
       
       const dx = e.clientX - panStart.x;
       const dy = e.clientY - panStart.y;
       
-      // Pan opposite to mouse movement (drag right = see content on left)
-      canvasElement.scrollLeft = panStart.scrollLeft - dx;
-      canvasElement.scrollTop = panStart.scrollTop - dy;
+      // Scroll opposite to pointer movement (drag right = scroll left to reveal left content)
+      scrollContainer.scrollLeft = panStart.scrollLeft - dx;
+      scrollContainer.scrollTop = panStart.scrollTop - dy;
 
-      // Mark as panned and hide hint on first successful pan
+      // Hide pan hint on first successful pan
       if ((Math.abs(dx) > 5 || Math.abs(dy) > 5) && showPanHint) {
         localStorage.setItem('kxaxis-has-panned', 'true');
         setShowPanHint(false);
@@ -195,8 +208,9 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
     }
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isPanning) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
       setIsPanning(false);
     }
   };
@@ -465,32 +479,29 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
 
   return (
       <Box
+        data-kx="canvas-root"
         ref={setRefs}
         onClick={handleCanvasClick}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onWheel={handleWheel}
         onKeyDown={(e) => {
-          // Prevent spacebar from scrolling the canvas
+          // Prevent spacebar from scrolling
           if (e.code === 'Space') {
             e.preventDefault();
           }
         }}
-        tabIndex={0} // Make focusable so it can receive keyboard events
+        tabIndex={0}
         sx={{
           flex: '1 1 auto',
-          minWidth: 0, // REQUIRED — allows horizontal scrolling inside
-          minHeight: 0, // REQUIRED — allows vertical scrolling inside
-          overflow: 'visible', // allow child scroll container's scrollbars to render
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+          minHeight: 0,
+          height: '100%', // ✅ constrains to parent height
+          overflow: 'hidden', // ✅ no scrolling at canvas root
           position: 'relative',
           backgroundColor: isCanvasOver ? alpha(theme.palette.primary.main, 0.05) : 'background.default',
           backgroundImage: `radial-gradient(circle, ${alpha('#FFFFFF', 0.08)} 1px, transparent 1px)`,
           backgroundSize: '20px 20px',
-          transition: 'background-color 0.2s, cursor 0.15s',
-          cursor: isPanning ? 'grabbing' : (spacePressed ? 'grab' : 'default'),
-          userSelect: isPanning ? 'none' : 'auto',
+          transition: 'background-color 0.2s',
           '&:focus': {
             outline: 'none', // Remove focus outline
           },
@@ -624,12 +635,15 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
 
         {/* FLEX COLUMN WRAPPER - contains header + scroll container */}
         <Box
+          data-kx="viewport"
           sx={{
             display: 'flex',
             flexDirection: 'column',
-            flex: 1,
+            flex: '1 1 auto',
             minHeight: 0,
+            minWidth: 0,
             height: '100%',
+            overflow: 'hidden', // ✅ no scrolling at viewport wrapper
           }}
         >
           {/* Canvas Framing - Mental Model Anchor */}
@@ -716,35 +730,25 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
 
           {/* ONE TRUE SCROLL CONTAINER - handles both vertical and horizontal scroll */}
           <Box
+            data-kx="scroll-container"
             ref={setScrollContainer}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onWheel={handleWheel}
             sx={{
-              flex: 1,
+              flex: '1 1 auto',
               minHeight: 0,
-              overflow: 'auto',
+              minWidth: 0,
+              height: '100%', // ✅ constrain to parent
+              overflow: 'auto', // ✅ ONLY scroller
               position: 'relative',
               scrollbarGutter: 'stable both-edges',
-            '&::-webkit-scrollbar': {
-              width: '12px',
-              height: '12px',
-            },
-            '&::-webkit-scrollbar-track': {
-              backgroundColor: theme.palette.mode === 'dark' 
-                ? alpha('#FFFFFF', 0.05) 
-                : alpha('#000000', 0.05),
-            },
-            '&::-webkit-scrollbar-thumb': {
-              backgroundColor: theme.palette.mode === 'dark'
-                ? alpha('#FFFFFF', 0.35)
-                : alpha('#000000', 0.35),
-              borderRadius: '6px',
-              border: '2px solid transparent',
-              backgroundClip: 'padding-box',
-            },
-            '&::-webkit-scrollbar-thumb:hover': {
-              backgroundColor: theme.palette.mode === 'dark'
-                ? alpha('#FFFFFF', 0.5)
-                : alpha('#000000', 0.5),
-            },
+              cursor: isPanning ? 'grabbing' : (spacePressed ? 'grab' : 'default'),
+              userSelect: isPanning ? 'none' : 'auto',
+              touchAction: isPanning ? 'none' : 'auto',
+              // Scrollbar styling is handled by GlobalStyles in ScrollContainerScrollbarOverrides
           }}
         >
           {/* Conditional rendering: Compact vs Detailed view */}

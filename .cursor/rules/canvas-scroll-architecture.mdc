@@ -1,0 +1,103 @@
+---
+alwaysApply: true
+description: Canvas scroll-based panning architecture rules
+---
+
+# Canvas Scroll Architecture (Option A: Scroll-Based Panning)
+
+## Non-Negotiable Rules
+
+### 1. Single Scroller Principle
+**ONLY ONE element is allowed to scroll horizontally:**
+- Element: `data-kx="scroll-container"` in [Canvas.tsx](mdc:packages/kx-axis-fe/src/components/Canvas/Canvas.tsx)
+- Must have: `overflow: 'auto'`
+- All other elements: `overflow: 'hidden'`
+
+### 2. Container Hierarchy
+```
+<Box data-kx="canvas-root" overflow="hidden">
+  <Box data-kx="viewport" overflow="hidden">
+    <Box data-kx="scroll-container" overflow="auto">
+      <Box data-kx="world">
+        ... lanes/nodes ...
+      </Box>
+    </Box>
+  </Box>
+</Box>
+```
+
+### 3. Required CSS Properties
+
+**canvas-root:**
+- `overflow: 'hidden'`
+- `minWidth: 0`
+- `minHeight: 0`
+
+**viewport:**
+- `overflow: 'hidden'`
+- `minWidth: 0`
+- `minHeight: 0`
+
+**scroll-container (ONLY scroller):**
+- `overflow: 'auto'`
+- `minWidth: 0`
+- `minHeight: 0`
+
+**world:**
+- `display: 'inline-flex'`
+- `flexWrap: 'nowrap'`
+- `width: 'max-content'`
+- `overflow: MUST NOT be 'auto'`
+
+### 4. Panning Implementation
+All panning logic operates ONLY on `scroll-container`:
+
+**Pointer-based drag-panning:**
+- Triggers: Space+LeftClick OR MiddleMouseButton
+- Excludes: `button, input, textarea, select, [contenteditable], [data-draggable-node]`
+- Uses: `setPointerCapture()` and `releasePointerCapture()`
+- Scrolls: `scrollContainer.scrollLeft` and `scrollContainer.scrollTop`
+
+**Shift+Wheel horizontal scrolling:**
+```typescript
+if (e.shiftKey) {
+  e.preventDefault();
+  scrollContainer.scrollLeft += e.deltaY;
+}
+```
+
+### 5. Forbidden Patterns
+
+**DO NOT:**
+- Add `overflow: 'auto'` to any element except `scroll-container`
+- Use transform-based panning
+- Scroll `canvas-root` or `viewport`
+- Scroll `window` or `document.body`
+- Attach `scrollLeft` logic to anything except `scroll-container`
+
+## Verification
+
+Run in console after changes:
+```javascript
+const scrollers = [];
+for (const el of document.querySelectorAll('*')) {
+  const cs = getComputedStyle(el);
+  if (['auto','scroll'].includes(cs.overflowX) && el.scrollWidth > el.clientWidth + 1) {
+    scrollers.push({
+      kx: el.dataset?.kx || '',
+      cls: el.className,
+      cw: el.clientWidth,
+      sw: el.scrollWidth
+    });
+  }
+}
+console.table(scrollers);
+```
+
+**Expected result:** ONLY `data-kx="scroll-container"` appears in the table.
+
+If any other element appears, the architecture is broken and must be fixed.
+
+## Files
+- [Canvas.tsx](mdc:packages/kx-axis-fe/src/components/Canvas/Canvas.tsx) - Main canvas component with scroll container
+- [CompactCanvas.tsx](mdc:packages/kx-axis-fe/src/components/Canvas/CompactCanvas.tsx) - World container with lanes

@@ -77,9 +77,18 @@ export const FlowDesignerRoute: React.FC<FlowDesignerRouteProps> = ({
 
   return (
     <ToastProvider>
-      <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Box 
+        data-kx="flow-designer-wrapper"
+        sx={{ 
+          height: '100%',  // ✅ FIXED: fill parent, not viewport
+          display: 'flex', 
+          flexDirection: 'column',
+          minHeight: 0,
+          overflow: 'hidden',
+        }}
+      >
         {showBackButton && (
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
             <Tooltip title="Back to Flows List">
               <IconButton onClick={handleBack}>
                 <ArrowBackIcon />
@@ -87,7 +96,7 @@ export const FlowDesignerRoute: React.FC<FlowDesignerRouteProps> = ({
             </Tooltip>
           </Box>
         )}
-        <Box sx={{ flex: 1, overflow: 'hidden' }}>
+        <Box sx={{ flex: '1 1 auto', overflow: 'hidden', minHeight: 0, height: '100%' }}>
           <KxAxisComposer 
             key={`designer-${flowId}-${location.pathname}`}
             initialConfig={placeholderFlow}

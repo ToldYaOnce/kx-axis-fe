@@ -232,29 +232,36 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
         collisionDetection={customCollisionDetection}
       >
         <Box
+          data-kx="app-shell"
           sx={{
             display: 'flex',
             flexDirection: 'column',
-            height: '100vh',
-            width: '100vw',
-            overflowY: 'hidden',
-            overflowX: 'visible',
+            flex: '1 1 auto', // ✅ FIXED: fill parent, not viewport
+            height: '100%',   // ✅ FIXED: fill available space
+            width: '100%',
+            overflow: 'hidden',
             minWidth: 0,
             minHeight: 0,
           }}
         >
           {/* Top Bar */}
-          <TopBar onSimulations={handleSimulations} />
+          <Box sx={{ flex: '0 0 auto' }}>
+            <TopBar onSimulations={handleSimulations} />
+          </Box>
 
           {/* Main Content Area */}
-          <Box sx={{ 
-            display: 'flex', 
-            flex: 1, 
-            overflow: 'visible',
-            width: '100%',
-            minWidth: 0,
-            minHeight: 0,
-          }}>
+          <Box 
+            data-kx="canvas-region"
+            sx={{ 
+              display: 'flex', 
+              flex: '1 1 auto', 
+              overflow: 'hidden', // ✅ FIXED: must be hidden to constrain children
+              width: '100%',
+              minWidth: 0,
+              minHeight: 0,
+              height: '100%', // ✅ FIXED: fill available space
+            }}
+          >
               {/* Conversation Items Palette (Left) */}
               <Drawer
                 variant="permanent"

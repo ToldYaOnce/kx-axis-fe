@@ -19,6 +19,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { defaultLightTheme, kxgryndeTheme } from '../theme';
 import { KxAxisRoutes, ConversationTemplatesListRoute, ConversationTemplateEditRoute, FlowSimulatorRoute } from '../routes';
 import { AllSimulationsRoute } from '../routes/AllSimulationsRoute';
+import { ScrollContainerScrollbarOverrides } from '../components/ScrollContainerScrollbarOverrides';
 
 type ThemeMode = 'default' | 'kxgrynde';
 
@@ -152,19 +153,24 @@ export const DemoAppRouted: React.FC = () => {
   return (
     <ThemeProvider theme={activeTheme}>
       <CssBaseline />
+      <ScrollContainerScrollbarOverrides />
       <BrowserRouter>
         <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
           {/* Unified Header with Navigation */}
           <AppHeader themeMode={themeMode} onThemeToggle={setThemeMode} />
 
           {/* Main Content Area */}
-          <Box sx={{ 
-            flex: 1, 
-            overflow: 'hidden', 
-            minHeight: 0,
-            display: 'flex',
-            flexDirection: 'column',
-          }}>
+          <Box 
+            data-kx="main-content-area"
+            sx={{ 
+              flex: '1 1 auto', 
+              overflow: 'hidden', 
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+            }}
+          >
             <Routes>
               {/* KxAxis routes mounted at /flows */}
               <Route path="/flows/*" element={<KxAxisRoutes basePath="/flows" />} />
