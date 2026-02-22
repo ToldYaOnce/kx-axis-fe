@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Box, CssBaseline, ThemeProvider, Drawer, Paper, Typography } from '@mui/material';
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, pointerWithin, rectIntersection } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, pointerWithin, rectIntersection, closestCenter } from '@dnd-kit/core';
 import { FlowProvider, useFlow } from '../context/FlowContext';
 import { FlowDataProvider } from '../context/FlowDataContext';
 import { TopBar } from './TopBar';
@@ -132,7 +132,16 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
     // First try pointer-based detection (most accurate)
     const pointerCollisions = pointerWithin(args);
     if (pointerCollisions && pointerCollisions.length > 0) {
-      // Prioritize dependency drop zones (right-*) over sortable items and general canvas
+      // Prioritize column insertion zones (green lines) first
+      const insertionZones = pointerCollisions.filter((collision: any) => {
+        const droppableData = args.droppableContainers.find((c: any) => c.id === collision.id)?.data?.current;
+        return droppableData?.type === 'column-insertion';
+      });
+      if (insertionZones.length > 0) {
+        return insertionZones;
+      }
+      
+      // Then prioritize dependency drop zones (blue right zones)
       const dependencyZones = pointerCollisions.filter((collision: any) => {
         const droppableData = args.droppableContainers.find((c: any) => c.id === collision.id)?.data?.current;
         return droppableData?.type === 'dependency-extension';
@@ -157,6 +166,14 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
     const rectCollisions = rectIntersection(args);
     if (rectCollisions && rectCollisions.length > 0) {
       // Same priority logic for rect collisions
+      const insertionZones = rectCollisions.filter((collision: any) => {
+        const droppableData = args.droppableContainers.find((c: any) => c.id === collision.id)?.data?.current;
+        return droppableData?.type === 'column-insertion';
+      });
+      if (insertionZones.length > 0) {
+        return insertionZones;
+      }
+      
       const dependencyZones = rectCollisions.filter((collision: any) => {
         const droppableData = args.droppableContainers.find((c: any) => c.id === collision.id)?.data?.current;
         return droppableData?.type === 'dependency-extension';
@@ -174,6 +191,29 @@ export const KxAxisComposer: React.FC<KxAxisComposerProps> = ({
       }
       
       return rectCollisions;
+    }
+    
+    // Final fallback: use closestCenter for more forgiving detection
+    const centerCollisions = closestCenter(args);
+    if (centerCollisions && centerCollisions.length > 0) {
+      // Apply same priority filtering
+      const insertionZones = centerCollisions.filter((collision: any) => {
+        const droppableData = args.droppableContainers.find((c: any) => c.id === collision.id)?.data?.current;
+        return droppableData?.type === 'column-insertion';
+      });
+      if (insertionZones.length > 0) {
+        return insertionZones;
+      }
+      
+      const dependencyZones = centerCollisions.filter((collision: any) => {
+        const droppableData = args.droppableContainers.find((c: any) => c.id === collision.id)?.data?.current;
+        return droppableData?.type === 'dependency-extension';
+      });
+      if (dependencyZones.length > 0) {
+        return dependencyZones;
+      }
+      
+      return centerCollisions;
     }
     
     return [];

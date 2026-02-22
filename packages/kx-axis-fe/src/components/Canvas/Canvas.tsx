@@ -214,6 +214,65 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
     (event: DragEndEvent) => {
       const { active, over } = event;
 
+      // In compact view, let CompactCanvas handle all drops
+      console.log('🔴 Canvas.handleDragEnd called:', { isCompactView });
+      if (isCompactView) {
+        console.log('🔴 Canvas.handleDragEnd: SKIPPING (compact view)');
+        return;
+      }
+
+      // Check if dropped on column insertion zone (green line at bottom)
+      if (over && over.data.current?.type === 'column-insertion') {
+        // CASE 1: Palette item dropped on column insertion zone
+        if (active.data.current?.type === 'palette-item') {
+          const item = active.data.current?.item;
+          
+          // Get the createNodeFromItem function from window (set by palette)
+          const createNodeFromItem = (window as any).__createNodeFromItem;
+          
+          if (createNodeFromItem && item) {
+            const newNode = createNodeFromItem(item);
+            
+            // Find items already in this column to copy their prerequisites
+            const targetCol = over.data.current?.targetCol as number;
+            console.log('🟢 Canvas handling column insertion:', { targetCol, item: item.id });
+            
+            const layout = computeGridLayout(flow.nodes);
+            const itemsInColumn = flow.nodes.filter(n => {
+              const nodePos = layout.nodePositions?.get(n.id);
+              return nodePos && nodePos.column === targetCol;
+            });
+            
+            console.log('🟢 Found items in column:', itemsInColumn.map(n => ({ id: n.id, title: n.title, requires: n.requires })));
+            
+            if (itemsInColumn.length > 0) {
+              // Use the first item's prerequisites
+              const templateNode = itemsInColumn[0];
+              newNode.requires = templateNode.requires || [];
+              
+              console.log('🟢 Setting prereqs to match:', templateNode.title, '→', newNode.requires);
+              
+              setSnackbar({
+                message: `Added "${newNode.title}" to column`,
+                severity: 'success',
+              });
+            } else {
+              console.log('🟢 No items in column, no prereqs');
+              setSnackbar({
+                message: `Added "${newNode.title}"`,
+                severity: 'success',
+              });
+            }
+            
+            // Node will auto-position based on grid layout
+            addNode(newNode);
+            setSelection({ type: 'node', id: newNode.id });
+          }
+          return;
+        }
+        // Existing node drops are handled by CompactCanvas
+      }
+
       // Check if dropped on a node's right-side drop zone (dependency extension)
       if (over && over.data.current?.type === 'dependency-extension') {
         const targetNode = over.data.current?.targetNode as FlowNode;
@@ -390,7 +449,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
         severity: 'success',
       });
     },
-    [flow, addNode, updateNode, setSelection]
+    [flow, addNode, updateNode, setSelection, isCompactView]
   );
 
   // Expose handleDragEnd to parent via ref

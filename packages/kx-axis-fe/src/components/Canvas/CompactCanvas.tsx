@@ -62,6 +62,54 @@ interface Connection {
   toY: number;
 }
 
+// Single green insertion zone for adding parallel items to a column
+interface ColumnInsertionZoneProps {
+  colIndex: number;
+  activeId: string | null;
+}
+
+const ColumnInsertionZone: React.FC<ColumnInsertionZoneProps> = ({
+  colIndex,
+  activeId,
+}) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `column-insertion-${colIndex}`,
+    data: {
+      type: 'column-insertion',
+      targetCol: colIndex,
+    },
+  });
+
+  // Only show when dragging
+  if (!activeId) return null;
+
+  return (
+    <Box
+      ref={setNodeRef}
+      sx={{
+        height: isOver ? '3em' : '1.5em',
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 0.2s',
+        cursor: 'copy',
+      }}
+    >
+      <Box
+        sx={{
+          width: '100%',
+          height: '3px',
+          backgroundColor: isOver ? '#00FF00' : alpha('#00FF00', 0.35),
+          transition: 'all 0.2s',
+          borderRadius: '2px',
+          boxShadow: isOver ? `0 0 8px ${alpha('#00FF00', 0.6)}` : 'none',
+        }}
+      />
+    </Box>
+  );
+};
+
 // Lane component to properly handle hooks
 interface LaneProps {
   colIndex: number;
@@ -71,7 +119,9 @@ interface LaneProps {
   handleNodeClick: (node: FlowNode) => void;
   getNodeHeight: (node: FlowNode) => string;
   registerNodeRef: (nodeId: string, el: HTMLElement | null) => void;
-  hasEmptyLaneToRight: boolean;
+  showGreenZone: boolean;
+  allNodes: FlowNode[];
+  nodeVerticalPositions: Map<string, number>;
 }
 
 const Lane: React.FC<LaneProps> = ({
@@ -82,10 +132,17 @@ const Lane: React.FC<LaneProps> = ({
   handleNodeClick,
   getNodeHeight,
   registerNodeRef,
-  hasEmptyLaneToRight,
+  showGreenZone,
+  allNodes,
+  nodeVerticalPositions,
 }) => {
   const nodeIds = nodes.map(n => n.id);
   const isEmpty = nodes.length === 0;
+  
+  // Check if a node has any dependents (other nodes that require it)
+  const nodeHasDependents = (nodeId: string): boolean => {
+    return allNodes.some(n => (n.requires || []).includes(nodeId));
+  };
 
   // Empty lanes don't need droppable - the right zones from left items will handle it
   useDroppable({
@@ -96,34 +153,66 @@ const Lane: React.FC<LaneProps> = ({
     },
     disabled: true, // Disabled because we use right-zones instead
   });
+  
+  // Calculate total height needed for this lane
+  const totalHeight = isEmpty ? 20 : Math.max(...nodes.map(node => {
+    const offset = nodeVerticalPositions.get(node.id) || 0;
+    const height = parseFloat(getNodeHeight(node));
+    return offset + height;
+  }), 0);
 
   return (
     <Box
       sx={{
         width: `${BOX_WIDTH}em`,
         minWidth: `${BOX_WIDTH}em`,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: `${GAP}em`,
+        position: 'relative',
         flexShrink: 0,
-        minHeight: isEmpty ? '20em' : 'auto',
+        minHeight: `${totalHeight}em`,
       }}
     >
-      {isEmpty ? null : (
-        <SortableContext items={nodeIds} strategy={verticalListSortingStrategy}>
-          {nodes.map(node => (
-            <SortableNodeWrapper
-              key={node.id}
-              node={node}
-              isSelected={selection.type === 'node' && selection.id === node.id}
-              onClick={() => handleNodeClick(node)}
-              height={getNodeHeight(node)}
-              registerRef={registerNodeRef}
-              showRightZone={!!activeId && activeId !== node.id}
-              hasEmptyLaneToRight={hasEmptyLaneToRight}
-            />
-          ))}
-        </SortableContext>
+      {isEmpty ? (
+        // Empty column: blue zones from left items will show to the right
+        null
+      ) : (
+        <>
+          <SortableContext items={nodeIds} strategy={verticalListSortingStrategy}>
+            {nodes.map((node) => {
+              const offset = nodeVerticalPositions.get(node.id) || 0;
+              return (
+                <Box
+                  key={node.id}
+                  sx={{
+                    position: 'absolute',
+                    top: `${offset}em`,
+                    width: '100%',
+                    zIndex: 10,
+                  }}
+                >
+                  <SortableNodeWrapper
+                    node={node}
+                    isSelected={selection.type === 'node' && selection.id === node.id}
+                    onClick={() => handleNodeClick(node)}
+                    height={getNodeHeight(node)}
+                    registerRef={registerNodeRef}
+                    showRightZone={!!activeId && activeId !== node.id}
+                    nodeHasNoDependents={!nodeHasDependents(node.id)}
+                  />
+                </Box>
+              );
+            })}
+          </SortableContext>
+          
+          {/* ONE green insertion zone below all items */}
+          {showGreenZone && (
+            <Box sx={{ position: 'absolute', top: `${totalHeight}em`, width: '100%', zIndex: 5 }}>
+              <ColumnInsertionZone
+                colIndex={colIndex}
+                activeId={activeId}
+              />
+            </Box>
+          )}
+        </>
       )}
     </Box>
   );
@@ -137,7 +226,7 @@ interface SortableNodeWrapperProps {
   height: string;
   registerRef: (nodeId: string, el: HTMLElement | null) => void;
   showRightZone: boolean;
-  hasEmptyLaneToRight: boolean;
+  nodeHasNoDependents: boolean;
 }
 
 const SortableNodeWrapper: React.FC<SortableNodeWrapperProps> = ({
@@ -147,11 +236,10 @@ const SortableNodeWrapper: React.FC<SortableNodeWrapperProps> = ({
   height,
   registerRef,
   showRightZone,
-  hasEmptyLaneToRight,
+  nodeHasNoDependents,
 }) => {
   const {
     attributes,
-    listeners,
     setNodeRef,
     transform,
     transition,
@@ -188,10 +276,10 @@ const SortableNodeWrapper: React.FC<SortableNodeWrapperProps> = ({
 
   // Debug: Log when drop zone is rendered
   useEffect(() => {
-    if (showRightZone && hasEmptyLaneToRight) {
+    if (showRightZone && nodeHasNoDependents) {
       console.log('🔵 Drop zone rendered:', dropZoneId, 'for node:', node.title);
     }
-  }, [showRightZone, hasEmptyLaneToRight, dropZoneId, node.title]);
+  }, [showRightZone, nodeHasNoDependents, dropZoneId, node.title]);
 
   return (
     <Box sx={{ position: 'relative', width: '100%' }} style={style}>
@@ -199,7 +287,6 @@ const SortableNodeWrapper: React.FC<SortableNodeWrapperProps> = ({
         <Box
           ref={setNodeRef}
           {...attributes}
-          {...listeners}
           sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}
         >
           <CompactNodeCard
@@ -211,8 +298,8 @@ const SortableNodeWrapper: React.FC<SortableNodeWrapperProps> = ({
         </Box>
       </div>
 
-      {/* Right-side dependency drop zone - only visible when dragging */}
-      {showRightZone && hasEmptyLaneToRight && (
+      {/* Right-side dependency drop zone - only visible when dragging AND node has no dependents */}
+      {showRightZone && nodeHasNoDependents && (
         <Box
           ref={setRightDropRef}
           sx={{
@@ -230,6 +317,7 @@ const SortableNodeWrapper: React.FC<SortableNodeWrapperProps> = ({
             justifyContent: 'center',
             pointerEvents: 'all',
             transition: 'all 0.2s',
+            cursor: 'copy',
           }}
         >
           {isOverRight && (
@@ -244,7 +332,7 @@ const SortableNodeWrapper: React.FC<SortableNodeWrapperProps> = ({
 };
 
 export const CompactCanvas: React.FC = () => {
-  const { flow, selection, setSelection, updateNode } = useFlow();
+  const { flow, selection, setSelection, updateNode, addNode } = useFlow();
   const containerRef = useRef<HTMLDivElement>(null);
   const [prereqPickerOpen, setPrereqPickerOpen] = useState(false);
   const [pendingDrop, setPendingDrop] = useState<{ nodeId: string; targetCol: number } | null>(null);
@@ -308,16 +396,139 @@ export const CompactCanvas: React.FC = () => {
     // This node's height is the max of: base height OR sum of dependents' heights
     const height = Math.max(BOX_HEIGHT, totalDependentsHeight);
     nodeHeights.set(node.id, height);
+    
+    if (directDependents.length > 0) {
+      console.log(`📏 ${node.title}: height=${height}em (${directDependents.length} dependents: ${directDependents.map(d => d.title).join(', ')})`);
+    }
+    
     return height;
   };
 
   // Calculate all heights (process from right to left automatically through recursion)
   flow.nodes.forEach(node => calculateNodeHeight(node));
+  
+  console.log('📏 All node heights:', Array.from(nodeHeights.entries()).map(([id, h]) => {
+    const node = flow.nodes.find(n => n.id === id);
+    return `${node?.title}: ${h}em`;
+  }));
 
   const getNodeHeight = (node: FlowNode): string => {
     const height = nodeHeights.get(node.id) || BOX_HEIGHT;
     return `${height}em`;
   };
+  
+  // Calculate vertical positions for ALL nodes based on prerequisites (left to right)
+  const nodeVerticalPositions = new Map<string, number>();
+  
+  columns.forEach(colIndex => {
+    const nodesInColumn = nodesByColumn.get(colIndex) || [];
+    if (nodesInColumn.length === 0) return;
+    
+    // Sort nodes by their grid row (to preserve vertical order)
+    const sortedNodes = [...nodesInColumn].sort((a, b) => {
+      const aPos = gridLayout.get(a.id);
+      const bPos = gridLayout.get(b.id);
+      return (aPos?.gridRow || 0) - (bPos?.gridRow || 0);
+    });
+    
+    // Position each node - either aligned with prerequisite or stacked
+    sortedNodes.forEach(node => {
+      const allRequires = node.requires || [];
+      console.log(`🔍 ${node.title} requires:`, allRequires);
+      
+      // Find prerequisite NODES in two ways:
+      // 1. Direct node ID references
+      const directNodePrereqs = allRequires.filter(req => 
+        flow.nodes.some(n => n.id === req)
+      );
+      
+      // 2. Nodes that PRODUCE the required facts (same logic as height calculation)
+      const factProducingNodes = flow.nodes.filter(otherNode => {
+        if (otherNode.id === node.id) return false;
+        const produces = otherNode.produces || [];
+        return allRequires.some(req => produces.includes(req));
+      });
+      
+      const allPrereqNodes = [...directNodePrereqs.map(id => flow.nodes.find(n => n.id === id)!), ...factProducingNodes];
+      const uniquePrereqNodes = Array.from(new Set(allPrereqNodes.map(n => n.id))).map(id => flow.nodes.find(n => n.id === id)!);
+      
+      console.log(`🔍 ${node.title} prerequisite NODES:`, uniquePrereqNodes.map(n => n.title));
+      
+      if (uniquePrereqNodes.length > 0) {
+        // Has a prerequisite NODE - align vertically with it (or stack below siblings)
+        const prereqNode = uniquePrereqNodes[0];
+        const prereqPosition = nodeVerticalPositions.get(prereqNode.id);
+        
+        if (prereqPosition !== undefined) {
+          // Find ALL siblings that share the same prerequisite AND have been positioned
+          const siblingsWithSamePrereq = sortedNodes.filter(n => {
+            if (n.id === node.id || !nodeVerticalPositions.has(n.id)) return false;
+            
+            // Check if this node shares the same prerequisite using same logic
+            const nAllRequires = n.requires || [];
+            const nDirectNodePrereqs = nAllRequires.filter(req => 
+              flow.nodes.some(nd => nd.id === req)
+            );
+            const nFactProducingNodes = flow.nodes.filter(otherNode => {
+              if (otherNode.id === n.id) return false;
+              const produces = otherNode.produces || [];
+              return nAllRequires.some(req => produces.includes(req));
+            });
+            const nAllPrereqNodes = [...nDirectNodePrereqs.map(id => flow.nodes.find(nd => nd.id === id)!), ...nFactProducingNodes];
+            const nUniquePrereqNodes = Array.from(new Set(nAllPrereqNodes.map(nd => nd.id))).map(id => flow.nodes.find(nd => nd.id === id)!);
+            
+            return nUniquePrereqNodes.length === 1 && nUniquePrereqNodes[0].id === prereqNode.id;
+          });
+          
+          let targetPosition = prereqPosition;
+          if (siblingsWithSamePrereq.length > 0) {
+            // Find the bottom-most positioned sibling
+            let bottomMostPosition = prereqPosition;
+            let bottomMostSibling = prereqNode;
+            
+            for (const sibling of siblingsWithSamePrereq) {
+              const siblingPos = nodeVerticalPositions.get(sibling.id) || 0;
+              const siblingHeight = nodeHeights.get(sibling.id) || BOX_HEIGHT;
+              const siblingBottom = siblingPos + siblingHeight;
+              
+              if (siblingBottom > bottomMostPosition) {
+                bottomMostPosition = siblingBottom;
+                bottomMostSibling = sibling;
+              }
+            }
+            
+            targetPosition = bottomMostPosition + GAP;
+            console.log(`📍 ${node.title} → stacked below ${bottomMostSibling.title} @ ${targetPosition}em (${siblingsWithSamePrereq.length} siblings above)`);
+          } else {
+            console.log(`📍 ${node.title} → aligned with ${prereqNode.title} @ ${targetPosition}em`);
+          }
+          
+          nodeVerticalPositions.set(node.id, targetPosition);
+        } else {
+          // Prerequisite hasn't been positioned yet (shouldn't happen with left-to-right)
+          nodeVerticalPositions.set(node.id, 0);
+          console.log(`❌ ${node.title} → prereq ${prereqNode.title} not positioned yet, fallback to 0em`);
+        }
+      } else {
+        // No prerequisite NODE - stack in order (like items in column 1)
+        const prevNodesInColumn = sortedNodes.slice(0, sortedNodes.indexOf(node));
+        
+        if (prevNodesInColumn.length === 0) {
+          // First node in column
+          nodeVerticalPositions.set(node.id, 0);
+          console.log(`📍 ${node.title} → first in column @ 0em`);
+        } else {
+          // Stack after previous node
+          const prevNode = prevNodesInColumn[prevNodesInColumn.length - 1];
+          const prevPos = nodeVerticalPositions.get(prevNode.id) || 0;
+          const prevHeight = nodeHeights.get(prevNode.id) || BOX_HEIGHT;
+          const newPos = prevPos + prevHeight + GAP;
+          nodeVerticalPositions.set(node.id, newPos);
+          console.log(`📍 ${node.title} → stacked after ${prevNode.title} @ ${newPos}em`);
+        }
+      }
+    });
+  });
 
   const handleNodeClick = (node: FlowNode) => {
     setSelection({ type: 'node', id: node.id });
@@ -431,10 +642,82 @@ export const CompactCanvas: React.FC = () => {
         activeType: activeData?.type 
       });
 
-      // Case 1: Dropped on right-side zone (dependency creation) - PRIORITY
-      // Note: Palette items are handled by Canvas.tsx, we only handle existing node reordering here
+      // Case 1: Dropped on column insertion zone (green line at bottom)
+      if (overData?.type === 'column-insertion') {
+        const targetCol = overData.targetCol as number;
+        
+        console.log('🟢 Column insertion detected:', { targetCol, activeNode: activeNode?.id, activeType: activeData?.type });
+        
+        // Case 1a: Palette item (create new node with prerequisites from column)
+        if (activeData?.type === 'palette-item') {
+          const item = activeData?.item;
+          const createNodeFromItem = (window as any).__createNodeFromItem;
+          
+          if (createNodeFromItem && item) {
+            const newNode = createNodeFromItem(item);
+            
+            // Find items already in this column and copy their prerequisites
+            const itemsInColumn = nodesByColumn.get(targetCol) || [];
+            console.log('🟢 Items in target column:', itemsInColumn.map(n => ({ id: n.id, title: n.title, requires: n.requires })));
+            
+            if (itemsInColumn.length > 0) {
+              // Use the first item's prerequisites
+              const templateNode = itemsInColumn[0];
+              newNode.requires = templateNode.requires || [];
+              
+              console.log('🟢 Setting prereqs for new node to match:', templateNode.title, '→', newNode.requires);
+            } else {
+              console.log('🟢 No items in column, new node will have no prereqs');
+            }
+            
+            addNode(newNode);
+            setSelection({ type: 'node', id: newNode.id });
+          }
+          return;
+        }
+        
+        // Case 1b: Existing node (reposition to match column's prerequisites)
+        if (activeNode) {
+          const itemsInColumn = nodesByColumn.get(targetCol) || [];
+          console.log('🟢 Items in target column:', itemsInColumn.map(n => ({ id: n.id, title: n.title, requires: n.requires })));
+          
+          if (itemsInColumn.length > 0) {
+            // Use the first item's prerequisites as the template
+            const templateNode = itemsInColumn[0];
+            const prereqs = templateNode.requires || [];
+            
+            console.log('🟢 Copying prereqs from:', templateNode.title, '→', prereqs);
+            updateNode(activeNode.id, {
+              requires: prereqs,
+            });
+          }
+        }
+        return;
+      }
+
+      // Case 2: Dropped on right-side zone (dependency creation) - PRIORITY
       if (overData?.type === 'dependency-extension') {
         const targetNode = overData.targetNode as FlowNode;
+        
+        // Case 2a: Palette item (create new node with target as prerequisite)
+        if (activeData?.type === 'palette-item') {
+          const item = activeData?.item;
+          const createNodeFromItem = (window as any).__createNodeFromItem;
+          
+          if (createNodeFromItem && item && targetNode) {
+            const newNode = createNodeFromItem(item);
+            
+            // Set the target node as the prerequisite
+            newNode.requires = [targetNode.id];
+            
+            console.log('✅ Creating new node with dependency:', targetNode.id, '->', newNode.id);
+            addNode(newNode);
+            setSelection({ type: 'node', id: newNode.id });
+          }
+          return;
+        }
+        
+        // Case 2b: Existing node (update its prerequisites)
         if (activeNode && targetNode.id !== activeNode.id) {
           console.log('✅ Creating dependency:', targetNode.id, '->', activeNode.id);
           updateNode(activeNode.id, {
@@ -444,7 +727,7 @@ export const CompactCanvas: React.FC = () => {
         return;
       }
 
-      // Case 2: Dropped on empty lane (show picker)
+      // Case 3: Dropped on empty lane (show picker)
       if (overData?.type === 'empty-lane') {
         const targetCol = overData.colIndex as number;
         if (activeNode) {
@@ -454,7 +737,7 @@ export const CompactCanvas: React.FC = () => {
         return;
       }
 
-      // Case 3: Sortable reorder within same lane
+      // Case 4: Sortable reorder within same lane
       // Only process if both active and over are sortable nodes
       if (activeData?.type === 'sortable-node' && overData?.type === 'sortable-node') {
         if (active.id !== over.id) {
@@ -551,14 +834,14 @@ export const CompactCanvas: React.FC = () => {
             alignItems: 'flex-start',
             flexWrap: 'nowrap',
             p: 3,
+            width: 'max-content',
           }}
         >
-          {columns.map((colIndex, idx) => {
+          {columns.map((colIndex) => {
             const nodesInColumn = nodesByColumn.get(colIndex) || [];
-            // Check if the next column is empty (last column or next has no nodes)
-            const isLastColumn = idx === columns.length - 1;
-            const nextColNodes = !isLastColumn ? (nodesByColumn.get(columns[idx + 1]) || []) : [];
-            const hasEmptyLaneToRight = isLastColumn || nextColNodes.length === 0;
+            
+            // Green zone appears below ALL columns that have nodes
+            const showGreenZone = nodesInColumn.length > 0;
             
             return (
               <Lane
@@ -570,7 +853,9 @@ export const CompactCanvas: React.FC = () => {
                 handleNodeClick={handleNodeClick}
                 getNodeHeight={getNodeHeight}
                 registerNodeRef={registerNodeRef}
-                hasEmptyLaneToRight={hasEmptyLaneToRight && nodesInColumn.length > 0}
+                showGreenZone={showGreenZone}
+                allNodes={flow.nodes}
+                nodeVerticalPositions={nodeVerticalPositions}
               />
             );
           })}

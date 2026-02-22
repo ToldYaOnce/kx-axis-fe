@@ -162,22 +162,23 @@ const ConversationItemCard: React.FC<{
                 variant="caption"
                 sx={{
                   backgroundColor: (theme) => theme.palette.mode === 'dark' 
-                    ? 'rgba(46, 125, 50, 0.25)' 
-                    : 'rgba(46, 125, 50, 0.15)',
+                    ? 'rgba(90, 107, 125, 0.15)' 
+                    : 'rgba(90, 107, 125, 0.1)',
                   color: (theme) => theme.palette.mode === 'dark'
-                    ? 'rgba(129, 199, 132, 1)'
-                    : 'rgba(27, 94, 32, 1)',
+                    ? 'rgba(144, 164, 174, 0.8)'
+                    : 'rgba(55, 71, 79, 0.8)',
                   border: '1px solid',
                   borderColor: (theme) => theme.palette.mode === 'dark'
-                    ? 'rgba(129, 199, 132, 0.4)'
-                    : 'rgba(46, 125, 50, 0.4)',
+                    ? 'rgba(90, 107, 125, 0.3)'
+                    : 'rgba(90, 107, 125, 0.3)',
                   px: 1,
-                  py: 0.4,
+                  py: 0.3,
                   borderRadius: 1,
-                  fontSize: '0.6rem',
-                  fontWeight: 700,
-                  letterSpacing: 0.5,
+                  fontSize: '0.55rem',
+                  fontWeight: 600,
+                  letterSpacing: 0.8,
                   lineHeight: 1,
+                  ml: 'auto',
                 }}
               >
                 ADDED
@@ -596,7 +597,7 @@ export const ConversationItemsPalette: React.FC = () => {
   // Note: Items are added via drag-and-drop now, handled by Canvas
 
   return (
-    <Box sx={{ height: '100%', overflowY: 'auto', p: 3 }}>
+    <Box sx={{ p: 3 }}>
       <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
         Conversation Capabilities
       </Typography>
@@ -627,13 +628,22 @@ export const ConversationItemsPalette: React.FC = () => {
       </Button>
 
       <Box>
-        {conversationItems.map((item) => (
-          <ConversationItemCard 
-            key={item.id} 
-            item={item} 
-            isUsed={usedItemIds.has(item.id)}
-          />
-        ))}
+        {conversationItems
+          .slice()
+          .sort((a, b) => {
+            const aUsed = usedItemIds.has(a.id);
+            const bUsed = usedItemIds.has(b.id);
+            // Unused items first, used items at the bottom
+            if (aUsed === bUsed) return 0;
+            return aUsed ? 1 : -1;
+          })
+          .map((item) => (
+            <ConversationItemCard 
+              key={item.id} 
+              item={item} 
+              isUsed={usedItemIds.has(item.id)}
+            />
+          ))}
       </Box>
 
       <Divider sx={{ my: 3 }} />
