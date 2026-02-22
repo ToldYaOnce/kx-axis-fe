@@ -168,26 +168,23 @@ export const FlowsList: React.FC<FlowsListProps> = ({ onOpenFlow, onCreateNew })
           </Box>
         </Box>
         <Button
-          variant="contained"
+          variant="outlined"
           startIcon={<AddIcon />}
           onClick={onCreateNew}
           sx={{
-            background: 'linear-gradient(135deg, rgb(0, 229, 255) 0%, rgb(0, 200, 230) 100%)',
-            color: '#000000',
-            fontWeight: 700,
-            px: 4,
-            py: 1.5,
-            borderRadius: 2.5,
+            color: 'primary.main',
+            fontWeight: 600,
+            px: 3,
+            py: 1,
+            borderRadius: 1.5,
             textTransform: 'none',
-            fontSize: '1rem',
-            boxShadow: '0 8px 24px rgba(0, 229, 255, 0.35)',
-            border: '1px solid rgba(0, 229, 255, 0.5)',
+            fontSize: '0.9375rem',
+            borderColor: 'divider',
             '&:hover': {
-              background: 'linear-gradient(135deg, rgb(0, 255, 255) 0%, rgb(0, 229, 255) 100%)',
-              boxShadow: '0 12px 32px rgba(0, 229, 255, 0.5)',
-              transform: 'translateY(-2px)',
+              borderColor: 'primary.main',
+              backgroundColor: 'action.hover',
             },
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'all 0.2s',
           }}
         >
           Create New Flow

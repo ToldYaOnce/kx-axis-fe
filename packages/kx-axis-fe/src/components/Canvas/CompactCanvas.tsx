@@ -340,6 +340,53 @@ export const CompactCanvas: React.FC = () => {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
 
+  // FIX: Convert node IDs to fact names in requires arrays (run once on mount)
+  useEffect(() => {
+    let needsUpdate = false;
+    const updates: { nodeId: string; requires: string[] }[] = [];
+
+    flow.nodes.forEach(node => {
+      if (!node.requires || node.requires.length === 0) return;
+
+      // Check if any requires are node IDs (contain hyphens and numbers, like "welcome-intro-1771782764962")
+      const hasNodeIds = node.requires.some(req => 
+        req.includes('-') && /\d{10,}/.test(req) // Looks like a node ID
+      );
+
+      if (hasNodeIds) {
+        console.log('🔧 Fixing node:', node.id, 'requires:', node.requires);
+        
+        // Convert node IDs to fact names
+        const newRequires: string[] = [];
+        node.requires.forEach(req => {
+          // Check if this is a node ID
+          const prereqNode = flow.nodes.find(n => n.id === req);
+          if (prereqNode) {
+            // It's a node ID - replace with the facts it produces
+            console.log('  → Converting node ID:', req, '→ facts:', prereqNode.produces);
+            newRequires.push(...(prereqNode.produces || []));
+          } else {
+            // It's already a fact name - keep it
+            newRequires.push(req);
+          }
+        });
+
+        if (newRequires.length > 0 || node.requires.length > 0) {
+          updates.push({ nodeId: node.id, requires: newRequires });
+          needsUpdate = true;
+        }
+      }
+    });
+
+    // Apply all updates
+    if (needsUpdate) {
+      console.log('🔧 Applying requires fixes to', updates.length, 'nodes');
+      updates.forEach(({ nodeId, requires }) => {
+        updateNode(nodeId, { requires });
+      });
+    }
+  }, []); // Run only once on mount
+
   // Compute grid layout
   const gridLayout = computeGridLayout(flow.nodes);
   
@@ -610,10 +657,12 @@ export const CompactCanvas: React.FC = () => {
   const handleSelectPrerequisite = (prereqId: string) => {
     if (!pendingDrop) return;
     const droppedNode = flow.nodes.find(n => n.id === pendingDrop.nodeId);
-    if (!droppedNode) return;
+    const prereqNode = flow.nodes.find(n => n.id === prereqId);
+    if (!droppedNode || !prereqNode) return;
 
+    // Set requires to the facts produced by the prerequisite node
     updateNode(droppedNode.id, {
-      requires: [prereqId],
+      requires: prereqNode.produces || [],
     });
 
     setPrereqPickerOpen(false);
@@ -707,10 +756,10 @@ export const CompactCanvas: React.FC = () => {
           if (createNodeFromItem && item && targetNode) {
             const newNode = createNodeFromItem(item);
             
-            // Set the target node as the prerequisite
-            newNode.requires = [targetNode.id];
+            // Set the facts produced by the target node as requirements
+            newNode.requires = targetNode.produces || [];
             
-            console.log('✅ Creating new node with dependency:', targetNode.id, '->', newNode.id);
+            console.log('✅ Creating new node with dependency:', targetNode.id, '(produces:', targetNode.produces, ') ->', newNode.id);
             addNode(newNode);
             setSelection({ type: 'node', id: newNode.id });
           }
@@ -719,9 +768,9 @@ export const CompactCanvas: React.FC = () => {
         
         // Case 2b: Existing node (update its prerequisites)
         if (activeNode && targetNode.id !== activeNode.id) {
-          console.log('✅ Creating dependency:', targetNode.id, '->', activeNode.id);
+          console.log('✅ Creating dependency:', targetNode.id, '(produces:', targetNode.produces, ') ->', activeNode.id);
           updateNode(activeNode.id, {
-            requires: [targetNode.id],
+            requires: targetNode.produces || [],
           });
         }
         return;
@@ -737,7 +786,24 @@ export const CompactCanvas: React.FC = () => {
         return;
       }
 
-      // Case 4: Sortable reorder within same lane
+      // Case 4: Dropped on empty canvas (first item)
+      if (overData?.type === 'canvas' && activeData?.type === 'palette-item') {
+        const item = activeData?.item;
+        const createNodeFromItem = (window as any).__createNodeFromItem;
+        
+        if (createNodeFromItem && item) {
+          const newNode = createNodeFromItem(item);
+          // First item on canvas has no prerequisites
+          newNode.requires = [];
+          
+          console.log('✅ Creating first node on canvas:', newNode.id);
+          addNode(newNode);
+          setSelection({ type: 'node', id: newNode.id });
+        }
+        return;
+      }
+
+      // Case 5: Sortable reorder within same lane
       // Only process if both active and over are sortable nodes
       if (activeData?.type === 'sortable-node' && overData?.type === 'sortable-node') {
         if (active.id !== over.id) {

@@ -1,7 +1,6 @@
 import React from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Box, IconButton, Tooltip } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { Box } from '@mui/material';
 import { KxAxisComposer } from '../components/KxAxisComposer';
 import { ToastProvider } from '../context/ToastContext';
 import type { ConversationFlow, GoalLensRegistry } from '../types';
@@ -9,43 +8,25 @@ import type { ConversationFlow, GoalLensRegistry } from '../types';
 export interface FlowDesignerRouteProps {
   /**
    * Base path for flows (e.g., '/flows')
-   * Used for back navigation
+   * Used for navigation to simulations
    */
   basePath?: string;
   
-  /**
-   * Show back button to navigate to flows list
-   * @default true
-   */
-  showBackButton?: boolean;
-  
-  /**
-   * Custom back button handler
-   * If not provided, navigates to basePath
-   */
-  onBack?: () => void;
+  // REMOVED: showBackButton and onBack props
+  // Navigation to flows list now handled by clicking "Flows" tab in AppHeader
 }
 
 /**
  * Route component for Flow Designer (Design Mode)
  * Loads flow by ID from URL params
+ * Navigation back to flows list is handled by the "Flows" tab in AppHeader
  */
 export const FlowDesignerRoute: React.FC<FlowDesignerRouteProps> = ({ 
   basePath = '/flows',
-  showBackButton = true,
-  onBack,
 }) => {
   const { flowId, versionId } = useParams<{ flowId: string; versionId?: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-
-  const handleBack = () => {
-    if (onBack) {
-      onBack();
-    } else {
-      navigate(basePath);
-    }
-  };
 
   const handleSimulations = () => {
     navigate(`${basePath}/${flowId}/simulations`);
@@ -80,22 +61,14 @@ export const FlowDesignerRoute: React.FC<FlowDesignerRouteProps> = ({
       <Box 
         data-kx="flow-designer-wrapper"
         sx={{ 
-          height: '100%',  // ✅ FIXED: fill parent, not viewport
+          height: '100%',
           display: 'flex', 
           flexDirection: 'column',
           minHeight: 0,
           overflow: 'hidden',
         }}
       >
-        {showBackButton && (
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
-            <Tooltip title="Back to Flows List">
-              <IconButton onClick={handleBack}>
-                <ArrowBackIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        )}
+        {/* BACK BUTTON REMOVED - Navigation handled by Flows tab in AppHeader */}
         <Box sx={{ flex: '1 1 auto', overflow: 'hidden', minHeight: 0, height: '100%' }}>
           <KxAxisComposer 
             key={`designer-${flowId}-${location.pathname}`}

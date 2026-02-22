@@ -2,8 +2,10 @@ import React, { useState, useCallback, useImperativeHandle, forwardRef } from 'r
 import { Box, Typography, Snackbar, Alert, useTheme, alpha, IconButton, Tooltip, CircularProgress } from '@mui/material';
 import { DragEndEvent, useDroppable } from '@dnd-kit/core';
 import GridOnIcon from '@mui/icons-material/GridOn';
+// DETAILED VIEW TOGGLE ICONS - Preserved for potential future use
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import UnfoldLessIcon from '@mui/icons-material/UnfoldLess';
+// DETAILED VIEW COMPONENT - Preserved but no longer rendered (CompactCanvas is now default)
 import { NodeCard } from './NodeCard';
 import { CompactCanvas } from './CompactCanvas';
 import { useFlow } from '../../context/FlowContext';
@@ -24,7 +26,8 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
   const flowDataContext = useOptionalFlowDataContext();
   const [snackbar, setSnackbar] = useState<{ message: string; severity: 'success' | 'warning' | 'error' } | null>(null);
   const [debugMode, setDebugMode] = useState(false);
-  const [isCompactView, setIsCompactView] = useState(false);
+  // COMPACT VIEW IS NOW THE ONLY VIEW (detailed view preserved below but disabled)
+  const isCompactView = true; // Previously toggleable, now always compact
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
   const [canvasElement, setCanvasElement] = useState<HTMLDivElement | null>(null);
@@ -702,7 +705,9 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
             </Box>
             
             <Box sx={{ display: 'flex', gap: 1 }}>
-              <Tooltip title={isCompactView ? "Detailed view" : "Compact view"}>
+              {/* VIEW TOGGLE REMOVED - Compact view is now the only view */}
+              {/* To re-enable: uncomment below and set isCompactView back to state variable */}
+              {/* <Tooltip title={isCompactView ? "Detailed view" : "Compact view"}>
                 <IconButton
                   size="small"
                   onClick={() => setIsCompactView(!isCompactView)}
@@ -712,7 +717,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
                 >
                   {isCompactView ? <UnfoldMoreIcon fontSize="small" /> : <UnfoldLessIcon fontSize="small" />}
                 </IconButton>
-              </Tooltip>
+              </Tooltip> */}
               
               <Tooltip title="Toggle grid debug overlay">
                 <IconButton
@@ -751,10 +756,20 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>((_, ref) => {
               // Scrollbar styling is handled by GlobalStyles in ScrollContainerScrollbarOverrides
           }}
         >
-          {/* Conditional rendering: Compact vs Detailed view */}
+          {/* ========================================
+              COMPACT VIEW IS NOW THE ONLY ACTIVE VIEW
+              Detailed view code is preserved below but disabled
+              ======================================== */}
           {isCompactView ? (
             <CompactCanvas />
           ) : (
+            /* ========================================
+               DETAILED VIEW (PRESERVED BUT DISABLED)
+               To re-enable:
+               1. Change isCompactView to a state variable with useState(false)
+               2. Uncomment the toggle button above (search for "VIEW TOGGLE REMOVED")
+               3. Remove the imports comment-out below if needed
+               ======================================== */
             <>
           {/* Grid Canvas - Physical Row Containers */}
           <Box

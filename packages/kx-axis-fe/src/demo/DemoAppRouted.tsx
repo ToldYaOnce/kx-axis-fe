@@ -49,6 +49,7 @@ const AppHeader: React.FC<{ themeMode: ThemeMode; onThemeToggle: (mode: ThemeMod
   const handleTabChange = (_: React.SyntheticEvent, newValue: string) => {
     switch (newValue) {
       case 'flows':
+        // Also handled by onClick on Flows tab for more reliable navigation
         navigate('/flows');
         break;
       case 'templates':
@@ -92,6 +93,7 @@ const AppHeader: React.FC<{ themeMode: ThemeMode; onThemeToggle: (mode: ThemeMod
             iconPosition="start" 
             label="Flows" 
             value="flows"
+            onClick={() => navigate('/flows')} // Always navigate to flows list when clicked
             sx={{ textTransform: 'none', minHeight: 48, px: 2 }}
           />
           <Tab 
