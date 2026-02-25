@@ -49,13 +49,13 @@ export const ScenarioBar: React.FC<ScenarioBarProps> = ({ showBackButton = true,
     <Box
       sx={{
         borderBottom: '1px solid',
-        borderColor: 'divider',
+        borderColor: 'rgba(255, 255, 255, 0.06)',
         px: 3,
-        py: 2,
-        backgroundColor: 'background.paper',
+        py: 2.5,
+        backgroundColor: 'rgba(24, 30, 42, 0.95)',
         display: 'flex',
         alignItems: 'center',
-        gap: 2,
+        gap: 2.5,
       }}
     >
       {/* Back Button */}
@@ -72,24 +72,31 @@ export const ScenarioBar: React.FC<ScenarioBarProps> = ({ showBackButton = true,
         label="EXECUTION MODE"
         color="secondary"
         size="small"
-        sx={{ fontWeight: 700, letterSpacing: 0.5 }}
+        sx={{ 
+          fontWeight: 600, 
+          letterSpacing: 0.4,
+          borderRadius: '8px',
+          px: 0.5,
+        }}
       />
 
       {/* Current Run Info */}
       {currentRun ? (
         <>
-          <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+          <Typography variant="body2" sx={{ fontWeight: 500, color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem' }}>
             {currentRun.flowName}
           </Typography>
           <Chip
             label={currentRun.scenarioContext.channel}
             size="small"
             variant="outlined"
+            sx={{ borderRadius: '8px' }}
           />
           <Chip
             label={currentRun.scenarioContext.leadState}
             size="small"
             variant="outlined"
+            sx={{ borderRadius: '8px' }}
           />
         </>
       ) : flow ? (

@@ -1,0 +1,26 @@
+for GET
+
+            "tickSignals": {
+                "pain": 8,
+                "vulnerability": 9,
+                "urgency": 5,
+                "engagement": 7,
+                "excitement": 3,
+                "hesitation": false,
+                "confusion": 1,
+                "objection": false,
+                "objections": []
+            },
+
+for PATCH
+
+    "tickSignals": {
+        "pain": 1,
+        "vulnerability": 3,
+        "urgency": 8,
+        "engagement": 7,
+        "hesitation": 2,
+        "commitmentToPrimaryGoal": 8,
+        "confusion": 4,
+        "objections": []
+    },

@@ -158,24 +158,24 @@ const TurnCard: React.FC<TurnCardProps> = ({ node, isSelected, isAlternateReplyA
 
       {/* User Message Bubble (left-aligned, blue) */}
       {node.userMessage && (
-        <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 0.5, alignItems: 'flex-start' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2, alignItems: 'flex-start', overflow: 'visible', ml: 1.5 }}>
           {/* User Avatar Badge */}
           <Box sx={{
             flexShrink: 0,
-            width: 32,
-            height: 32,
+            width: 38,
+            height: 38,
             borderRadius: '50%',
-            backgroundColor: 'rgba(37, 99, 235, 0.15)',
-            border: '2px solid',
-            borderColor: 'primary.main',
+            backgroundColor: 'rgba(59, 130, 246, 0.18)',
+            border: '2px solid rgba(59, 130, 246, 0.35)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            mr: 1,
-            mt: 0.5,
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            mr: 1.5,
+            mt: 0,
+            boxShadow: '0 2px 6px rgba(59, 130, 246, 0.2)',
+            transition: 'all 0.2s ease',
           }}>
-            <PersonIcon sx={{ fontSize: '1.1rem', color: 'primary.main' }} />
+            <PersonIcon sx={{ fontSize: '1.3rem', color: 'rgba(96, 165, 250, 1)' }} />
           </Box>
           
           {isAlternateReplyAnchor && (
@@ -183,10 +183,11 @@ const TurnCard: React.FC<TurnCardProps> = ({ node, isSelected, isAlternateReplyA
               display: 'flex', 
               alignItems: 'center', 
               mr: 1,
-              color: 'warning.main',
+              color: 'rgba(167, 139, 250, 0.7)',
               fontSize: '0.75rem',
-              fontWeight: 600,
+              fontWeight: 500,
               whiteSpace: 'nowrap',
+              opacity: 0.8,
             }}>
               Instead of →
             </Box>
@@ -195,50 +196,86 @@ const TurnCard: React.FC<TurnCardProps> = ({ node, isSelected, isAlternateReplyA
             onClick={onClick}
             onMouseEnter={() => setShowForkIcon(true)}
             onMouseLeave={() => setShowForkIcon(false)}
+            elevation={0}
             sx={{
-              maxWidth: '70%',
-              p: 2,
-              bgcolor: isAlternateReplyAnchor ? 'warning.main' : 'primary.main',
+              maxWidth: '68%',
+              px: 2.25,
+              py: 1.75,
+              bgcolor: isAlternateReplyAnchor ? 'warning.main' : 'rgba(59, 130, 246, 0.16)',
               color: '#FFFFFF',
-              borderRadius: '4px 16px 16px 16px',
+              borderRadius: '14px',
               cursor: 'pointer',
-              boxShadow: isAlternateReplyAnchor 
-                ? '0 0 0 3px rgba(167, 139, 250, 0.3), 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3)'
-                : '0 3px 10px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.3)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1)',
               border: isAlternateReplyAnchor 
-                ? '2px dashed'
+                ? '1px dashed rgba(167, 139, 250, 0.6)'
                 : isSelected 
-                  ? '2px solid' 
+                  ? '1px solid rgba(59, 130, 246, 0.45)' 
                   : '1px solid transparent',
-              borderColor: isAlternateReplyAnchor 
-                ? 'warning.dark'
-                : isSelected 
-                  ? 'primary.main' 
-                  : 'transparent',
+              borderLeft: isAlternateReplyAnchor 
+                ? '4px solid rgba(251, 191, 36, 0.9)'
+                : '4px solid rgba(59, 130, 246, 0.7)',
               display: 'flex',
-              alignItems: 'flex-start',
-              gap: 1.5,
+              alignItems: 'center',
+              gap: 1.25,
               opacity: isAlternateReplyAnchor ? 0.9 : (isInAlternateReplyMode ? 0.4 : 1),
-              transition: 'all 0.2s ease-out',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
               position: 'relative',
-              transform: 'translateY(0)',
-              backgroundImage: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, transparent 100%)',
-              '&:hover': {
-                boxShadow: isAlternateReplyAnchor 
-                  ? '0 0 0 3px rgba(167, 139, 250, 0.4), 0 6px 16px rgba(0, 0, 0, 0.5), 0 3px 8px rgba(0, 0, 0, 0.4)'
-                  : '0 4px 14px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4)',
-                transform: 'translateY(-2px)',
-              },
+              // Speech bubble tail pointing LEFT to user avatar
               '&::before': isAlternateReplyAnchor ? {
+                content: '""',
+                position: 'absolute',
+                left: -12,
+                top: 20,
+                width: 0,
+                height: 0,
+                borderStyle: 'solid',
+                borderWidth: '6px 12px 6px 0',
+                borderColor: 'transparent #f59e0b transparent transparent',
+                filter: 'drop-shadow(-2px 1px 2px rgba(0, 0, 0, 0.15))',
+              } : {
+                content: '""',
+                position: 'absolute',
+                left: -12,
+                top: 20,
+                width: 0,
+                height: 0,
+                borderStyle: 'solid',
+                borderWidth: '6px 12px 6px 0',
+                borderColor: 'transparent #3b82f6 transparent transparent',
+                filter: 'drop-shadow(-2px 1px 2px rgba(0, 0, 0, 0.15))',
+              },
+              // Pin emoji for alternate reply anchor
+              '&::after': isAlternateReplyAnchor ? {
                 content: '"📌"',
                 position: 'absolute',
                 top: -8,
                 right: -8,
-                fontSize: '1.2rem',
+                fontSize: '1.1rem',
               } : {},
+              '&:hover': {
+                bgcolor: isAlternateReplyAnchor ? 'warning.main' : 'rgba(59, 130, 246, 0.2)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.12)',
+                transform: 'translateY(-2px)',
+                borderLeft: isAlternateReplyAnchor 
+                  ? '4px solid rgba(251, 191, 36, 1)'
+                  : '4px solid rgba(59, 130, 246, 0.9)',
+                '&::before': {
+                  borderColor: `transparent ${isAlternateReplyAnchor ? '#fbbf24' : '#60a5fa'} transparent transparent`,
+                },
+              },
             }}
           >
-            <Typography variant="body1" sx={{ flex: 1, whiteSpace: 'pre-wrap' }}>
+            <Typography 
+              variant="body1" 
+              sx={{ 
+                flex: 1, 
+                whiteSpace: 'pre-wrap',
+                fontSize: '0.95rem',
+                lineHeight: 1.6,
+                fontWeight: 400,
+                letterSpacing: '0.015em',
+              }}
+            >
               {node.userMessage}
             </Typography>
             
@@ -260,22 +297,24 @@ const TurnCard: React.FC<TurnCardProps> = ({ node, isSelected, isAlternateReplyA
                 }}
                 sx={{
                   flexShrink: 0,
-                  p: 0.5,
-                  color: isAlternateReplyAnchor ? 'warning.light' : 'rgba(255,255,255,0.8)',
-                  border: isAlternateReplyAnchor ? '2px solid' : '2px dashed rgba(255,255,255,0.5)',
-                  borderColor: isAlternateReplyAnchor ? 'warning.light' : undefined,
+                  p: 0.6,
+                  color: isAlternateReplyAnchor ? 'warning.light' : 'rgba(255,255,255,0.55)',
+                  border: '1.5px solid',
+                  borderColor: isAlternateReplyAnchor ? 'warning.light' : 'rgba(255,255,255,0.28)',
                   borderRadius: '50%',
-                  width: 28,
-                  height: 28,
+                  width: 30,
+                  height: 30,
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                   '&:hover': {
-                    color: isAlternateReplyAnchor ? 'warning.light' : 'white',
-                    borderColor: isAlternateReplyAnchor ? 'warning.light' : 'rgba(255,255,255,0.9)',
-                    bgcolor: isAlternateReplyAnchor ? 'rgba(167,139,250,0.2)' : 'rgba(255,255,255,0.1)',
+                    color: isAlternateReplyAnchor ? 'warning.light' : 'rgba(255,255,255,0.9)',
+                    borderColor: isAlternateReplyAnchor ? 'warning.light' : 'rgba(255,255,255,0.55)',
+                    bgcolor: isAlternateReplyAnchor ? 'rgba(167,139,250,0.18)' : 'rgba(255,255,255,0.12)',
+                    transform: 'scale(1.1)',
                   },
                 }}
                 title="Try a different reply from here"
               >
-                <CallSplitIcon sx={{ fontSize: 14 }} />
+                <CallSplitIcon sx={{ fontSize: 15 }} />
               </IconButton>
             )}
           </Paper>
@@ -284,54 +323,79 @@ const TurnCard: React.FC<TurnCardProps> = ({ node, isSelected, isAlternateReplyA
 
       {/* Agent Message Bubble (right-aligned, dark card with subtle accent) */}
       {node.agentMessage && (
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 0.5, alignItems: 'flex-start' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, alignItems: 'flex-start', overflow: 'visible', mr: 1.5 }}>
           <Paper
             onClick={onClick}
             elevation={0}
             sx={{
-              maxWidth: '70%',
-              p: 2,
-              bgcolor: 'rgba(51, 65, 85, 1)',
-              color: '#FFFFFF',
-              borderRadius: '16px 4px 16px 16px',
-              boxShadow: '0 3px 10px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.3)',
-              border: isSelected ? '2px solid' : '1px solid transparent',
-              borderColor: isSelected ? 'secondary.main' : 'transparent',
+              maxWidth: '68%',
+              px: 2.25,
+              py: 1.75,
+              bgcolor: 'rgba(71, 85, 105, 0.4)',
+              color: 'rgba(255, 255, 255, 0.96)',
+              borderRadius: '14px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1)',
+              border: isSelected ? '1px solid rgba(34, 211, 238, 0.4)' : '1px solid transparent',
+              borderRight: '4px solid rgba(34, 211, 238, 0.7)',
               cursor: 'pointer',
-              transition: 'all 0.2s ease-out',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
               opacity: isInAlternateReplyMode ? 0.4 : 1,
-              transform: 'translateY(0)',
-              backgroundImage: 'linear-gradient(145deg, rgba(255,255,255,0.03) 0%, transparent 100%)',
+              position: 'relative',
+              // Speech bubble tail pointing RIGHT to agent avatar
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                right: -12,
+                top: 20,
+                width: 0,
+                height: 0,
+                borderStyle: 'solid',
+                borderWidth: '6px 0 6px 12px',
+                borderColor: 'transparent transparent transparent #22d3ee',
+                filter: 'drop-shadow(2px 1px 2px rgba(0, 0, 0, 0.15))',
+              },
               '&:hover': {
-                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4)',
-                borderColor: isSelected ? 'secondary.main' : 'rgba(34, 211, 238, 0.2)',
-                bgcolor: 'rgba(71, 85, 105, 1)',
+                bgcolor: 'rgba(71, 85, 105, 0.5)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.12)',
                 transform: 'translateY(-2px)',
+                borderRight: '4px solid rgba(34, 211, 238, 0.9)',
+                '&::after': {
+                  borderColor: 'transparent transparent transparent #67e8f9',
+                },
               },
             }}
           >
-            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+            <Typography 
+              variant="body1" 
+              sx={{ 
+                whiteSpace: 'pre-wrap',
+                fontSize: '0.95rem',
+                lineHeight: 1.6,
+                fontWeight: 400,
+                letterSpacing: '0.015em',
+              }}
+            >
               {formatMessageText(node.agentMessage)}
             </Typography>
           </Paper>
           
-          {/* Agent Avatar Badge - Circular with cyan glow */}
+          {/* Agent Avatar Badge - Circular with cyan accent */}
           <Box sx={{
             flexShrink: 0,
-            width: 32,
-            height: 32,
+            width: 38,
+            height: 38,
             borderRadius: '50%',
-            backgroundColor: 'rgba(34, 211, 238, 0.15)',
-            border: '2px solid',
-            borderColor: 'secondary.main',
+            backgroundColor: 'rgba(34, 211, 238, 0.18)',
+            border: '2px solid rgba(34, 211, 238, 0.35)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            ml: 1,
-            mt: 0.5,
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+            ml: 1.5,
+            mt: 0,
+            boxShadow: '0 2px 6px rgba(34, 211, 238, 0.2)',
+            transition: 'all 0.2s ease',
           }}>
-            <SmartToyIcon sx={{ fontSize: '1.1rem', color: 'secondary.main' }} />
+            <SmartToyIcon sx={{ fontSize: '1.3rem', color: 'rgba(103, 232, 249, 1)' }} />
           </Box>
         </Box>
       )}
@@ -622,10 +686,11 @@ export const Playback: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 0.5,
-                backgroundColor: 'rgba(167, 139, 250, 0.1)',
+                backgroundColor: 'rgba(167, 139, 250, 0.08)',
                 p: 0.75,
-                borderRadius: 1,
-                borderLeft: '3px solid',
+                borderRadius: '8px',
+                border: '1px solid rgba(167, 139, 250, 0.2)',
+                borderLeft: '3px solid rgba(167, 139, 250, 0.5)',
                 borderLeftColor: 'warning.main',
               }}
             >
@@ -634,10 +699,10 @@ export const Playback: React.FC = () => {
           )}
           {alternateReplyAnchorNodeId && (
             <Box sx={{ 
-              backgroundColor: 'rgba(167, 139, 250, 0.15)', 
+              backgroundColor: 'rgba(167, 139, 250, 0.08)', 
               p: 1, 
-              borderRadius: 1,
-              border: '2px solid',
+              borderRadius: '8px',
+              border: '1px solid rgba(167, 139, 250, 0.25)',
               borderColor: 'warning.main',
             }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.25 }}>
@@ -653,11 +718,11 @@ export const Playback: React.FC = () => {
                     setAlternateReplyAnchor(null);
                     setUserInput('');
                   }}
-                  sx={{ 
+                  sx={{
                     p: 0.25,
-                    color: 'warning.main',
+                    color: 'rgba(167, 139, 250, 0.8)',
                     '&:hover': {
-                      backgroundColor: 'rgba(167, 139, 250, 0.2)',
+                      backgroundColor: 'rgba(167, 139, 250, 0.15)',
                     }
                   }}
                   title="Cancel alternate branch"
@@ -703,9 +768,10 @@ export const Playback: React.FC = () => {
               size="small"
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: isAgentOnlyTurn ? 'action.disabledBackground' : alternateReplyAnchorNodeId ? 'rgba(167, 139, 250, 0.2)' : 'background.paper',
-                  borderWidth: alternateReplyAnchorNodeId ? '2px' : '1px',
-                  borderColor: alternateReplyAnchorNodeId ? 'warning.main' : undefined,
+                  backgroundColor: isAgentOnlyTurn ? 'action.disabledBackground' : alternateReplyAnchorNodeId ? 'rgba(167, 139, 250, 0.08)' : 'background.paper',
+                  borderRadius: '12px',
+                  borderWidth: '1px',
+                  borderColor: alternateReplyAnchorNodeId ? 'rgba(167, 139, 250, 0.35)' : undefined,
                 },
                 '& .MuiOutlinedInput-root:hover': {
                   borderColor: alternateReplyAnchorNodeId ? 'warning.dark' : undefined,
@@ -941,15 +1007,15 @@ export const Playback: React.FC = () => {
           overflowX: 'hidden',
           p: 3,
           pb: `${COMPOSER_HEIGHT + 12}px`, // Padding for absolute composer + breathing room
-          backgroundColor: 'rgba(15, 23, 42, 1)',
+          backgroundColor: 'rgba(24, 30, 42, 1)',
           backgroundImage: `
-            linear-gradient(45deg, rgba(255,255,255,0.015) 25%, transparent 25%),
-            linear-gradient(-45deg, rgba(255,255,255,0.015) 25%, transparent 25%),
-            linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.015) 75%),
-            linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.015) 75%)
+            linear-gradient(45deg, rgba(255,255,255,0.003) 25%, transparent 25%),
+            linear-gradient(-45deg, rgba(255,255,255,0.003) 25%, transparent 25%),
+            linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.003) 75%),
+            linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.003) 75%)
           `,
-          backgroundSize: '20px 20px',
-          backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px',
+          backgroundSize: '12px 12px',
+          backgroundPosition: '0 0, 0 6px, 6px -6px, -6px 0px',
           backgroundAttachment: 'local', // Makes pattern scroll with content
           position: 'relative',
         }}
@@ -997,16 +1063,15 @@ export const Playback: React.FC = () => {
             
             {/* Pending User Message (Optimistic UI) */}
             {pendingUserMessage && (
-              <Box sx={{ display: 'flex', justifyContent: 'flex-start', gap: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-start', gap: 2, overflow: 'visible', ml: 1.5 }}>
                 {/* User Avatar Badge */}
                 <Box sx={{
                   flexShrink: 0,
-                  width: 32,
-                  height: 32,
+                  width: 38,
+                  height: 38,
                   borderRadius: '50%',
-                  backgroundColor: 'rgba(37, 99, 235, 0.15)',
-                  border: '2px solid',
-                  borderColor: 'primary.main',
+                  backgroundColor: 'rgba(59, 130, 246, 0.18)',
+                  border: '2px solid rgba(59, 130, 246, 0.35)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1018,19 +1083,36 @@ export const Playback: React.FC = () => {
                 </Box>
                 
                 <Paper
+                  elevation={0}
                   sx={{
-                    maxWidth: '70%',
-                    p: 2,
-                    bgcolor: 'primary.main',
+                    maxWidth: '68%',
+                    px: 2.25,
+                    py: 1.75,
+                    bgcolor: 'rgba(59, 130, 246, 0.16)',
                     color: '#FFFFFF',
-                    borderRadius: '4px 16px 16px 16px',
-                    boxShadow: '0 3px 10px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.3)',
+                    borderRadius: '14px',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1)',
                     border: '1px solid transparent',
+                    borderLeft: '4px solid rgba(59, 130, 246, 0.7)',
                     display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 1.5,
+                    alignItems: 'center',
+                    gap: 1.25,
                     opacity: 0.8,
-                    backgroundImage: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, transparent 100%)',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative',
+                    // Speech bubble tail pointing LEFT to user avatar
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      left: -12,
+                      top: 20,
+                      width: 0,
+                      height: 0,
+                      borderStyle: 'solid',
+                      borderWidth: '6px 12px 6px 0',
+                      borderColor: 'transparent #3b82f6 transparent transparent',
+                      filter: 'drop-shadow(-2px 1px 2px rgba(0, 0, 0, 0.15))',
+                    },
                   }}
                 >
                   <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -1042,21 +1124,37 @@ export const Playback: React.FC = () => {
             
             {/* Typing Indicator */}
             {showTypingIndicator && (
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, overflow: 'visible', mr: 1.5 }}>
                 <Paper
                   elevation={0}
                   sx={{
-                    maxWidth: '70%',
-                    p: 2,
-                    bgcolor: 'rgba(51, 65, 85, 1)',
-                    color: '#FFFFFF',
-                    borderRadius: '16px 4px 16px 16px',
-                    boxShadow: '0 3px 10px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.3)',
+                    maxWidth: '68%',
+                    px: 2.25,
+                    py: 1.75,
+                    bgcolor: 'rgba(71, 85, 105, 0.4)',
+                    color: 'rgba(255, 255, 255, 0.96)',
+                    borderRadius: '14px',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1)',
                     border: '1px solid transparent',
+                    borderRight: '4px solid rgba(34, 211, 238, 0.7)',
                     backgroundImage: 'linear-gradient(145deg, rgba(255,255,255,0.03) 0%, transparent 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 0.5,
+                    position: 'relative',
+                    // Speech bubble tail pointing RIGHT to agent avatar
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      right: -12,
+                      top: 20,
+                      width: 0,
+                      height: 0,
+                      borderStyle: 'solid',
+                      borderWidth: '6px 0 6px 12px',
+                      borderColor: 'transparent transparent transparent #22d3ee',
+                      filter: 'drop-shadow(2px 1px 2px rgba(0, 0, 0, 0.15))',
+                    },
                   }}
                 >
                   <Box sx={{ 
@@ -1092,12 +1190,11 @@ export const Playback: React.FC = () => {
                 {/* Agent Avatar Badge */}
                 <Box sx={{
                   flexShrink: 0,
-                  width: 32,
-                  height: 32,
+                  width: 38,
+                  height: 38,
                   borderRadius: '50%',
-                  backgroundColor: 'rgba(34, 211, 238, 0.15)',
-                  border: '2px solid',
-                  borderColor: 'secondary.main',
+                  backgroundColor: 'rgba(34, 211, 238, 0.18)',
+                  border: '2px solid rgba(34, 211, 238, 0.35)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

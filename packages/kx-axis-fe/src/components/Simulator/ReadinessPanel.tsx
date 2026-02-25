@@ -53,6 +53,7 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import WarningIcon from '@mui/icons-material/Warning';
 import { useSimulator } from '../../context/SimulatorContext';
 import type { KnownFacts } from '../../types/simulator';
+import { HubLobesChart } from '@toldyaonce/kx-charts';
 
 const formatFactValue = (value: any): string => {
   if (value === null || value === undefined) return 'N/A';
@@ -184,6 +185,8 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
       hasUserIntent: !!userIntentDetection,
       hasTickSignals: !!tickSignals,
       rankedCandidatesCount: controllerOutput?.stepRecommendation?.rankedCandidates?.length || 0,
+      decision,
+      targetStepId,
       tickSignals,
       tickSignalsFromAgentNode: selectedNode?.tickSignals,
       tickSignalsFromUserNode: userNode?.tickSignals,
@@ -374,9 +377,234 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
               {hasMetadata && selectedNode && controllerOutput && (
           <>
             {/* Header */}
-            <Typography variant="overline" sx={{ fontWeight: 700, color: 'secondary.main', display: 'block', mb: 2 }}>
-              Agent Decision Analysis
-            </Typography>
+            {/* Hub Lobes Chart - Cognitive States + Decision Petals */}
+            {tickSignals && (() => {
+              // Helper: Clean and convert value to number
+              const cleanValue = (axisId: string, rawValue: any): number => {
+                let result: number;
+                
+                // Handle boolean: false/true → 0/1
+                if (typeof rawValue === 'boolean') {
+                  result = rawValue ? 1 : 0;
+                }
+                // Handle number
+                else if (typeof rawValue === 'number') {
+                  result = isNaN(rawValue) ? 0 : rawValue;
+                }
+                // Handle missing/null/undefined
+                else {
+                  result = 0;
+                }
+                
+                return result;
+              };
+              
+              // Map data fields to axis IDs (handle different field names)
+              const dataMapping: Record<string, string> = {
+                pain: 'pain',
+                vulnerability: 'vulnerability',
+                urgency: 'urgency',
+                engagement: 'engagement',
+                hesitation: 'hesitation',
+                confusion: 'confusion',
+                commitment: 'commitmentToPrimaryGoal', // ← Correct field name!
+              };
+              
+              console.log('🔄 Field Mapping:', {
+                tickSignalsKeys: Object.keys(tickSignals),
+                dataMapping,
+                commitmentValue: (tickSignals as any)['commitmentToPrimaryGoal'],
+              });
+              
+              // Merge axes definitions with their values
+              const axesWithValues = [
+                { id: 'pain', label: 'Pain', color: '#ef4444' },
+                { id: 'vulnerability', label: 'Vulnerability', color: '#f59e0b' },
+                { id: 'urgency', label: 'Urgency', color: '#fbbf24' },
+                { id: 'engagement', label: 'Engagement', color: '#3b82f6' },
+                { id: 'hesitation', label: 'Hesitation', color: '#60a5fa' },
+                { id: 'confusion', label: 'Confusion', color: '#9775fa' },
+                { id: 'commitment', label: 'Commitment', color: '#22c55e' },
+              ].map(axis => {
+                const dataField = dataMapping[axis.id];
+                const rawValue = (tickSignals as any)[dataField];
+                return {
+                  ...axis,
+                  value: cleanValue(axis.id, rawValue),
+                };
+              });
+              
+              // Define groups (which axes connect to form polygons)
+              const lobeGroups = [
+                {
+                  id: 'affect',
+                  label: 'Affect',
+                  axisIds: ['pain', 'vulnerability', 'urgency'],
+                  color: '#ff4488',
+                  blendMode: 'screen' as const,
+                },
+                {
+                  id: 'behavior',
+                  label: 'Behavior',
+                  axisIds: ['engagement', 'hesitation', 'confusion', 'commitment'], // commitment = commitmentToPrimary
+                  color: '#44aaff',
+                  blendMode: 'screen' as const,
+                },
+              ];
+              
+              console.log('📐 Lobe Groups:', {
+                groups: lobeGroups.map(g => ({
+                  id: g.id,
+                  axes: g.axisIds,
+                  values: g.axisIds.map(id => {
+                    const axis = axesWithValues.find(a => a.id === id);
+                    return `${id}=${axis?.value}`;
+                  }),
+                })),
+              });
+              
+              // Build decision petals from controller output
+              const decisionPetals = controllerOutput?.stepRecommendation?.rankedCandidates && 
+                                    controllerOutput.stepRecommendation.rankedCandidates.length > 0
+                ? (() => {
+                    // Find the chosen node ID from the decision or execution result
+                    const chosenNodeId = controllerOutput.stepRecommendation.decision?.targetNodeId || 
+                                        executionResult?.targetNodeId ||
+                                        targetStepId;
+                    
+                    console.log('🎯 Decision Info:', {
+                      '1️⃣ CHOSEN NODE': chosenNodeId,
+                      '2️⃣ SOURCES': {
+                        'decision.targetNodeId': controllerOutput.stepRecommendation.decision?.targetNodeId,
+                        'executionResult.targetNodeId': executionResult?.targetNodeId,
+                        'targetStepId': targetStepId,
+                      },
+                      '3️⃣ ALL CANDIDATES': controllerOutput.stepRecommendation.rankedCandidates.map((c: any) => ({
+                        nodeId: c.nodeId,
+                        title: getNodeTitle(c.nodeId),
+                        score: c.score,
+                        matchesChosen: c.nodeId === chosenNodeId ? '✓ CHOSEN' : '',
+                      })),
+                    });
+                    
+                    return {
+                      enabled: true,
+                      anchor: { kind: 'centroid' as const, axisIds: ['pain', 'vulnerability', 'urgency'] },
+                      candidates: controllerOutput.stepRecommendation.rankedCandidates
+                        .slice(0, 4) // Top 4 candidates
+                        .map((candidate: any) => {
+                          const isWinner = candidate.nodeId === chosenNodeId;
+                          // Use the actual candidate score, NOT the decision confidence
+                          const score = candidate.score;
+                        
+                        return {
+                          id: candidate.nodeId,
+                          label: getNodeTitle(candidate.nodeId),
+                          score: score, // Keep original score
+                          isChosen: isWinner,
+                          color: isWinner ? '#22d3ee' : undefined,
+                          tooltipHtml: `
+                            <div style="font-weight: 600; margin-bottom: 6px; color: ${isWinner ? '#22d3ee' : '#94a3b8'};">
+                              ${getNodeTitle(candidate.nodeId)}
+                            </div>
+                            <div style="margin: 4px 0; padding: 6px 8px; background: rgba(${isWinner ? '34, 211, 238' : '100, 116, 139'}, 0.1); border-radius: 4px;">
+                              <span style="color: ${isWinner ? '#22d3ee' : '#cbd5e1'}; font-weight: 700;">
+                                ${(score * 100).toFixed(0)}% ${isWinner ? 'Chosen' : 'Match'}
+                              </span>
+                            </div>
+                            ${isWinner ? `
+                              <div style="margin: 6px 0; padding: 4px 8px; background: rgba(34, 211, 238, 0.15); border-radius: 4px; border-left: 2px solid #22d3ee;">
+                                <span style="color: #22d3ee; font-size: 0.75rem; font-weight: 600;">
+                                  ✓ CHOSEN (${((controllerOutput.stepRecommendation.decision?.confidence || 0.95) * 100).toFixed(0)}% confident)
+                                </span>
+                              </div>
+                            ` : ''}
+                            ${candidate.reasons && candidate.reasons.length > 0 ? `
+                              <ul style="margin: 8px 0 0 0; padding-left: 18px; color: #cbd5e1; font-size: 0.85rem;">
+                                ${candidate.reasons.map((reason: string) => `<li style="margin-bottom: 4px;">${reason}</li>`).join('')}
+                              </ul>
+                            ` : ''}
+                            ${isWinner && executionResult?.reasoning ? `
+                              <p style="margin: 8px 0 0 0; color: #e2e8f0; font-size: 0.85rem; font-style: italic;">
+                                ${executionResult.reasoning}
+                              </p>
+                            ` : ''}
+                          `,
+                        };
+                      }),
+                      maxPetals: 4,
+                      maxFanWidthDeg: 180,
+                      petalGapDeg: 8,
+                      showLabels: true,
+                    };
+                  })()
+                : undefined;
+              
+              if (decisionPetals) {
+                console.log('🌸 Decision Petals:', {
+                  enabled: decisionPetals.enabled,
+                  candidatesCount: decisionPetals.candidates.length,
+                  candidates: decisionPetals.candidates.map(c => `${c.label}: ${(c.score * 100).toFixed(0)}% ${c.isChosen ? '✓ CHOSEN' : ''}`),
+                });
+              }
+              
+              return (
+                <Box sx={{ 
+                  mb: 3,
+                  maxWidth: '600px',
+                  mx: 'auto',
+                  border: '1px solid',
+                  borderColor: 'rgba(100, 116, 139, 0.25)',
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  '&:hover': {
+                    borderColor: 'rgba(34, 211, 238, 0.4)',
+                  },
+                  transition: 'border-color 0.2s ease',
+                }}>
+                  {/* Section Header */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 1,
+                    px: 2,
+                    py: 1.25,
+                    bgcolor: 'rgba(15, 23, 42, 0.9)',
+                    borderBottom: '1px solid',
+                    borderColor: 'rgba(100, 116, 139, 0.15)',
+                  }}>
+                    <SmartToyIcon sx={{ fontSize: '1.1rem', color: 'secondary.main' }} />
+                    <Typography variant="caption" sx={{
+                      color: 'secondary.main',
+                      fontSize: '0.75rem',
+                      textTransform: 'uppercase',
+                      fontWeight: 700,
+                      letterSpacing: '1px',
+                      flex: 1,
+                    }}>
+                      Agent Decision Analysis
+                    </Typography>
+                  </Box>
+                  
+                  {/* Chart - No padding, tight fit */}
+                  <Box sx={{ 
+                    width: '100%',
+                    aspectRatio: '1 / 1',
+                    position: 'relative',
+                  }}>
+                    <HubLobesChart
+                      axes={axesWithValues}
+                      groups={lobeGroups}
+                      maxValue={10}
+                      showGrid={true}
+                      showLabels={true}
+                      animate={true}
+                      decisionPetals={decisionPetals}
+                    />
+                  </Box>
+                </Box>
+              );
+            })()}
 
             {/* Agent Intent - Big Visual Card */}
             {controllerOutput.intent && (
@@ -691,364 +919,6 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
                 </Box>
               );
             })()}
-
-            {/* Unified Decision Card - Winner + Alternatives */}
-            {decision && (
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="caption" sx={{ 
-                  color: 'text.secondary', 
-                  fontSize: '0.7rem', 
-                  textTransform: 'uppercase', 
-                  fontWeight: 700,
-                  letterSpacing: '1px',
-                  display: 'block',
-                  mb: 1,
-                }}>
-                  Routing
-                </Typography>
-                <Box sx={{ 
-                  borderRadius: 1.5,
-                  bgcolor: 'background.paper',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  overflow: 'hidden',
-                }}>
-                  {/* Winning Path - Prominent */}
-                  <Box sx={{ 
-                    p: 2,
-                    bgcolor: decision === 'ADVANCE' 
-                      ? 'rgba(34, 211, 238, 0.05)' 
-                      : decision === 'BRIDGE'
-                      ? 'rgba(139, 92, 246, 0.05)'
-                      : decision?.toUpperCase().includes('CLARIFY')
-                      ? 'rgba(236, 72, 153, 0.05)'
-                      : 'rgba(245, 158, 11, 0.05)',
-                  }}>
-                    {/* Winner Header */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-                      <Box sx={{ 
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 40,
-                        height: 40,
-                        borderRadius: 1,
-                        bgcolor: decision === 'ADVANCE' 
-                          ? 'rgba(34, 211, 238, 0.15)' 
-                          : decision === 'BRIDGE'
-                          ? 'rgba(139, 92, 246, 0.15)'
-                          : decision?.toUpperCase().includes('CLARIFY')
-                          ? 'rgba(236, 72, 153, 0.15)'
-                          : 'rgba(245, 158, 11, 0.15)',
-                      }}>
-                        {decision === 'ADVANCE' ? (
-                          <ArrowForwardIcon sx={{ fontSize: 24, color: '#22d3ee' }} />
-                        ) : decision === 'BRIDGE' ? (
-                          <CompareArrowsIcon sx={{ fontSize: 24, color: '#8b5cf6' }} />
-                        ) : decision?.toUpperCase().includes('CLARIFY') ? (
-                          <LiveHelpIcon sx={{ fontSize: 24, color: '#ec4899' }} />
-                        ) : (
-                          <PanToolIcon sx={{ fontSize: 24, color: '#f59e0b' }} />
-                        )}
-                      </Box>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="caption" sx={{ 
-                          color: 'text.secondary', 
-                          fontSize: '0.65rem',
-                          textTransform: 'uppercase',
-                          fontWeight: 600,
-                          display: 'block',
-                          mb: 0.25,
-                        }}>
-                          Chosen
-                        </Typography>
-                        <Typography variant="h6" sx={{ 
-                          fontWeight: 700, 
-                          fontSize: '1.1rem', 
-                          color: 'text.primary',
-                          lineHeight: 1.2,
-                        }}>
-                          {formatIntentLabel(decision)} → {targetStepId ? getNodeTitle(targetStepId) : 'Current Step'}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    {/* Pills Row */}
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      {controllerOutput?.stepRecommendation?.decision?.confidence && (
-                        <Chip 
-                          label={`${(controllerOutput.stepRecommendation.decision.confidence * 100).toFixed(0)}% Confident`}
-                          size="small"
-                          sx={{ 
-                            bgcolor: 'rgba(100, 116, 139, 0.12)',
-                            fontWeight: 700, 
-                            fontSize: '0.7rem',
-                            height: 24,
-                          }}
-                        />
-                      )}
-                      {simData?.decision?.status && (
-                        <Chip 
-                          label={formatIntentLabel(simData.decision.status)}
-                          size="small"
-                          color={simData.decision.status === 'HIGH' ? 'success' : simData.decision.status === 'MEDIUM' ? 'default' : 'warning'}
-                          sx={{ fontSize: '0.7rem', fontWeight: 700, height: 24 }}
-                        />
-                      )}
-                      {simData?.decision?.margin !== undefined && (
-                        <Chip 
-                          label={`Margin ${(simData.decision.margin * 100).toFixed(0)}%`}
-                          size="small"
-                          variant="outlined"
-                          sx={{ 
-                            fontSize: '0.7rem', 
-                            fontWeight: 700,
-                            height: 24,
-                          }}
-                        />
-                      )}
-                    </Box>
-                    
-                    {/* Reasoning */}
-                    {executionResult?.reasoning && (
-                      <Typography variant="caption" sx={{ 
-                        color: 'text.secondary', 
-                        fontSize: '0.72rem',
-                        fontStyle: 'italic',
-                        lineHeight: 1.5,
-                        display: 'block',
-                        mt: 1.5,
-                      }}>
-                        {executionResult.reasoning}
-                      </Typography>
-                    )}
-                  </Box>
-
-                  {/* Alternative Paths - Also Considered */}
-                  {controllerOutput?.stepRecommendation?.rankedCandidates && controllerOutput.stepRecommendation.rankedCandidates.length > 0 && (
-                    <Box sx={{ 
-                      borderTop: '2px solid',
-                      borderColor: 'divider',
-                      bgcolor: 'rgba(0,0,0,0.02)',
-                    }}>
-                      <Box sx={{ p: 1.5, pb: 1 }}>
-                        <Typography variant="caption" sx={{ 
-                          color: 'text.secondary', 
-                          fontSize: '0.65rem',
-                          textTransform: 'uppercase',
-                          fontWeight: 700,
-                          letterSpacing: '0.5px',
-                        }}>
-                          Also Considered
-                        </Typography>
-                      </Box>
-                      {controllerOutput.stepRecommendation.rankedCandidates.map((candidate, idx) => (
-                      <Box key={idx} sx={{ 
-                        p: 1.5,
-                        borderBottom: idx < controllerOutput.stepRecommendation.rankedCandidates.length - 1 ? '1px solid' : 'none',
-                        borderColor: 'divider',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1.5,
-                        '&:hover': {
-                          bgcolor: 'rgba(0,0,0,0.02)',
-                        },
-                      }}>
-                        {/* Info Icon with Tooltip */}
-                        <Tooltip 
-                          title={
-                            <Box sx={{ p: 0.5 }}>
-                              {candidate.reasons.map((reason, rIdx) => (
-                                <Typography 
-                                  key={rIdx} 
-                                  variant="caption" 
-                                  sx={{ 
-                                    display: 'block',
-                                    mb: rIdx < candidate.reasons.length - 1 ? 0.5 : 0,
-                                    fontSize: '0.72rem',
-                                    lineHeight: 1.4,
-                                  }}
-                                >
-                                  • {reason}
-                                </Typography>
-                              ))}
-                            </Box>
-                          }
-                          placement="left"
-                          arrow
-                        >
-                          <InfoOutlinedIcon sx={{ 
-                            fontSize: 18, 
-                            color: 'text.secondary',
-                            cursor: 'pointer',
-                            '&:hover': {
-                              color: 'primary.main',
-                            },
-                          }} />
-                        </Tooltip>
-
-                        {/* Title */}
-                        <Typography variant="body2" sx={{ 
-                          fontWeight: 600, 
-                          fontSize: '0.8rem',
-                          color: 'text.primary',
-                          flex: 1,
-                        }}>
-                          {getNodeTitle(candidate.nodeId)}
-                        </Typography>
-
-                        {/* Progress Bar */}
-                        <Box sx={{ 
-                          width: 100,
-                          height: 6,
-                          bgcolor: 'rgba(0,0,0,0.05)',
-                          borderRadius: 1,
-                          overflow: 'hidden',
-                        }}>
-                          <Box sx={{
-                            width: `${candidate.score * 100}%`,
-                            height: '100%',
-                            bgcolor: candidate.score >= 0.7 
-                              ? '#22d3ee' 
-                              : candidate.score >= 0.4
-                              ? '#94a3b8'
-                              : '#f87171',
-                            transition: 'width 0.3s ease',
-                          }} />
-                        </Box>
-                        
-                        {/* Score Badge */}
-                        <Chip 
-                          label={`${(candidate.score * 100).toFixed(0)}%`}
-                          size="small"
-                          sx={{ 
-                            height: 22, 
-                            fontSize: '0.7rem',
-                            bgcolor: candidate.score >= 0.7 
-                              ? 'rgba(34, 211, 238, 0.15)' 
-                              : candidate.score >= 0.4
-                              ? 'rgba(100, 116, 139, 0.1)'
-                              : 'rgba(248, 113, 113, 0.1)',
-                            color: candidate.score >= 0.7 
-                              ? '#22d3ee' 
-                              : candidate.score >= 0.4
-                              ? 'text.secondary'
-                              : '#f87171',
-                            fontWeight: 700,
-                          }}
-                        />
-                      </Box>
-                  ))}
-                    </Box>
-                  )}
-                </Box>
-              </Box>
-            )}
-
-            {/* Dynamic Half-Ring Gauges (no title) */}
-            {tickSignals && (
-              <Box sx={{ mb: 3 }}>
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
-                  {Object.entries(tickSignals)
-                    .filter(([key, value]) => typeof value === 'number' && key !== 'objections')
-                    .map(([key, value]) => {
-                      const percentage = (value as number) / 10;
-                      const angle = percentage * 180; // Half circle (0-180 degrees)
-                      
-                      // Color scheme based on value
-                      const getColor = () => {
-                        if (key === 'pain') return value > 5 ? '#ef4444' : '#22c55e';
-                        if (key === 'urgency') return value > 5 ? '#f59e0b' : '#22c55e';
-                        if (key === 'vulnerability') return value > 5 ? '#f59e0b' : '#22c55e';
-                        if (key === 'engagement') return value > 7 ? '#22c55e' : value >= 5 ? '#3b82f6' : '#94a3b8';
-                        if (key === 'hesitation') return value > 5 ? '#f59e0b' : '#22c55e';
-                        if (key === 'confusion') return value > 5 ? '#f59e0b' : '#22c55e';
-                        return value > 5 ? '#f59e0b' : '#22c55e';
-                      };
-                      
-                      const color = getColor();
-                      
-                      return (
-                        <Box 
-                          key={key}
-                          sx={{ 
-                            display: 'flex', 
-                            flexDirection: 'column', 
-                            alignItems: 'center',
-                            p: 1.5,
-                            bgcolor: 'rgba(0,0,0,0.02)',
-                            borderRadius: 1.5,
-                            border: '1px solid',
-                            borderColor: 'divider',
-                          }}
-                        >
-                          {/* Half-Ring Gauge */}
-                          <Box sx={{ position: 'relative', width: 80, height: 50, mb: 1 }}>
-                            {/* SVG for precise half-ring */}
-                            <svg width="80" height="50" viewBox="0 0 80 50" style={{ overflow: 'visible' }}>
-                              {/* Background arc (muted/toned down color) - always full */}
-                              <path
-                                d="M 10 45 A 30 30 0 0 1 70 45"
-                                fill="none"
-                                stroke={`${color}20`}
-                                strokeWidth="8"
-                                strokeLinecap="round"
-                              />
-                              {/* Colored progress arc (bright) - only the filled portion */}
-                              <path
-                                d="M 10 45 A 30 30 0 0 1 70 45"
-                                fill="none"
-                                stroke={color}
-                                strokeWidth="8"
-                                strokeLinecap="round"
-                                strokeDasharray={`${percentage * 94.2} 94.2`}
-                                style={{ transition: 'stroke-dasharray 0.3s ease' }}
-                              />
-                            </svg>
-                            
-                            {/* Value in center */}
-                            <Box
-                              sx={{
-                                position: 'absolute',
-                                bottom: 0,
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                              }}
-                            >
-                              <Typography 
-                                variant="h5" 
-                                sx={{ 
-                                  fontWeight: 700, 
-                                  fontSize: '1.4rem',
-                                  color: color,
-                                  lineHeight: 1,
-                                }}
-                              >
-                                {value}
-                              </Typography>
-                            </Box>
-                          </Box>
-                          
-                          {/* Label */}
-                          <Typography 
-                            variant="caption" 
-                            sx={{ 
-                              fontSize: '0.7rem', 
-                              fontWeight: 600,
-                              textAlign: 'center',
-                              textTransform: 'capitalize',
-                              mt: 0.5,
-                            }}
-                          >
-                            {key}
-                          </Typography>
-                        </Box>
-                      );
-                    })}
-                </Box>
-              </Box>
-            )}
-
             {/* Progress Indicators - Status Grid */}
             {controllerOutput.progress && (
               <Box sx={{ mb: 3 }}>

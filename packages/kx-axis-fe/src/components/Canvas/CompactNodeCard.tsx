@@ -237,13 +237,13 @@ export const CompactNodeCard: React.FC<CompactNodeCardProps> = ({ node, isSelect
           '&:hover': {
             elevation: 6,
             transform: isDragging ? 'none' : 'translateY(-2px)',
-            boxShadow: `0 8px 24px ${alpha(NODE_COLORS[node.type], 0.35)}, 0 0 0 2px ${alpha(NODE_COLORS[node.type], 0.4)}`,
+            boxShadow: `0 8px 24px ${alpha(isPrimaryGoal ? '#FFD700' : NODE_COLORS[node.type], 0.35)}, 0 0 0 2px ${alpha(isPrimaryGoal ? '#FFD700' : NODE_COLORS[node.type], 0.4)}`,
             '& .accent-bar': {
               width: '6px',
-              boxShadow: `0 0 12px ${alpha(NODE_COLORS[node.type], 0.6)}`,
+              boxShadow: `0 0 12px ${alpha(isPrimaryGoal ? '#FFD700' : NODE_COLORS[node.type], 0.6)}`,
             },
             '& .node-icon': {
-              filter: `drop-shadow(0 0 8px ${alpha(NODE_COLORS[node.type], 0.8)})`,
+              filter: `drop-shadow(0 0 8px ${alpha(isPrimaryGoal ? '#FFD700' : NODE_COLORS[node.type], 0.8)})`,
               transform: 'scale(1.1)',
             },
           },
@@ -293,12 +293,12 @@ export const CompactNodeCard: React.FC<CompactNodeCardProps> = ({ node, isSelect
           <DragIndicatorIcon 
             sx={{ 
               fontSize: '1em', 
-              color: alpha(NODE_COLORS[node.type], 0.6),
+              color: isPrimaryGoal ? alpha('#FFD700', 0.8) : alpha(NODE_COLORS[node.type], 0.6),
               cursor: 'grab',
               transition: 'all 0.2s',
               '&:hover': {
-                color: NODE_COLORS[node.type],
-                filter: `drop-shadow(0 0 4px ${alpha(NODE_COLORS[node.type], 0.6)})`,
+                color: isPrimaryGoal ? '#FFD700' : NODE_COLORS[node.type],
+                filter: `drop-shadow(0 0 4px ${alpha(isPrimaryGoal ? '#FFD700' : NODE_COLORS[node.type], 0.6)})`,
               },
               '&:active': {
                 cursor: 'grabbing',
@@ -311,11 +311,11 @@ export const CompactNodeCard: React.FC<CompactNodeCardProps> = ({ node, isSelect
         <Box 
           className="node-icon"
           sx={{ 
-            color: NODE_COLORS[node.type], 
+            color: isPrimaryGoal ? '#FFD700' : NODE_COLORS[node.type], 
             display: 'flex', 
             flexShrink: 0,
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            filter: `drop-shadow(0 0 4px ${alpha(NODE_COLORS[node.type], 0.4)})`,
+            filter: `drop-shadow(0 0 4px ${alpha(isPrimaryGoal ? '#FFD700' : NODE_COLORS[node.type], 0.4)})`,
           }}
         >
           {NODE_ICONS[node.type]}
@@ -349,12 +349,13 @@ export const CompactNodeCard: React.FC<CompactNodeCardProps> = ({ node, isSelect
                 height: '1.25em',
                 px: 0.5,
                 borderRadius: '0.625em',
-                backgroundColor: alpha(NODE_COLORS[node.type], 0.2),
-                border: `1px solid ${alpha(NODE_COLORS[node.type], 0.4)}`,
+                backgroundColor: isPrimaryGoal ? alpha('#FFD700', 0.2) : alpha(NODE_COLORS[node.type], 0.2),
+                border: `1px solid ${alpha(isPrimaryGoal ? '#FFD700' : NODE_COLORS[node.type], 0.4)}`,
                 fontSize: '0.625rem',
                 fontWeight: 700,
-                color: NODE_COLORS[node.type],
+                color: isPrimaryGoal ? '#FFD700' : NODE_COLORS[node.type],
                 flexShrink: 0,
+                boxShadow: isPrimaryGoal ? `0 0 6px ${alpha('#FFD700', 0.3)}` : 'none',
               }}
             >
               {produces.length}
@@ -380,7 +381,11 @@ export const CompactNodeCard: React.FC<CompactNodeCardProps> = ({ node, isSelect
               },
             }}
           >
-            {isPrimaryGoal ? <StarIcon sx={{ fontSize: '1em' }} /> : <StarBorderIcon sx={{ fontSize: '1em' }} />}
+            {isPrimaryGoal ? (
+              <StarIcon sx={{ fontSize: '1em', color: '#FFD700', filter: `drop-shadow(0 0 4px ${alpha('#FFD700', 0.6)})` }} />
+            ) : (
+              <StarBorderIcon sx={{ fontSize: '1em' }} />
+            )}
           </IconButton>
           
           <IconButton

@@ -239,11 +239,11 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
     const status = node.status || 'VALID';
     switch (status) {
       case 'VALID':
-        return <CheckCircleIcon fontSize="small" sx={{ color: 'success.main' }} />;
+        return <CheckCircleIcon fontSize="small" sx={{ color: 'rgba(34, 197, 94, 0.6)', opacity: 0.7 }} />;
       case 'DRIFTED':
-        return <WarningIcon fontSize="small" sx={{ color: 'warning.main' }} />;
+        return <WarningIcon fontSize="small" sx={{ color: 'rgba(251, 191, 36, 0.6)', opacity: 0.7 }} />;
       case 'INVALID':
-        return <ErrorIcon fontSize="small" sx={{ color: 'error.main' }} />;
+        return <ErrorIcon fontSize="small" sx={{ color: 'rgba(239, 68, 68, 0.6)', opacity: 0.7 }} />;
     }
   };
 
@@ -317,26 +317,28 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
         p: 1.25,
         mb: 0.75,
         cursor: 'pointer',
-        border: isSelected ? '2px solid' : '1px solid',
+        border: isSelected ? '1px solid' : '1px solid',
         borderColor: isSelected 
-          ? 'secondary.main' 
-          : 'rgba(255, 255, 255, 0.05)',  // Very subtle border
+          ? 'rgba(34, 211, 238, 0.3)' 
+          : 'rgba(255, 255, 255, 0.02)',  // Ultra-subtle border
         backgroundColor: isSelected
           ? (hasUserMessage 
-              ? 'rgba(37, 99, 235, 0.2)'  // 20% blue tint when selected (user)
-              : 'rgba(51, 65, 85, 0.4)')  // 40% slate tint when selected (agent)
+              ? 'rgba(37, 99, 235, 0.08)'  // 8% blue tint when selected (user)
+              : 'rgba(51, 65, 85, 0.12)')  // 12% slate tint when selected (agent)
           : (hasUserMessage 
-              ? 'rgba(37, 99, 235, 0.1)'  // 10% blue tint (user)
-              : 'rgba(51, 65, 85, 0.15)'),  // 15% slate tint (agent)
+              ? 'rgba(37, 99, 235, 0.04)'  // 4% blue tint (user)
+              : 'rgba(51, 65, 85, 0.06)'),  // 6% slate tint (agent)
         borderRadius: 1,
-        borderLeft: '3px solid',
-        borderLeftColor: hasUserMessage ? 'primary.main' : 'secondary.main',  // Color-coded left accent
+        borderLeft: '2px solid',
+        borderLeftColor: hasUserMessage 
+          ? 'rgba(37, 99, 235, 0.4)' 
+          : 'rgba(34, 211, 238, 0.4)',  // More subtle left accent
         transition: 'all 0.15s ease',
         '&:hover': {
-          borderColor: isSelected ? 'secondary.main' : 'rgba(34, 211, 238, 0.3)',
+          borderColor: isSelected ? 'rgba(34, 211, 238, 0.4)' : 'rgba(34, 211, 238, 0.15)',
           backgroundColor: hasUserMessage 
-            ? 'rgba(37, 99, 235, 0.15)'  // Slightly darker blue on hover
-            : 'rgba(51, 65, 85, 0.25)',  // Slightly darker slate on hover
+            ? 'rgba(37, 99, 235, 0.10)'  // Slightly darker blue on hover
+            : 'rgba(51, 65, 85, 0.14)',  // Slightly darker slate on hover
         },
         display: 'flex',
         alignItems: 'center',
@@ -353,13 +355,15 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
         height: 28,
         borderRadius: '50%',  // Circle for both user and agent
         backgroundColor: hasUserMessage 
-          ? 'rgba(37, 99, 235, 0.15)'  // Subtle blue glow for user
-          : 'rgba(34, 211, 238, 0.15)',  // Subtle cyan glow for agent
+          ? 'rgba(37, 99, 235, 0.08)'  // Very subtle blue glow for user
+          : 'rgba(34, 211, 238, 0.08)',  // Very subtle cyan glow for agent
         border: '1px solid',
         borderColor: hasUserMessage 
-          ? 'rgba(37, 99, 235, 0.3)'  // Subtle blue border for user
-          : 'rgba(34, 211, 238, 0.3)',  // Subtle cyan border for agent
-        color: hasUserMessage ? 'primary.main' : 'secondary.main',
+          ? 'rgba(37, 99, 235, 0.15)'  // Very subtle blue border for user
+          : 'rgba(34, 211, 238, 0.15)',  // Very subtle cyan border for agent
+        color: hasUserMessage 
+          ? 'rgba(37, 99, 235, 0.7)' 
+          : 'rgba(34, 211, 238, 0.7)',  // Softer icon color
       }}>
         {hasUserMessage ? (
           <PersonIcon fontSize="small" />
@@ -373,8 +377,8 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
         <Typography 
           variant="body2"
           sx={{ 
-            fontWeight: hasUserMessage ? 600 : 400,
-            color: 'text.primary',  // Standard text color for readability
+            fontWeight: hasUserMessage ? 500 : 400,
+            color: hasUserMessage ? 'text.primary' : 'rgba(255, 255, 255, 0.65)',  // Softer color for agent
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -499,33 +503,33 @@ const TurnCard: React.FC<TreeNodeProps> = ({ node, isSelected, onSelect, debugMo
                   height: 28,
                   borderRadius: '50%',
                   bgcolor: decision === 'ADVANCE' 
-                    ? 'rgba(34, 211, 238, 0.15)' 
+                    ? 'rgba(34, 211, 238, 0.08)' 
                     : decision === 'STAY'
-                    ? 'rgba(167, 139, 250, 0.15)'
+                    ? 'rgba(167, 139, 250, 0.08)'
                     : decision === 'BRIDGE'
-                    ? 'rgba(139, 92, 246, 0.15)'
+                    ? 'rgba(139, 92, 246, 0.08)'
                     : decision?.toUpperCase().includes('CLARIFY')
-                    ? 'rgba(236, 72, 153, 0.15)'
-                    : getOutcomeBgColor(decision),
+                    ? 'rgba(236, 72, 153, 0.08)'
+                    : 'rgba(148, 163, 184, 0.08)',
                   border: '1px solid',
                   borderColor: decision === 'ADVANCE' 
-                    ? 'secondary.main' 
+                    ? 'rgba(34, 211, 238, 0.3)' 
                     : decision === 'STAY'
-                    ? 'warning.main'
+                    ? 'rgba(167, 139, 250, 0.3)'
                     : decision === 'BRIDGE'
-                    ? '#8b5cf6'
+                    ? 'rgba(139, 92, 246, 0.3)'
                     : decision?.toUpperCase().includes('CLARIFY')
-                    ? '#ec4899'
-                    : getOutcomeColor(decision),
+                    ? 'rgba(236, 72, 153, 0.3)'
+                    : 'rgba(148, 163, 184, 0.3)',
                   color: decision === 'ADVANCE' 
-                    ? 'secondary.main' 
+                    ? 'rgba(34, 211, 238, 0.7)' 
                     : decision === 'STAY'
-                    ? 'warning.main'
+                    ? 'rgba(167, 139, 250, 0.7)'
                     : decision === 'BRIDGE'
-                    ? '#8b5cf6'
+                    ? 'rgba(139, 92, 246, 0.7)'
                     : decision?.toUpperCase().includes('CLARIFY')
-                    ? '#ec4899'
-                    : getOutcomeColor(decision),
+                    ? 'rgba(236, 72, 153, 0.7)'
+                    : 'rgba(148, 163, 184, 0.7)',
                 }}
               >
                 {decision === 'ADVANCE' ? (
@@ -820,7 +824,7 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
             <IconButton
               size="small"
               onClick={() => toggleCollapse(divergeKey)}
-              sx={{ p: 0.25, color: 'text.secondary' }}
+              sx={{ p: 0.25, color: 'rgba(255, 255, 255, 0.3)' }}
             >
               {isCollapsed ? <ChevronRightIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
             </IconButton>
@@ -831,12 +835,13 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
               sx={{
                 height: 20,
                 fontSize: '0.65rem',
-                fontWeight: 600,
-                backgroundColor: 'rgba(167, 139, 250, 0.2)',
-                color: 'warning.main',
+                fontWeight: 500,
+                backgroundColor: 'rgba(167, 139, 250, 0.08)',
+                color: 'rgba(167, 139, 250, 0.8)',
+                border: '1px solid rgba(167, 139, 250, 0.2)',
                 cursor: 'pointer',
                 '&:hover': {
-                  backgroundColor: 'warning.main',
+                  backgroundColor: 'rgba(167, 139, 250, 0.15)',
                 },
               }}
             />
@@ -850,15 +855,16 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
                 pl: 2,
                 pr: 1.5,
                 py: 0.75,
-                backgroundColor: 'action.hover',
+                backgroundColor: 'rgba(255, 255, 255, 0.02)',
                 borderRadius: 1,
                 cursor: 'pointer',
+                border: '1px solid rgba(255, 255, 255, 0.04)',
               }}
               onClick={() => toggleCollapse(divergeKey)}
             >
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.4)' }}>
                 Collapsed: {node.children.length} paths • {countSubtreeTurns(node) - 1} turns hidden • 
-                <Typography component="span" variant="caption" sx={{ ml: 0.5, color: 'primary.main', fontWeight: 600 }}>
+                <Typography component="span" variant="caption" sx={{ ml: 0.5, color: 'rgba(34, 211, 238, 0.6)', fontWeight: 500 }}>
                   Expand
                 </Typography>
               </Typography>
@@ -880,8 +886,8 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
                   left: 0,
                   top: 0,
                   bottom: 0,
-                  width: '2px',
-                  bgcolor: 'divider',
+                  width: '1px',
+                  bgcolor: 'rgba(255, 255, 255, 0.06)',
                 }}
               />
               
@@ -923,8 +929,8 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
                         left: 0,
                         top: '20px',
                         width: '16px',
-                        height: '2px',
-                        bgcolor: 'divider',
+                        height: '1px',
+                        bgcolor: 'rgba(255, 255, 255, 0.06)',
                       }}
                     />
                     
@@ -947,7 +953,7 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
                         size="small"
                         sx={{ 
                           p: 0.25, 
-                          color: 'warning.main',
+                          color: 'rgba(167, 139, 250, 0.5)',
                         }}
                       >
                         {isBranchCollapsed ? <ChevronRightIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
@@ -957,18 +963,19 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
                         variant="caption"
                         sx={{
                           fontSize: '0.7rem',
-                          color: 'warning.main',
-                          fontWeight: 600,
+                          color: 'rgba(167, 139, 250, 0.7)',
+                          fontWeight: 500,
                           display: 'flex',
                           alignItems: 'center',
                           gap: 0.5,
-                          backgroundColor: 'rgba(167, 139, 250, 0.1)',
+                          backgroundColor: 'rgba(167, 139, 250, 0.06)',
+                          border: '1px solid rgba(167, 139, 250, 0.15)',
                           px: 1,
                           py: 0.5,
                           borderRadius: 1,
                         }}
                       >
-                        <CallSplitIcon sx={{ fontSize: '0.9rem', mr: 0.5 }} />
+                        <CallSplitIcon sx={{ fontSize: '0.9rem', mr: 0.5, opacity: 0.6 }} />
                         <span>{pathLabel}</span>
                       </Typography>
                     </Box>
@@ -986,15 +993,16 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
                         sx={{
                           py: 0.5,
                           px: 1.5,
-                          backgroundColor: 'action.hover',
+                          backgroundColor: 'rgba(255, 255, 255, 0.02)',
                           borderRadius: 1,
                           cursor: 'pointer',
+                          border: '1px solid rgba(255, 255, 255, 0.04)',
                         }}
                         onClick={() => toggleCollapse(branchKey)}
                       >
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.4)' }}>
                           {countSubtreeTurns(child)} turn{countSubtreeTurns(child) !== 1 ? 's' : ''} hidden • 
-                          <Typography component="span" variant="caption" sx={{ ml: 0.5, color: 'primary.main', fontWeight: 600 }}>
+                          <Typography component="span" variant="caption" sx={{ ml: 0.5, color: 'rgba(34, 211, 238, 0.6)', fontWeight: 500 }}>
                             Expand
                           </Typography>
                         </Typography>
@@ -1062,14 +1070,15 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
                     ml: depth * 3 + 3,
                     py: 0.5,
                     px: 1.5,
-                    backgroundColor: 'action.hover',
+                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
                     borderRadius: 1,
                     cursor: 'pointer',
                     my: 0.5,
+                    border: '1px solid rgba(255, 255, 255, 0.04)',
                   }}
                   onClick={() => toggleCollapse(linearKey)}
                 >
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.4)' }}>
                     ⋯ Show {hiddenCount} more…
                   </Typography>
                 </Box>
@@ -1124,11 +1133,11 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
                         variant="caption"
                         onClick={() => toggleCollapse(linearKey)}
                         sx={{
-                          color: 'text.secondary',
+                          color: 'rgba(255, 255, 255, 0.3)',
                           cursor: 'pointer',
                           fontSize: '0.65rem',
                           '&:hover': {
-                            color: 'primary.main',
+                            color: 'rgba(34, 211, 238, 0.6)',
                           },
                         }}
                       >
@@ -1173,14 +1182,14 @@ export const ExecutionTree: React.FC<ExecutionTreeProps> = ({ isCompact = false 
       width: '100%',
       height: '100%',  // ✅ Fill parent height
       borderRight: '1px solid', 
-      borderColor: 'divider', 
+      borderColor: 'rgba(255, 255, 255, 0.06)', 
       display: 'flex', 
       flexDirection: 'column',
       minHeight: 0,
       backgroundColor: 'background.paper' 
     }}>
       {/* Header */}
-      <Box sx={{ flexShrink: 0, p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+      <Box sx={{ flexShrink: 0, p: 2, borderBottom: '1px solid', borderColor: 'rgba(255, 255, 255, 0.06)' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
             Execution Tree

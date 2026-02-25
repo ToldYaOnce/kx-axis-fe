@@ -11,6 +11,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Tooltip,
 } from '@mui/material';
 import DataObjectIcon from '@mui/icons-material/DataObject';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
@@ -18,6 +19,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
+import KeyIcon from '@mui/icons-material/Key';
 import { DragEndEvent, useDndMonitor, useDroppable, DragStartEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -49,9 +51,9 @@ const NODE_COLORS: Record<NodeKind, string> = {
 };
 
 const BOX_HEIGHT = 3; // em
-const GAP = 0.75; // em
+const GAP = 1.25; // em - vertical spacing between conversation items
 const BOX_WIDTH = 18; // em - actual box width
-const LANE_GAP = 2.5; // em (space for arrows)
+const LANE_GAP = 4; // em - horizontal spacing between columns (space for arrows)
 
 interface Connection {
   from: FlowNode;
@@ -889,6 +891,67 @@ export const CompactCanvas: React.FC = () => {
             );
           })}
         </svg>
+
+        {/* Padlock Icons on Arrows */}
+        {connections.map((conn, idx) => {
+          // Calculate midpoint of Bezier curve (t = 0.5)
+          const dx = conn.toX - conn.fromX;
+          const cp1X = conn.fromX + dx * 0.6;
+          const cp2X = conn.toX - dx * 0.4;
+          const t = 0.5;
+          const midX = 
+            Math.pow(1-t, 3) * conn.fromX +
+            3 * Math.pow(1-t, 2) * t * cp1X +
+            3 * (1-t) * Math.pow(t, 2) * cp2X +
+            Math.pow(t, 3) * conn.toX;
+          const midY = 
+            Math.pow(1-t, 3) * conn.fromY +
+            3 * Math.pow(1-t, 2) * t * conn.fromY +
+            3 * (1-t) * Math.pow(t, 2) * conn.toY +
+            Math.pow(t, 3) * conn.toY;
+
+          return (
+            <Tooltip
+              key={`lock-${conn.from.id}-${conn.to.id}-${idx}`}
+              title={`${conn.from.title} unlocks ${conn.to.title}`}
+              placement="top"
+              arrow
+            >
+              <Box
+                sx={{
+                  position: 'absolute',
+                  left: `${midX}px`,
+                  top: `${midY}px`,
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 5,
+                  pointerEvents: 'auto',
+                  cursor: 'help',
+                  backgroundColor: alpha('#1E2936', 0.85),
+                  borderRadius: '50%',
+                  p: '3px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `1px solid ${alpha('#5A6B7D', 0.4)}`,
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    backgroundColor: alpha('#5A6B7D', 0.9),
+                    borderColor: alpha('#5A6B7D', 0.8),
+                    transform: 'translate(-50%, -50%) scale(1.15)',
+                    boxShadow: `0 0 8px ${alpha('#5A6B7D', 0.5)}`,
+                  },
+                }}
+              >
+                <KeyIcon
+                  sx={{
+                    fontSize: '0.81em',
+                    color: alpha('#FFFFFF', 0.5),
+                  }}
+                />
+              </Box>
+            </Tooltip>
+          );
+        })}
 
         {/* Nodes positioned in columns */}
         <Box
