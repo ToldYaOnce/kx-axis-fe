@@ -51,6 +51,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import UpdateIcon from '@mui/icons-material/Update';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import WarningIcon from '@mui/icons-material/Warning';
+import ShowChartIcon from '@mui/icons-material/ShowChart';
 import { useSimulator } from '../../context/SimulatorContext';
 import type { KnownFacts } from '../../types/simulator';
 import { HubLobesChart } from '@toldyaonce/kx-charts';
@@ -377,6 +378,41 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
               {hasMetadata && selectedNode && controllerOutput && (
           <>
             {/* Header */}
+            {/* Agent Analysis Suite - Grouped Container */}
+            <Box sx={{
+              mb: 3,
+              maxWidth: '600px',
+              mx: 'auto',
+              border: '2px solid',
+              borderColor: 'rgba(34, 211, 238, 0.2)',
+              borderRadius: 2.5,
+              overflow: 'hidden',
+              bgcolor: 'rgba(15, 23, 42, 0.4)',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+            }}>
+              {/* Unified Header */}
+              <Box sx={{
+                px: 2.5,
+                py: 1.5,
+                bgcolor: 'rgba(15, 23, 42, 0.95)',
+                borderBottom: '2px solid',
+                borderColor: 'rgba(34, 211, 238, 0.3)',
+              }}>
+                <Typography variant="caption" sx={{
+                  color: 'secondary.main',
+                  fontSize: '0.8rem',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                  letterSpacing: '1.2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                }}>
+                  <SmartToyIcon sx={{ fontSize: '1.2rem' }} />
+                  Agent Analysis Suite
+                </Typography>
+              </Box>
+
             {/* Hub Lobes Chart - Cognitive States + Decision Petals */}
             {tickSignals && (() => {
               // Helper: Clean and convert value to number
@@ -549,31 +585,21 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
               }
               
               return (
-                <Box sx={{ 
-                  mb: 3,
-                  maxWidth: '600px',
-                  mx: 'auto',
-                  border: '1px solid',
-                  borderColor: 'rgba(100, 116, 139, 0.25)',
-                  borderRadius: 2,
-                  overflow: 'hidden',
-                  '&:hover': {
-                    borderColor: 'rgba(34, 211, 238, 0.4)',
-                  },
-                  transition: 'border-color 0.2s ease',
+                <Box sx={{
+                  bgcolor: 'rgba(34, 211, 238, 0.04)',
                 }}>
-                  {/* Section Header */}
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
+                  {/* Subsection Label */}
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
                     gap: 1,
                     px: 2,
                     py: 1.25,
-                    bgcolor: 'rgba(15, 23, 42, 0.9)',
+                    bgcolor: 'rgba(34, 211, 238, 0.1)',
                     borderBottom: '1px solid',
-                    borderColor: 'rgba(100, 116, 139, 0.15)',
+                    borderColor: 'rgba(34, 211, 238, 0.2)',
                   }}>
-                    <SmartToyIcon sx={{ fontSize: '1.1rem', color: 'secondary.main' }} />
+                    <ShowChartIcon sx={{ fontSize: '1.1rem', color: 'secondary.main' }} />
                     <Typography variant="caption" sx={{
                       color: 'secondary.main',
                       fontSize: '0.75rem',
@@ -582,12 +608,12 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
                       letterSpacing: '1px',
                       flex: 1,
                     }}>
-                      Agent Decision Analysis
+                      Decision Analysis
                     </Typography>
                   </Box>
-                  
+
                   {/* Chart - No padding, tight fit */}
-                  <Box sx={{ 
+                  <Box sx={{
                     width: '100%',
                     aspectRatio: '1 / 1',
                     position: 'relative',
@@ -669,38 +695,52 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
               if (!conflictData) return null;
 
               return (
-                <Box sx={{ mb: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
-                    <WarningIcon sx={{ fontSize: '1rem', color: '#a855f7' }} />
+                <Box sx={{
+                  borderTop: '1px solid',
+                  borderColor: 'rgba(168, 85, 247, 0.2)',
+                  bgcolor: 'rgba(168, 85, 247, 0.04)',
+                }}>
+                  {/* Section Header */}
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    px: 2,
+                    py: 1.25,
+                    bgcolor: 'rgba(168, 85, 247, 0.1)',
+                    borderBottom: '1px solid',
+                    borderColor: 'rgba(168, 85, 247, 0.2)',
+                  }}>
+                    <WarningIcon sx={{ fontSize: '1.1rem', color: '#a855f7' }} />
                     <Typography variant="caption" sx={{
                       color: '#a855f7',
                       fontSize: '0.75rem',
                       textTransform: 'uppercase',
                       fontWeight: 700,
                       letterSpacing: '1px',
+                      flex: 1,
                     }}>
                       Conflict Detection
                     </Typography>
                   </Box>
-                  <Box sx={{ 
-                    borderRadius: 1.5,
-                    bgcolor: 'rgba(168, 85, 247, 0.05)',
-                    border: '2px solid',
-                    borderColor: '#a855f7',
-                    p: 2,
-                  }}>
+                  
+                  {/* Content Area */}
+                  <Box sx={{ p: 2 }}>
                     {/* Status Badge */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
                       <Box sx={{
                         px: 1.5,
                         py: 0.5,
-                        borderRadius: 0.75,
+                        borderRadius: 1,
                         bgcolor: conflictStatus === 'ACTIVE' ? '#a855f7' : 'success.main',
                         color: 'white',
                         fontSize: '0.65rem',
                         fontWeight: 700,
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px',
+                        boxShadow: conflictStatus === 'ACTIVE' 
+                          ? '0 0 12px rgba(168, 85, 247, 0.4)' 
+                          : '0 0 12px rgba(34, 197, 94, 0.4)',
                       }}>
                         {conflictStatus || 'DETECTED'}
                       </Box>
@@ -710,12 +750,19 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
                     </Box>
 
                     {/* Fact ID */}
-                    <Box sx={{ mb: 1.5 }}>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 0.5 }}>
+                    <Box sx={{
+                      mb: 1.5,
+                      p: 1.5,
+                      borderRadius: 1,
+                      bgcolor: 'rgba(168, 85, 247, 0.08)',
+                      border: '1px solid',
+                      borderColor: 'rgba(168, 85, 247, 0.2)',
+                    }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 0.5, textTransform: 'uppercase', fontWeight: 600 }}>
                         Conflicting Fact
                       </Typography>
-                      <Typography variant="body2" sx={{ 
-                        fontWeight: 600, 
+                      <Typography variant="body2" sx={{
+                        fontWeight: 600,
                         fontSize: '0.85rem',
                         color: '#a855f7',
                       }}>
@@ -725,17 +772,17 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
 
                     {/* Implausibility Statement */}
                     {(selectedNode?.intentDetection?.conflicts?.[0]?.implausibilityStatement) && (
-                      <Box sx={{ 
-                        p: 1.5, 
+                      <Box sx={{
+                        p: 1.5,
                         borderRadius: 1,
                         bgcolor: 'rgba(168, 85, 247, 0.08)',
                         border: '1px solid',
-                        borderColor: 'rgba(168, 85, 247, 0.3)',
+                        borderColor: 'rgba(168, 85, 247, 0.2)',
                       }}>
-                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 0.5 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 0.5, textTransform: 'uppercase', fontWeight: 600 }}>
                           Issue Detected
                         </Typography>
-                        <Typography variant="body2" sx={{ fontSize: '0.75rem', lineHeight: 1.5 }}>
+                        <Typography variant="body2" sx={{ fontSize: '0.75rem', lineHeight: 1.5, color: 'rgba(255, 255, 255, 0.9)' }}>
                           {selectedNode.intentDetection.conflicts[0].implausibilityStatement}
                         </Typography>
                       </Box>
@@ -743,9 +790,14 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
 
                     {/* Severity Indicator */}
                     {conflictData.severity && (
-                      <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+                      <Box sx={{
+                        mt: 1.5,
+                        pt: 1.5,
+                        borderTop: '1px solid',
+                        borderColor: 'rgba(168, 85, 247, 0.15)'
+                      }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 600 }}>
                             Severity:
                           </Typography>
                           <Box sx={{
@@ -790,28 +842,39 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
               if (!discrepancy) return null;
 
               return (
-                <Box sx={{ mb: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1 }}>
-                    <InfoOutlinedIcon sx={{ fontSize: '1rem', color: '#ec4899' }} />
+                <Box sx={{
+                  borderTop: '1px solid',
+                  borderColor: 'rgba(236, 72, 153, 0.2)',
+                  bgcolor: 'rgba(236, 72, 153, 0.04)',
+                }}>
+                  {/* Section Header */}
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    px: 2,
+                    py: 1.25,
+                    bgcolor: 'rgba(236, 72, 153, 0.1)',
+                    borderBottom: '1px solid',
+                    borderColor: 'rgba(236, 72, 153, 0.2)',
+                  }}>
+                    <InfoOutlinedIcon sx={{ fontSize: '1.1rem', color: '#ec4899' }} />
                     <Typography variant="caption" sx={{
                       color: '#ec4899',
                       fontSize: '0.75rem',
                       textTransform: 'uppercase',
                       fontWeight: 700,
                       letterSpacing: '1px',
+                      flex: 1,
                     }}>
                       Answer Mismatch
                     </Typography>
                   </Box>
-                  <Box sx={{ 
-                    borderRadius: 1.5,
-                    bgcolor: 'rgba(236, 72, 153, 0.05)',
-                    border: '2px solid',
-                    borderColor: '#ec4899',
-                    p: 2,
-                  }}>
+                  
+                  {/* Content Area */}
+                  <Box sx={{ p: 2 }}>
                     <Box sx={{ mb: 1.5 }}>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 0.75 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 0.75, textTransform: 'uppercase', fontWeight: 600 }}>
                         User answered a different question
                       </Typography>
                       
@@ -823,7 +886,7 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
                           border: '1px solid',
                           borderColor: 'rgba(236, 72, 153, 0.2)',
                         }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 0.5 }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 0.5, textTransform: 'uppercase', fontWeight: 600 }}>
                             Asked For
                           </Typography>
                           <Typography variant="body2" sx={{ 
@@ -842,7 +905,7 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
                           border: '1px solid',
                           borderColor: 'rgba(34, 197, 94, 0.2)',
                         }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 0.5 }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 0.5, textTransform: 'uppercase', fontWeight: 600 }}>
                             Actually Got
                           </Typography>
                           <Typography variant="body2" sx={{ 
@@ -855,7 +918,7 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
                         </Box>
                       </Box>
                       
-                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.7rem', fontStyle: 'italic' }}>
+                      <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '0.7rem', fontStyle: 'italic' }}>
                         Agent will need to re-ask for {formatIntentLabel(discrepancy.askedFact)}
                       </Typography>
                     </Box>
@@ -868,8 +931,8 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
                       if (cantGatherFacts.length === 0) return null;
                       
                       return (
-                        <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'rgba(236, 72, 153, 0.2)' }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 1, fontWeight: 600 }}>
+                        <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'rgba(236, 72, 153, 0.15)' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem', display: 'block', mb: 1, fontWeight: 600, textTransform: 'uppercase' }}>
                             Facts That Can't Be Gathered
                           </Typography>
                           {cantGatherFacts.map((item: any, index: number) => (
@@ -919,6 +982,8 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
                 </Box>
               );
             })()}
+            </Box>{/* End Agent Analysis Suite */}
+
             {/* Progress Indicators - Status Grid */}
             {controllerOutput.progress && (
               <Box sx={{ mb: 3 }}>
@@ -1286,112 +1351,13 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
               </Box>
             )}
 
-            {/* User Intent & Signals */}
-            {userIntentDetection && (
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem', mb: 1.5 }}>
-                  User Intent & Signals
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 1.5 }}>
-                  {/* Primary Intent */}
-                  <Chip 
-                    label={formatIntentLabel(userIntentDetection.primaryIntent)}
-                    size="small"
-                    sx={{ bgcolor: 'primary.main', color: 'white', fontWeight: 600, fontSize: '0.7rem' }}
-                  />
-                  
-                  {/* Hesitation Signal */}
-                  {userIntentDetection.signals?.hesitation > 0 && (
-                    <Chip 
-                      label={`Hesitation: ${(userIntentDetection.signals.hesitation * 100).toFixed(0)}%`}
-                      size="small" 
-                      color="warning" 
-                      variant="outlined" 
-                      sx={{ fontSize: '0.7rem' }} 
-                    />
-                  )}
-                  
-                  {/* Confusion Signal */}
-                  {userIntentDetection.signals?.confusion > 0 && (
-                    <Chip 
-                      label={`Confusion: ${(userIntentDetection.signals.confusion * 100).toFixed(0)}%`}
-                      size="small" 
-                      color="warning" 
-                      variant="outlined" 
-                      sx={{ fontSize: '0.7rem' }} 
-                    />
-                  )}
-                  
-                  {/* Objections */}
-                  {userIntentDetection.signals?.objections && userIntentDetection.signals.objections.length > 0 && (
-                    <Chip 
-                      label={`${userIntentDetection.signals.objections.length} Objection${userIntentDetection.signals.objections.length > 1 ? 's' : ''}`}
-                      size="small" 
-                      color="error" 
-                      variant="outlined" 
-                      sx={{ fontSize: '0.7rem' }} 
-                    />
-                  )}
-                  
-                  {/* Engagement (from controller output if available) */}
-                  {controllerOutput?.signals?.engagement !== undefined && (
-                    <Chip 
-                      label={`Engagement: ${controllerOutput.signals.engagement}/10`}
-                      size="small"
-                      color={controllerOutput.signals.engagement > 7 ? 'success' : controllerOutput.signals.engagement >= 5 ? 'default' : 'warning'}
-                      sx={{ fontSize: '0.7rem', fontWeight: 600 }}
-                    />
-                  )}
-                </Box>
-                
-                {/* Show objection details if any */}
-                {userIntentDetection.signals?.objections && userIntentDetection.signals.objections.length > 0 && (
-                  <Box sx={{ mt: 1, p: 1, bgcolor: 'error.lighter', borderRadius: 1, border: '1px solid', borderColor: 'error.light' }}>
-                    <Typography variant="caption" sx={{ color: 'error.dark', fontWeight: 600, display: 'block', mb: 0.5, fontSize: '0.7rem' }}>
-                      Objections Detected:
-                    </Typography>
-                    {userIntentDetection.signals.objections.map((objection: string, idx: number) => (
-                      <Typography key={idx} variant="caption" sx={{ color: 'error.dark', display: 'block', fontSize: '0.72rem' }}>
-                        • {objection}
-                      </Typography>
-                    ))}
-                  </Box>
-                )}
-              </Box>
-            )}
-
-            <Divider sx={{ my: 3 }} />
           </>
         )}
 
         {/* Show simplified readiness when viewing agent diagnostics */}
         {hasMetadata ? (
           <Box>
-            <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 1.5, fontSize: '0.7rem' }}>
-              Conversation State
-            </Typography>
-            
-            {/* Quick summary */}
-            <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-              <Chip 
-                icon={<CheckCircleIcon />}
-                label={`${knownFacts.length} known`}
-                size="small" 
-                sx={{ bgcolor: 'rgba(34, 211, 238, 0.15)', color: 'secondary.main', fontWeight: 600 }}
-              />
-              <Chip 
-                icon={<HelpOutlineIcon />}
-                label={`${missingFacts.length} needed`}
-                size="small"
-                color="warning"
-              />
-              <Chip 
-                icon={<LockOpenIcon />}
-                label={`${readinessDelta.length} unlocks`}
-                size="small"
-                sx={{ bgcolor: 'rgba(100, 116, 139, 0.15)', fontWeight: 600 }}
-              />
-            </Box>
+            {/* Removed User Intent & Signals and Conversation State summary - redundant with Agent Analysis Suite */}
           </Box>
         ) : (
           <>
@@ -2207,25 +2173,103 @@ export const ReadinessPanel: React.FC<ReadinessPanelProps> = ({ isCollapsed = fa
                   </Box>
 
                   {/* Generic Attributes (if any) */}
-                  {selectedNode.metadata?.genericAttributes && selectedNode.metadata.genericAttributes.length > 0 && (
-                    <>
-                      <Divider sx={{ my: 2 }} />
-                      <Box sx={{ mb: 3 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem', mb: 1.5, color: 'text.secondary' }}>
-                          Generic Attributes
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                          {selectedNode.metadata.genericAttributes.map((attr: any, index: number) => (
-                            <Box key={index} sx={{ p: 1.5, bgcolor: 'background.default', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem', mb: 0.25 }}>
-                                {typeof attr === 'string' ? attr : JSON.stringify(attr)}
-                              </Typography>
-                            </Box>
-                          ))}
+                  {(() => {
+                    // Check multiple locations for generic attributes
+                    const parentUserNode = currentRun?.nodes?.find((n: any) => n.nodeId === selectedNode.parentNodeId);
+                    const genericAttributes = (selectedNode.metadata as any)?.updatedState?.genericAttributes || 
+                                            selectedNode.metadata?.genericAttributes ||
+                                            parentUserNode?.intentDetection?.genericAttributes ||
+                                            [];
+                    
+                    if (!genericAttributes || genericAttributes.length === 0) return null;
+                    
+                    return (
+                      <>
+                        <Divider sx={{ my: 2 }} />
+                        <Box sx={{ mb: 3 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                            <InfoOutlinedIcon fontSize="small" sx={{ color: 'info.main' }} />
+                            <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem' }}>
+                              Generic Attributes
+                            </Typography>
+                            <Chip 
+                              label={genericAttributes.length} 
+                              size="small" 
+                              sx={{ bgcolor: 'rgba(33, 150, 243, 0.15)', color: 'info.main', fontWeight: 600 }}
+                            />
+                          </Box>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            {genericAttributes.map((attr: any, index: number) => {
+                              const confidence = attr.confidence ? Math.round(attr.confidence * 100) : null;
+                              
+                              return (
+                                <Box 
+                                  key={index} 
+                                  sx={{ 
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr auto',
+                                    gap: 2,
+                                    alignItems: 'center',
+                                    p: 1.5,
+                                    bgcolor: 'rgba(33, 150, 243, 0.05)',
+                                    borderLeft: '3px solid',
+                                    borderLeftColor: 'info.main',
+                                    borderRadius: 0.5,
+                                  }}
+                                >
+                                  {/* Attribute Name & Value */}
+                                  <Box>
+                                    <Typography variant="caption" sx={{ 
+                                      color: 'text.secondary', 
+                                      fontSize: '0.65rem', 
+                                      textTransform: 'uppercase', 
+                                      fontWeight: 600, 
+                                      display: 'block', 
+                                      mb: 0.5 
+                                    }}>
+                                      {formatIntentLabel(attr.attributeName)}
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem', color: 'text.primary', mb: 0.5 }}>
+                                      {formatFactValue(attr.attributeValue)}
+                                    </Typography>
+                                    {attr.sourceMessage && (
+                                      <Typography variant="caption" sx={{ 
+                                        fontSize: '0.7rem', 
+                                        color: 'text.disabled', 
+                                        fontStyle: 'italic',
+                                        display: 'block',
+                                        mt: 0.5
+                                      }}>
+                                        From: "{attr.sourceMessage}"
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                  
+                                  {/* Confidence Badge */}
+                                  {confidence !== null && (
+                                    <Box sx={{ 
+                                      display: 'flex', 
+                                      alignItems: 'center', 
+                                      gap: 0.5,
+                                      px: 1,
+                                      py: 0.5,
+                                      bgcolor: confidence >= 90 ? 'rgba(34, 197, 94, 0.15)' : 'rgba(33, 150, 243, 0.15)',
+                                      color: confidence >= 90 ? 'success.main' : 'info.main',
+                                      borderRadius: 1,
+                                    }}>
+                                      <Typography variant="caption" sx={{ color: 'inherit', fontWeight: 700, fontSize: '0.7rem' }}>
+                                        {confidence}%
+                                      </Typography>
+                                    </Box>
+                                  )}
+                                </Box>
+                              );
+                            })}
+                          </Box>
                         </Box>
-                      </Box>
-                    </>
-                  )}
+                      </>
+                    );
+                  })()}
                 </>
               ) : (
                 /* Fallback to global state if no node selected */

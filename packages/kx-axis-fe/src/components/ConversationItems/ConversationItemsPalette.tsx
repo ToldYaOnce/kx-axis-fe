@@ -253,7 +253,17 @@ export const ConversationItemsPalette: React.FC = () => {
   
   // Get conversation items based on flow's industry
   const getItemsForFlow = React.useMemo(() => {
-    const jsonItems = getConversationItemsForIndustry(flow.industry);
+    // Fallback: Check localStorage if backend doesn't provide industry
+    const industry = flow.industry || localStorage.getItem(`flow_${flow.id}_industry`) || undefined;
+    
+    console.log('🎨 Palette Industry:', {
+      flowId: flow.id,
+      flowIndustry: flow.industry,
+      localStorageIndustry: localStorage.getItem(`flow_${flow.id}_industry`),
+      resolvedIndustry: industry,
+    });
+    
+    const jsonItems = getConversationItemsForIndustry(industry);
     
     // Map JSON items to component items with icons
     return jsonItems.map(item => {
@@ -326,7 +336,7 @@ export const ConversationItemsPalette: React.FC = () => {
         badge: item.badge,
       };
     });
-  }, [flow.industry]);
+  }, [flow.industry, flow.id]);
   
   // State for dynamic conversation items
   const [conversationItems, setConversationItems] = useState<ConversationItem[]>(getItemsForFlow);

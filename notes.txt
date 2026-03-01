@@ -24,3 +24,62 @@ for PATCH
         "confusion": 4,
         "objections": []
     },
+
+---
+
+## ReadinessPanel Design System Updates - AGENT ANALYSIS SUITE
+
+### Problem Solved:
+The "Agent Decision Analysis" chart and diagnostic sections (Conflict Detection, Answer Mismatch) 
+appeared completely unrelated - they looked like separate, independent modules rather than 
+interconnected parts of a unified agent diagnostic system.
+
+### Solution - Grouped Analysis Suite:
+Created an "Agent Analysis Suite" parent container that visually groups all agent diagnostic 
+sections together as a cohesive unit:
+
+1. **Unified Container:**
+   - Single outer box wrapping all three diagnostic sections
+   - Border: 2px solid rgba(34, 211, 238, 0.2) - teal theme
+   - Background: rgba(15, 23, 42, 0.4) - dark, cohesive backdrop
+   - Max-width: 600px, centered
+   - Border radius: 2.5 (larger for parent)
+   - Box shadow for depth and separation from other content
+
+2. **Suite Header:**
+   - "AGENT ANALYSIS SUITE" title with SmartToyIcon
+   - Dark background: rgba(15, 23, 42, 0.95)
+   - Border bottom: 2px solid rgba(34, 211, 238, 0.3)
+   - Larger padding (py: 1.5, px: 2.5) to establish hierarchy
+   - Larger text: 0.8rem vs 0.75rem for subsections
+
+3. **Subsections (Stacked Inside):**
+   - **Decision Analysis** (cyan accent)
+     - Label header with ShowChartIcon
+     - Background: rgba(34, 211, 238, 0.04-0.1)
+     - Contains HubLobesChart
+   
+   - **Conflict Detection** (purple accent) [if present]
+     - Separated by borderTop: 1px solid
+     - Background: rgba(168, 85, 247, 0.04-0.1)
+     - WarningIcon
+   
+   - **Answer Mismatch** (pink accent) [if present]
+     - Separated by borderTop: 1px solid
+     - Background: rgba(236, 72, 153, 0.04-0.1)
+     - InfoOutlinedIcon
+
+4. **Visual Flow:**
+   - No spacing between subsections (they stack tightly)
+   - Thin 1px dividers instead of heavy borders
+   - Shared outer border creates unity
+   - Color-coded headers + backgrounds for quick scanning
+   - All within same container = clearly related
+
+5. **Typography Consistency:**
+   - Suite title: 0.8rem, 700 weight, 1.2px letter-spacing
+   - Subsection titles: 0.75rem, 700 weight, 1px letter-spacing  
+   - Labels: 0.65rem, 600 weight, uppercase
+
+This creates a clear visual hierarchy: the suite is ONE diagnostic unit containing multiple 
+related analyses, not three separate cards floating independently.

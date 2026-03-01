@@ -35,6 +35,7 @@ import {
   IconButton,
   Snackbar,
   Alert,
+  Tooltip,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import CallSplitIcon from '@mui/icons-material/CallSplit';
@@ -151,7 +152,7 @@ interface TurnCardProps {
 }
 
 const TurnCard: React.FC<TurnCardProps> = ({ node, isSelected, isAlternateReplyAnchor, isInAlternateReplyMode, onClick, onSetAlternateReplyAnchor }) => {
-  const [showForkIcon, setShowForkIcon] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
 
   return (
     <Box sx={{ mb: 2 }}>
@@ -159,23 +160,81 @@ const TurnCard: React.FC<TurnCardProps> = ({ node, isSelected, isAlternateReplyA
       {/* User Message Bubble (left-aligned, blue) */}
       {node.userMessage && (
         <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2, alignItems: 'flex-start', overflow: 'visible', ml: 1.5 }}>
-          {/* User Avatar Badge */}
+          {/* Left Action Zone - Avatar + Fork Stacked */}
           <Box sx={{
-            flexShrink: 0,
-            width: 38,
-            height: 38,
-            borderRadius: '50%',
-            backgroundColor: 'rgba(59, 130, 246, 0.18)',
-            border: '2px solid rgba(59, 130, 246, 0.35)',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
+            gap: 0.75,
             mr: 1.5,
-            mt: 0,
-            boxShadow: '0 2px 6px rgba(59, 130, 246, 0.2)',
-            transition: 'all 0.2s ease',
+            flexShrink: 0,
           }}>
-            <PersonIcon sx={{ fontSize: '1.3rem', color: 'rgba(96, 165, 250, 1)' }} />
+            {/* User Avatar Badge */}
+            <Box sx={{
+              width: 38,
+              height: 38,
+              borderRadius: '50%',
+              backgroundColor: 'rgba(59, 130, 246, 0.18)',
+              border: '2px solid rgba(59, 130, 246, 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 6px rgba(59, 130, 246, 0.2)',
+              transition: 'all 0.2s ease',
+            }}>
+              <PersonIcon sx={{ fontSize: '1.3rem', color: 'rgba(96, 165, 250, 1)' }} />
+            </Box>
+
+            {/* Fork Button - Below Avatar */}
+            <Tooltip 
+              title="Fork conversation from here" 
+              placement="right"
+              arrow
+            >
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onSetAlternateReplyAnchor) {
+                    console.log('🔀 FORK ICON CLICKED:', {
+                      forkingFromNodeId: node.nodeId,
+                      forkingFromMessage: node.userMessage,
+                      parentNodeIdOfThisNode: node.parentNodeId,
+                    });
+                    onSetAlternateReplyAnchor();
+                  }
+                }}
+                sx={{
+                  p: 0.5,
+                  color: isAlternateReplyAnchor ? '#fbbf24' : (isHovering ? 'rgba(59, 130, 246, 1)' : 'rgba(59, 130, 246, 0.6)'),
+                  bgcolor: isAlternateReplyAnchor 
+                    ? 'rgba(251, 191, 36, 0.2)' 
+                    : 'rgba(15, 23, 42, 0.6)',
+                  width: 32,
+                  height: 32,
+                  borderRadius: '8px',
+                  border: '1.5px solid',
+                  borderColor: isAlternateReplyAnchor 
+                    ? 'rgba(251, 191, 36, 0.8)' 
+                    : (isHovering ? 'rgba(59, 130, 246, 0.5)' : 'rgba(59, 130, 246, 0.25)'),
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: isAlternateReplyAnchor 
+                    ? '0 0 12px rgba(251, 191, 36, 0.6)' 
+                    : 'none',
+                  '&:hover': {
+                    color: isAlternateReplyAnchor ? '#fbbf24' : 'rgba(59, 130, 246, 1)',
+                    borderColor: isAlternateReplyAnchor ? 'rgba(251, 191, 36, 1)' : 'rgba(59, 130, 246, 0.8)',
+                    bgcolor: isAlternateReplyAnchor ? 'rgba(251, 191, 36, 0.3)' : 'rgba(59, 130, 246, 0.15)',
+                    transform: 'scale(1.15)',
+                    boxShadow: isAlternateReplyAnchor 
+                      ? '0 0 16px rgba(251, 191, 36, 0.8)' 
+                      : '0 0 8px rgba(59, 130, 246, 0.5)',
+                  },
+                }}
+              >
+                <CallSplitIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
           </Box>
           
           {isAlternateReplyAnchor && (
@@ -194,8 +253,8 @@ const TurnCard: React.FC<TurnCardProps> = ({ node, isSelected, isAlternateReplyA
           )}
           <Paper
             onClick={onClick}
-            onMouseEnter={() => setShowForkIcon(true)}
-            onMouseLeave={() => setShowForkIcon(false)}
+            onMouseEnter={() => setIsHovering(true)}
+            onMouseLeave={() => setIsHovering(false)}
             elevation={0}
             sx={{
               maxWidth: '68%',
@@ -268,7 +327,6 @@ const TurnCard: React.FC<TurnCardProps> = ({ node, isSelected, isAlternateReplyA
             <Typography 
               variant="body1" 
               sx={{ 
-                flex: 1, 
                 whiteSpace: 'pre-wrap',
                 fontSize: '0.95rem',
                 lineHeight: 1.6,
@@ -278,45 +336,6 @@ const TurnCard: React.FC<TurnCardProps> = ({ node, isSelected, isAlternateReplyA
             >
               {node.userMessage}
             </Typography>
-            
-            {/* Fork icon (only on hover) */}
-            {(showForkIcon || isAlternateReplyAnchor) && (
-              <IconButton
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onSetAlternateReplyAnchor) {
-                    console.log('🔀 FORK ICON CLICKED:', {
-                      forkingFromNodeId: node.nodeId,
-                      forkingFromMessage: node.userMessage,
-                      parentNodeIdOfThisNode: node.parentNodeId,
-                      message: 'When we submit alternate reply, it should use parentNodeId: ' + node.parentNodeId
-                    });
-                    onSetAlternateReplyAnchor();
-                  }
-                }}
-                sx={{
-                  flexShrink: 0,
-                  p: 0.6,
-                  color: isAlternateReplyAnchor ? 'warning.light' : 'rgba(255,255,255,0.55)',
-                  border: '1.5px solid',
-                  borderColor: isAlternateReplyAnchor ? 'warning.light' : 'rgba(255,255,255,0.28)',
-                  borderRadius: '50%',
-                  width: 30,
-                  height: 30,
-                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                  '&:hover': {
-                    color: isAlternateReplyAnchor ? 'warning.light' : 'rgba(255,255,255,0.9)',
-                    borderColor: isAlternateReplyAnchor ? 'warning.light' : 'rgba(255,255,255,0.55)',
-                    bgcolor: isAlternateReplyAnchor ? 'rgba(167,139,250,0.18)' : 'rgba(255,255,255,0.12)',
-                    transform: 'scale(1.1)',
-                  },
-                }}
-                title="Try a different reply from here"
-              >
-                <CallSplitIcon sx={{ fontSize: 15 }} />
-              </IconButton>
-            )}
           </Paper>
         </Box>
       )}

@@ -31,7 +31,6 @@ import PersonIcon from '@mui/icons-material/Person';
 import PersonOffIcon from '@mui/icons-material/PersonOff';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import DeleteIcon from '@mui/icons-material/Delete';
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import AddIcon from '@mui/icons-material/Add';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 // Trait icons
@@ -229,6 +228,24 @@ const AllSimulationsContent: React.FC = () => {
     loadData();
   }, []);
 
+  // Format relative dates
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
   // Filter and sort simulations
   const filteredSimulations = simulations
     .filter(sim => {
@@ -346,60 +363,144 @@ const AllSimulationsContent: React.FC = () => {
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Header */}
-      <Box sx={{ p: 3, pb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-            Simulations
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            {filteredSimulations.length} simulation{filteredSimulations.length !== 1 ? 's' : ''} found
-          </Typography>
+      {/* Header with integrated controls */}
+      <Box sx={{
+        px: 4,
+        pt: 4,
+        pb: 3,
+        borderBottom: '1px solid',
+        borderColor: 'rgba(255, 255, 255, 0.06)',
+      }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, letterSpacing: '-0.02em' }}>
+              Simulations
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.6)' }}>
+              {filteredSimulations.length} {filteredSimulations.length === 1 ? 'result' : 'results'} 
+              {simulations.length !== filteredSimulations.length && ` of ${simulations.length} total`}
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleNewSimulation}
+            sx={{
+              background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.8) 0%, rgba(34, 211, 238, 1) 100%)',
+              color: '#000',
+              fontWeight: 700,
+              px: 3,
+              py: 1.25,
+              borderRadius: 2,
+              textTransform: 'none',
+              boxShadow: '0 4px 16px rgba(34, 211, 238, 0.3)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, rgba(34, 211, 238, 1) 0%, rgba(56, 189, 248, 1) 100%)',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 6px 20px rgba(34, 211, 238, 0.4)',
+              },
+              transition: 'all 0.2s ease',
+            }}
+          >
+            New Simulation
+          </Button>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleNewSimulation}
-          sx={{ height: 'fit-content' }}
-        >
-          New Simulation
-        </Button>
-      </Box>
-        
-      {/* Filters */}
-      <Box sx={{ px: 3, pb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-        <FormControl size="small" sx={{ minWidth: 200 }}>
-          <InputLabel>Flow</InputLabel>
-          <Select value={flowFilter} onChange={(e) => setFlowFilter(e.target.value)}>
-            <MenuItem key="all" value="all">All Flows</MenuItem>
-            {flows.map(flow => (
-              <MenuItem key={flow.id} value={flow.id}>{flow.name}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        
-        <FormControl size="small" sx={{ minWidth: 150 }}>
-          <InputLabel>Sort By</InputLabel>
-          <Select value={sortBy} onChange={(e) => setSortBy(e.target.value as 'recent' | 'flow')}>
-            <MenuItem key="recent" value="recent">Most Recent</MenuItem>
-            <MenuItem key="flow" value="flow">Flow Name</MenuItem>
-          </Select>
-        </FormControl>
-        
-        <TextField
-          size="small"
-          placeholder="Search..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          sx={{ minWidth: 300 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
+
+        {/* Integrated Filter Bar */}
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          <ToggleButtonGroup
+            value={sortBy}
+            exclusive
+            onChange={(_e, newValue) => newValue && setSortBy(newValue)}
+            size="small"
+            sx={{
+              bgcolor: 'rgba(15, 23, 42, 0.6)',
+              borderRadius: 1.5,
+              '& .MuiToggleButton-root': {
+                color: 'rgba(255, 255, 255, 0.6)',
+                border: 'none',
+                px: 2,
+                py: 0.75,
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                '&.Mui-selected': {
+                  bgcolor: 'rgba(34, 211, 238, 0.2)',
+                  color: 'secondary.main',
+                  '&:hover': {
+                    bgcolor: 'rgba(34, 211, 238, 0.3)',
+                  }
+                },
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.05)',
+                }
+              }
+            }}
+          >
+            <ToggleButton value="recent">Most Recent</ToggleButton>
+            <ToggleButton value="flow">By Flow</ToggleButton>
+          </ToggleButtonGroup>
+
+          <FormControl 
+            size="small" 
+            sx={{ 
+              minWidth: 180,
+              '& .MuiOutlinedInput-root': {
+                bgcolor: 'rgba(15, 23, 42, 0.6)',
+                borderRadius: 1.5,
+                '& fieldset': {
+                  borderColor: 'rgba(100, 116, 139, 0.2)',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'rgba(34, 211, 238, 0.3)',
+                },
+              }
+            }}
+          >
+            <InputLabel>Filter by Flow</InputLabel>
+            <Select 
+              value={flowFilter} 
+              onChange={(e) => setFlowFilter(e.target.value)}
+              label="Filter by Flow"
+            >
+              <MenuItem value="all">All Flows</MenuItem>
+              {flows.map(flow => (
+                <MenuItem key={flow.id} value={flow.id}>{flow.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <TextField
+            size="small"
+            placeholder="Search simulations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            sx={{
+              flex: 1,
+              minWidth: 250,
+              '& .MuiOutlinedInput-root': {
+                bgcolor: 'rgba(15, 23, 42, 0.6)',
+                borderRadius: 1.5,
+                '& fieldset': {
+                  borderColor: 'rgba(100, 116, 139, 0.2)',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'rgba(34, 211, 238, 0.3)',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: 'rgba(34, 211, 238, 0.5)',
+                }
+              }
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: 'rgba(255, 255, 255, 0.4)' }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Box>
       </Box>
         
       {/* Simulations Grid */}
@@ -411,112 +512,193 @@ const AllSimulationsContent: React.FC = () => {
               : 'No simulations match your filters.'}
           </Alert>
         ) : (
-          <Grid container spacing={2}>
-            {filteredSimulations.map(sim => (
-              <Grid item xs={12} sm={6} md={4} key={sim.simulationId}>
-                <Card 
-                  sx={{ 
-                    height: '100%', 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    cursor: 'pointer',
-                    position: 'relative',
-                    transition: 'all 0.2s',
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: 6,
-                      borderColor: 'primary.main',
-                    },
-                  }}
-                  onClick={() => handleOpenSimulation(sim.simulationId)}
-                >
-                  <CardContent sx={{ flex: 1, pb: 1 }}>
-                    {/* Flow Name - Clean Header */}
-                    <Box sx={{ mb: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <AccountTreeIcon sx={{ fontSize: '1.25rem', color: 'primary.main' }} />
-                        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem' }}>
-                          {sim.flowName || 'Unknown Flow'}
-                        </Typography>
-                      </Box>
-                    </Box>
-                    
-                    {/* Persona */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                      <PersonIcon sx={{ fontSize: '1rem', color: 'text.secondary' }} />
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        {sim.persona?.name || 'No persona'}
-                      </Typography>
-                    </Box>
-                    
-                    {/* Stats Row */}
-                    <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <ChatBubbleOutlineIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
-                        <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                          {sim.turnsCount || sim.nodeCount || 0} turns
-                        </Typography>
-                      </Box>
-                    </Box>
-                    
-                    {/* Metadata Chips */}
-                    <Box sx={{ display: 'flex', gap: 0.5, mb: 2, flexWrap: 'wrap' }}>
-                      <Chip 
-                        label={sim.channel} 
-                        size="small" 
-                        sx={{ 
-                          bgcolor: 'rgba(34, 211, 238, 0.1)',
-                          color: 'primary.main',
-                          fontWeight: 500,
-                        }}
-                      />
-                      <Chip 
-                        label={sim.leadState} 
-                        size="small" 
-                        sx={{
-                          bgcolor: sim.leadState === 'ANONYMOUS' 
-                            ? 'rgba(156, 163, 175, 0.2)' 
-                            : 'rgba(16, 185, 129, 0.2)',
-                          color: sim.leadState === 'ANONYMOUS' 
-                            ? 'text.secondary' 
-                            : 'success.main',
-                          fontWeight: 500,
-                        }}
-                      />
-                    </Box>
-                    
-                    {/* Last Updated */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <AccessTimeIcon sx={{ fontSize: '0.75rem', color: 'text.disabled' }} />
-                      <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                        {new Date(sim.updatedAt).toLocaleString()}
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                  
-                  {/* Delete Button - Top Right */}
-                  <IconButton
-                    size="small"
-                    onClick={(e) => handleDeleteSimulation(e, sim.simulationId, sim.flowName || 'Unknown Flow')}
-                    sx={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      bgcolor: 'background.paper',
-                      boxShadow: 1,
+          <Grid container spacing={2.5}>
+            {filteredSimulations.map(sim => {
+              const persona = personas.find(p => p.personaId === sim.personaId);
+
+              return (
+                <Grid item xs={12} sm={6} md={4} key={sim.simulationId}>
+                  <Card 
+                    sx={{ 
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      transition: 'all 0.2s ease',
+                      border: '1px solid',
+                      borderColor: 'rgba(100, 116, 139, 0.2)',
+                      borderRadius: 2,
+                      overflow: 'hidden',
+                      bgcolor: 'rgba(15, 23, 42, 0.4)',
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: '3px',
+                        background: persona 
+                          ? 'linear-gradient(90deg, rgba(34, 211, 238, 0.8) 0%, rgba(167, 139, 250, 0.8) 100%)'
+                          : 'linear-gradient(90deg, rgba(100, 116, 139, 0.4) 0%, rgba(100, 116, 139, 0.2) 100%)',
+                      },
                       '&:hover': {
-                        bgcolor: 'error.main',
-                        color: 'error.contrastText',
+                        transform: 'translateY(-4px)',
+                        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+                        borderColor: 'rgba(34, 211, 238, 0.4)',
+                        bgcolor: 'rgba(15, 23, 42, 0.6)',
                       },
                     }}
+                    onClick={() => handleOpenSimulation(sim.simulationId)}
                   >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Card>
-              </Grid>
-            ))}
+                    <CardContent sx={{ flex: 1, p: 2.5, pb: 2 }}>
+                      {/* Flow Name */}
+                      <Typography 
+                        variant="h6" 
+                        sx={{ 
+                          fontWeight: 600, 
+                          fontSize: '1.05rem',
+                          mb: 2,
+                          color: 'text.primary',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          pr: 4,
+                        }}
+                      >
+                        <AccountTreeIcon sx={{ fontSize: '1.1rem', color: 'secondary.main' }} />
+                        {sim.flowName || 'Unknown Flow'}
+                      </Typography>
+
+                      {/* Persona Section */}
+                      {persona ? (
+                        <Box sx={{
+                          mb: 2,
+                          p: 1.5,
+                          bgcolor: 'rgba(167, 139, 250, 0.1)',
+                          borderRadius: 1.5,
+                          border: '1px solid',
+                          borderColor: 'rgba(167, 139, 250, 0.2)',
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
+                            <SmartToyIcon sx={{ fontSize: '1rem', color: 'rgba(167, 139, 250, 0.9)' }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                              {persona.name}
+                            </Typography>
+                          </Box>
+                          <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.75rem' }}>
+                            {persona.role}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Box sx={{
+                          mb: 2,
+                          p: 1.5,
+                          bgcolor: 'rgba(100, 116, 139, 0.08)',
+                          borderRadius: 1.5,
+                          border: '1px dashed',
+                          borderColor: 'rgba(100, 116, 139, 0.2)',
+                        }}>
+                          <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.75rem', fontStyle: 'italic' }}>
+                            Generic user simulation
+                          </Typography>
+                        </Box>
+                      )}
+
+                      {/* Metrics Row */}
+                      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                        <Box sx={{ 
+                          flex: 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          p: 1.25,
+                          bgcolor: 'rgba(34, 211, 238, 0.08)',
+                          borderRadius: 1.5,
+                          border: '1px solid',
+                          borderColor: 'rgba(34, 211, 238, 0.15)',
+                        }}>
+                          <Typography variant="h6" sx={{ fontWeight: 700, color: 'secondary.main', lineHeight: 1 }}>
+                            {sim.turnsCount || sim.nodeCount || 0}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.7rem', mt: 0.5 }}>
+                            turns
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      {/* Metadata Chips */}
+                      <Box sx={{ display: 'flex', gap: 0.75, mb: 2, flexWrap: 'wrap' }}>
+                        <Chip 
+                          icon={sim.leadState === 'ANONYMOUS' ? <PersonOffIcon /> : <PersonIcon />}
+                          label={sim.leadState === 'ANONYMOUS' ? 'Anonymous' : 'Known'}
+                          size="small" 
+                          sx={{ 
+                            bgcolor: sim.leadState === 'ANONYMOUS' 
+                              ? 'rgba(100, 116, 139, 0.15)' 
+                              : 'rgba(34, 197, 94, 0.15)',
+                            color: sim.leadState === 'ANONYMOUS' 
+                              ? 'rgba(203, 213, 225, 0.9)' 
+                              : 'rgba(74, 222, 128, 1)',
+                            fontWeight: 600,
+                            fontSize: '0.7rem',
+                            height: 24,
+                            border: '1px solid',
+                            borderColor: sim.leadState === 'ANONYMOUS'
+                              ? 'rgba(100, 116, 139, 0.25)'
+                              : 'rgba(34, 197, 94, 0.25)',
+                            '& .MuiChip-icon': {
+                              fontSize: '0.9rem',
+                            }
+                          }}
+                        />
+                      </Box>
+
+                      {/* Timestamp */}
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 0.75,
+                        pt: 1.5,
+                        borderTop: '1px solid',
+                        borderColor: 'rgba(100, 116, 139, 0.1)',
+                      }}>
+                        <AccessTimeIcon sx={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.4)' }} />
+                        <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.75rem' }}>
+                          {formatRelativeTime(sim.updatedAt)}
+                        </Typography>
+                      </Box>
+                    </CardContent>
+
+                    {/* Delete Button - Floating */}
+                    <IconButton
+                      size="small"
+                      onClick={(e) => handleDeleteSimulation(e, sim.simulationId, sim.flowName || 'Unknown Flow')}
+                      sx={{
+                        position: 'absolute',
+                        top: 12,
+                        right: 12,
+                        width: 32,
+                        height: 32,
+                        bgcolor: 'rgba(15, 23, 42, 0.9)',
+                        border: '1px solid',
+                        borderColor: 'rgba(239, 68, 68, 0.3)',
+                        color: 'rgba(248, 113, 113, 0.8)',
+                        '&:hover': {
+                          bgcolor: 'rgba(239, 68, 68, 0.2)',
+                          borderColor: 'rgba(239, 68, 68, 0.6)',
+                          color: 'rgba(248, 113, 113, 1)',
+                          transform: 'scale(1.1)',
+                        },
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <DeleteIcon sx={{ fontSize: '1.1rem' }} />
+                    </IconButton>
+                  </Card>
+                </Grid>
+              );
+            })}
           </Grid>
         )}
       </Box>

@@ -172,10 +172,21 @@ class FlowAPIClient {
    * POST /agent/flows - Create a new flow
    */
   async createFlow(request: CreateFlowRequest): Promise<CreateFlowResponse> {
+    const headers = this.getHeaders();
+    const body = JSON.stringify(request);
+    
+    console.log('🌐 POST /agent/flows', {
+      url: `${this.baseURL}/agent/flows`,
+      headers,
+      requestObject: request,
+      bodyString: body,
+      bodyLength: body.length,
+    });
+    
     const response = await fetch(`${this.baseURL}/agent/flows`, {
       method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(request),
+      headers,
+      body,
     });
 
     if (!response.ok) {

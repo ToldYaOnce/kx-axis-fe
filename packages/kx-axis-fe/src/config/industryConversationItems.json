@@ -14,6 +14,10 @@
     "Legal Services",
     "Consulting",
     "Non-profit",
+    "Life Insurance",
+    "Auto Insurance",
+    "Home Insurance",
+    "Health Insurance",
     "Other"
   ],
   "generalItems": [
@@ -494,6 +498,182 @@
         "title": "Membership",
         "description": "Sign up for membership",
         "icon": "card"
+      }
+    ],
+    "Life Insurance": [
+      {
+        "id": "coverage-needs-assessment",
+        "type": "BASELINE_CAPTURE",
+        "title": "Coverage Needs Assessment",
+        "description": "Evaluate coverage gaps and needs",
+        "icon": "shield"
+      },
+      {
+        "id": "health-history",
+        "type": "BASELINE_CAPTURE",
+        "title": "Health History",
+        "description": "Capture health information for underwriting",
+        "icon": "health"
+      },
+      {
+        "id": "beneficiary-setup",
+        "type": "BASELINE_CAPTURE",
+        "title": "Beneficiary Setup",
+        "description": "Designate policy beneficiaries",
+        "icon": "people"
+      },
+      {
+        "id": "coverage-amount-calculator",
+        "type": "GOAL_GAP_TRACKER",
+        "title": "Coverage Amount Calculator",
+        "description": "Income replacement & debt coverage needs",
+        "icon": "calculator"
+      },
+      {
+        "id": "policy-type-selection",
+        "type": "EXPLANATION",
+        "title": "Policy Type Explanation",
+        "description": "Term vs Whole Life vs Universal",
+        "icon": "info"
+      },
+      {
+        "id": "medical-exam-scheduling",
+        "type": "ACTION_BOOKING",
+        "title": "Medical Exam Scheduling",
+        "description": "Schedule required medical examination",
+        "icon": "calendar"
+      }
+    ],
+    "Auto Insurance": [
+      {
+        "id": "vehicle-information",
+        "type": "BASELINE_CAPTURE",
+        "title": "Vehicle Information",
+        "description": "Year, make, model, VIN details",
+        "icon": "document"
+      },
+      {
+        "id": "driver-history",
+        "type": "BASELINE_CAPTURE",
+        "title": "Driver History",
+        "description": "Accidents, tickets, years licensed",
+        "icon": "clipboard"
+      },
+      {
+        "id": "coverage-level-selection",
+        "type": "BASELINE_CAPTURE",
+        "title": "Coverage Level Selection",
+        "description": "Liability, collision, comprehensive options",
+        "icon": "shield"
+      },
+      {
+        "id": "usage-patterns",
+        "type": "BASELINE_CAPTURE",
+        "title": "Usage Patterns",
+        "description": "Commute distance and annual mileage",
+        "icon": "map"
+      },
+      {
+        "id": "multi-vehicle-discount",
+        "type": "BASELINE_CAPTURE",
+        "title": "Multi-Vehicle Assessment",
+        "description": "Additional vehicles for bundling",
+        "icon": "checklist"
+      },
+      {
+        "id": "quote-comparison",
+        "type": "EXPLANATION",
+        "title": "Quote Comparison",
+        "description": "Compare coverage options and pricing",
+        "icon": "chart"
+      }
+    ],
+    "Home Insurance": [
+      {
+        "id": "property-details",
+        "type": "BASELINE_CAPTURE",
+        "title": "Property Details",
+        "description": "Sq ft, age, construction, roof condition",
+        "icon": "home"
+      },
+      {
+        "id": "home-value-assessment",
+        "type": "BASELINE_CAPTURE",
+        "title": "Home Value Assessment",
+        "description": "Replacement cost estimation",
+        "icon": "calculator"
+      },
+      {
+        "id": "safety-features",
+        "type": "BASELINE_CAPTURE",
+        "title": "Safety Features",
+        "description": "Alarm, fire suppression, flood zone",
+        "icon": "warning"
+      },
+      {
+        "id": "claims-history-home",
+        "type": "BASELINE_CAPTURE",
+        "title": "Claims History",
+        "description": "Past claims in last 5 years",
+        "icon": "clipboard"
+      },
+      {
+        "id": "dwelling-coverage",
+        "type": "BASELINE_CAPTURE",
+        "title": "Dwelling Coverage Needs",
+        "description": "Structure, contents, liability amounts",
+        "icon": "shield"
+      },
+      {
+        "id": "home-inspection",
+        "type": "ACTION_BOOKING",
+        "title": "Home Inspection",
+        "description": "Schedule property inspection",
+        "icon": "calendar"
+      }
+    ],
+    "Health Insurance": [
+      {
+        "id": "plan-type-selection",
+        "type": "BASELINE_CAPTURE",
+        "title": "Plan Type Selection",
+        "description": "HMO, PPO, HSA-eligible options",
+        "icon": "checklist"
+      },
+      {
+        "id": "provider-network-check",
+        "type": "BASELINE_CAPTURE",
+        "title": "Provider Network Check",
+        "description": "Verify preferred doctors in network",
+        "icon": "people"
+      },
+      {
+        "id": "prescription-coverage",
+        "type": "BASELINE_CAPTURE",
+        "title": "Prescription Coverage",
+        "description": "Medication needs and formulary check",
+        "icon": "health"
+      },
+      {
+        "id": "dependent-coverage",
+        "type": "BASELINE_CAPTURE",
+        "title": "Dependent Coverage",
+        "description": "Add spouse, children, or family",
+        "icon": "people"
+      },
+      {
+        "id": "subsidy-eligibility",
+        "type": "BASELINE_CAPTURE",
+        "title": "Subsidy Eligibility",
+        "description": "Income verification for subsidies",
+        "icon": "money"
+      },
+      {
+        "id": "enrollment-period",
+        "type": "EXPLANATION",
+        "title": "Enrollment Period Info",
+        "description": "Open enrollment and special events",
+        "icon": "info"
       }
     ],
     "Other": []
